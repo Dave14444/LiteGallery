@@ -39,8 +39,8 @@ object SmbClient {
     // Cache: "host|user|share" -> DiskShare
     private val shares = ConcurrentHashMap<String, DiskShare>()
 
-    private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
-    private val videoExtensions = setOf("mp4", "avi", "mov", "mkv", "3gp", "webm", "m4v", "flv")
+    private val imageExtensions = RemoteFileTypes.IMAGE_EXTENSIONS
+    private val videoExtensions = RemoteFileTypes.VIDEO_EXTENSIONS
 
     data class SmbFileInfo(
         val name: String,
