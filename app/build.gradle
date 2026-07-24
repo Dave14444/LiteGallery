@@ -42,13 +42,13 @@ android {
             dimension "connectivity"
             versionNameSuffix "-core"
         }
-        // Adds SMB network shares (INTERNET permission + smbj live only here).
+        // Adds SMB + NFS network shares (INTERNET permission, smbj, and nfs-client live only here).
         // NOTE: must use create("plus") rather than `plus { }` because "plus"
         // collides with Groovy's Collection.plus operator on the container.
         create("plus") {
             dimension "connectivity"
             versionNameSuffix "-plus"
-            proguardFiles 'proguard-smb.pro'
+            proguardFiles 'proguard-network.pro'
         }
     }
 

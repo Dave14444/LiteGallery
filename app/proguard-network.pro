@@ -1,4 +1,4 @@
-# SMB keep rules — applied only to the `plus` flavor (see app/build.gradle).
+# Network-share keep rules — applied only to the 'plus' flavor (see app/build.gradle).
 
 # smbj - SMB client library
 -keep class com.hierynomus.** { *; }
@@ -12,3 +12,7 @@
 
 # SLF4J
 -dontwarn org.slf4j.**
+
+# EMC nfs-client (pure-Java NFSv3)
+-keep class com.emc.ecs.nfsclient.** { *; }
+-dontwarn com.emc.ecs.nfsclient.**
