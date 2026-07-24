@@ -65,15 +65,17 @@ object RemoteClients {
 
     fun forUrl(url: String): RemoteFileClient? = when {
         SmbPath.isSmb(url) -> SmbFileClient
+        NfsPath.isNfs(url) -> NfsFileClient
         else -> null
     }
 
     fun forProtocol(protocol: String): RemoteFileClient? = when (protocol) {
         NetworkServerConfig.PROTOCOL_SMB -> SmbFileClient
+        NetworkServerConfig.PROTOCOL_NFS -> NfsFileClient
         else -> null
     }
 
-    fun all(): List<RemoteFileClient> = listOf(SmbFileClient)
+    fun all(): List<RemoteFileClient> = listOf(SmbFileClient, NfsFileClient)
 }
 
 /** Path helpers shared by every remote protocol. */

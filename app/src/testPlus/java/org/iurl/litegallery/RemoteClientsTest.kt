@@ -15,14 +15,20 @@ class RemoteClientsTest {
     }
 
     @Test
+    fun forUrl_routesNfsUrlsToNfsFileClient() {
+        assertSame(NfsFileClient, RemoteClients.forUrl("nfs://host/volume1/photo/file.jpg"))
+    }
+
+    @Test
     fun forUrl_returnsNullForLocalAndUnknownSchemes() {
         assertNull(RemoteClients.forUrl("/storage/emulated/0/DCIM/a.jpg"))
         assertNull(RemoteClients.forUrl("content://media/external/images/media/1"))
     }
 
     @Test
-    fun forProtocol_routesSmbProtocol() {
+    fun forProtocol_routesBothProtocols() {
         assertSame(SmbFileClient, RemoteClients.forProtocol(NetworkServerConfig.PROTOCOL_SMB))
+        assertSame(NfsFileClient, RemoteClients.forProtocol(NetworkServerConfig.PROTOCOL_NFS))
         assertNull(RemoteClients.forProtocol("gopher"))
     }
 
