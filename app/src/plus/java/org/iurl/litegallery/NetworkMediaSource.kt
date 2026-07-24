@@ -31,7 +31,7 @@ object NetworkMediaSource : MediaSource {
     }
 
     override fun browseIntent(context: Context): Intent =
-        Intent(context, SmbBrowseActivity::class.java)
+        Intent(context, NetworkBrowseActivity::class.java)
 
     override val folderIconRes: Int = R.drawable.ic_network
 

@@ -23,22 +23,22 @@ import com.bumptech.glide.Glide
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.iurl.litegallery.databinding.ActivitySmbBrowseBinding
+import org.iurl.litegallery.databinding.ActivityNetworkBrowseBinding
 import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 
 /**
- * Activity for browsing SMB shared folders and files.
- * Provides an address bar for manual entry and a file list for navigation.
+ * Activity for browsing network shares (SMB and NFS). Provides an address bar for manual
+ * entry, saved-server bookmarks, and a file list for navigation.
  */
-class SmbBrowseActivity : AppCompatActivity() {
+class NetworkBrowseActivity : AppCompatActivity() {
 
     companion object {
-        const val EXTRA_SMB_PATH = "extra_smb_path"
+        const val EXTRA_START_PATH = "extra_start_path"
     }
 
-    private lateinit var binding: ActivitySmbBrowseBinding
-    private lateinit var browseAdapter: SmbBrowseAdapter
+    private lateinit var binding: ActivityNetworkBrowseBinding
+    private lateinit var browseAdapter: NetworkBrowseAdapter
     private lateinit var remoteMediaScanner: RemoteMediaScanner
     private var currentPath: String = ""
     private var isLoading = false
@@ -50,7 +50,7 @@ class SmbBrowseActivity : AppCompatActivity() {
 
         super.onCreate(savedInstanceState)
         ThemeHelper.captureCustomThemeGeneration(this)
-        binding = ActivitySmbBrowseBinding.inflate(layoutInflater)
+        binding = ActivityNetworkBrowseBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         // Handle window insets
@@ -75,7 +75,7 @@ class SmbBrowseActivity : AppCompatActivity() {
         ThemeHelper.applyRuntimeCustomColors(this)
 
         // Handle intent
-        val intentPath = intent.getStringExtra(EXTRA_SMB_PATH)
+        val intentPath = intent.getStringExtra(EXTRA_START_PATH)
         if (!intentPath.isNullOrBlank()) {
             binding.addressEditText.setText(intentPath)
             navigateTo(intentPath)
@@ -316,7 +316,7 @@ class SmbBrowseActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        browseAdapter = SmbBrowseAdapter(
+        browseAdapter = NetworkBrowseAdapter(
             onItemClick = { item ->
                 if (item.isDirectory) {
                     navigateTo(item.url)
@@ -328,7 +328,7 @@ class SmbBrowseActivity : AppCompatActivity() {
         )
 
         binding.recyclerView.apply {
-            layoutManager = LinearLayoutManager(this@SmbBrowseActivity)
+            layoutManager = LinearLayoutManager(this@NetworkBrowseActivity)
             adapter = browseAdapter
         }
     }
@@ -363,7 +363,8 @@ class SmbBrowseActivity : AppCompatActivity() {
     private fun setupSavedServersList(servers: List<NetworkServerConfig>) {
         binding.savedServersList.removeAllViews()
         for (server in servers) {
-            val itemView = LayoutInflater.from(this).inflate(R.layout.item_smb_server, binding.savedServersList, false)
+            val itemView = LayoutInflater.from(this)
+                .inflate(R.layout.item_network_server, binding.savedServersList, false)
             val nameText = itemView.findViewById<TextView>(R.id.serverNameText)
             val hostText = itemView.findViewById<TextView>(R.id.serverHostText)
             val editButton = itemView.findViewById<ImageButton>(R.id.editServerButton)
@@ -446,9 +447,9 @@ class SmbBrowseActivity : AppCompatActivity() {
                     binding.emptyView.visibility = View.GONE
                 }
             } catch (e: Exception) {
-                android.util.Log.e("SmbBrowseActivity", "Failed to navigate to $smbAddress", e)
+                android.util.Log.e("NetworkBrowseActivity", "Failed to navigate to $smbAddress", e)
                 Toast.makeText(
-                    this@SmbBrowseActivity,
+                    this@NetworkBrowseActivity,
                     getString(R.string.smb_connection_failed, e.message ?: "Unknown error"),
                     Toast.LENGTH_LONG
                 ).show()
@@ -529,19 +530,19 @@ class SmbBrowseActivity : AppCompatActivity() {
                             SmbClient.testConnection(config)
                         }
                         if (success) {
-                            NetworkConfigStore.addServer(this@SmbBrowseActivity, config)
+                            NetworkConfigStore.addServer(this@NetworkBrowseActivity, config)
                             refreshSavedServers()
                             onSuccess()
                         } else {
                             Toast.makeText(
-                                this@SmbBrowseActivity,
+                                this@NetworkBrowseActivity,
                                 R.string.smb_connection_test_failed,
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
                     } catch (e: Exception) {
                         Toast.makeText(
-                            this@SmbBrowseActivity,
+                            this@NetworkBrowseActivity,
                             getString(R.string.smb_connection_failed, e.message ?: "Unknown"),
                             Toast.LENGTH_SHORT
                         ).show()
@@ -624,15 +625,23 @@ class SmbBrowseActivity : AppCompatActivity() {
                             SmbClient.testConnection(config)
                         }
                         if (success) {
-                            NetworkConfigStore.updateServer(this@SmbBrowseActivity, config)
+                            NetworkConfigStore.updateServer(this@NetworkBrowseActivity, config)
                             refreshSavedServers()
-                            Toast.makeText(this@SmbBrowseActivity, R.string.smb_server_saved, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this@NetworkBrowseActivity,
+                                R.string.smb_server_saved,
+                                Toast.LENGTH_SHORT
+                            ).show()
                         } else {
-                            Toast.makeText(this@SmbBrowseActivity, R.string.smb_connection_test_failed, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this@NetworkBrowseActivity,
+                                R.string.smb_connection_test_failed,
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     } catch (e: Exception) {
                         Toast.makeText(
-                            this@SmbBrowseActivity,
+                            this@NetworkBrowseActivity,
                             getString(R.string.smb_connection_failed, e.message ?: "Unknown"),
                             Toast.LENGTH_SHORT
                         ).show()
@@ -701,15 +710,23 @@ class SmbBrowseActivity : AppCompatActivity() {
                             SmbClient.testConnection(config)
                         }
                         if (success) {
-                            NetworkConfigStore.addServer(this@SmbBrowseActivity, config)
+                            NetworkConfigStore.addServer(this@NetworkBrowseActivity, config)
                             refreshSavedServers()
-                            Toast.makeText(this@SmbBrowseActivity, R.string.smb_server_saved, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this@NetworkBrowseActivity,
+                                R.string.smb_server_saved,
+                                Toast.LENGTH_SHORT
+                            ).show()
                         } else {
-                            Toast.makeText(this@SmbBrowseActivity, R.string.smb_connection_test_failed, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this@NetworkBrowseActivity,
+                                R.string.smb_connection_test_failed,
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     } catch (e: Exception) {
                         Toast.makeText(
-                            this@SmbBrowseActivity,
+                            this@NetworkBrowseActivity,
                             getString(R.string.smb_connection_failed, e.message ?: "Unknown"),
                             Toast.LENGTH_SHORT
                         ).show()
@@ -726,21 +743,21 @@ class SmbBrowseActivity : AppCompatActivity() {
 /**
  * RecyclerView adapter for SMB browse file listing.
  */
-class SmbBrowseAdapter(
+class NetworkBrowseAdapter(
     private val onItemClick: (RemoteFileInfo) -> Unit
-) : ListAdapter<RemoteFileInfo, SmbBrowseAdapter.SmbFileViewHolder>(SmbFileDiffCallback()) {
+) : ListAdapter<RemoteFileInfo, NetworkBrowseAdapter.RemoteFileViewHolder>(RemoteFileDiffCallback()) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SmbFileViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RemoteFileViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_smb_browse, parent, false)
-        return SmbFileViewHolder(view)
+            .inflate(R.layout.item_network_browse, parent, false)
+        return RemoteFileViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: SmbFileViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: RemoteFileViewHolder, position: Int) {
         holder.bind(getItem(position))
     }
 
-    inner class SmbFileViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    inner class RemoteFileViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val iconView: android.widget.ImageView = itemView.findViewById(R.id.fileIcon)
         private val nameText: TextView = itemView.findViewById(R.id.fileNameText)
         private val sizeText: TextView = itemView.findViewById(R.id.fileSizeText)
@@ -804,7 +821,7 @@ class SmbBrowseAdapter(
         }
     }
 
-    private class SmbFileDiffCallback : DiffUtil.ItemCallback<RemoteFileInfo>() {
+    private class RemoteFileDiffCallback : DiffUtil.ItemCallback<RemoteFileInfo>() {
         override fun areItemsTheSame(oldItem: RemoteFileInfo, newItem: RemoteFileInfo): Boolean =
             oldItem.url == newItem.url && oldItem.isDirectory == newItem.isDirectory
 

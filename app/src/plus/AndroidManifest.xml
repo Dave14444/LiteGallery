@@ -8,7 +8,7 @@
 
     <application>
         <activity
-            android:name=".SmbBrowseActivity"
+            android:name=".NetworkBrowseActivity"
             android:exported="false"
             android:label="@string/smb_browse_title"
             android:parentActivityName=".MainActivity"
