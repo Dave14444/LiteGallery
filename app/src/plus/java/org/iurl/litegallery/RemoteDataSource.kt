@@ -8,12 +8,13 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 
 /**
- * Custom ExoPlayer DataSource that reads from SMB shares via smbj.
- * Uses smbFile.read directly for proper random-access and seeking.
+ * Custom ExoPlayer DataSource that reads from remote shares (SMB, NFS) via the
+ * RemoteFileClient seam. Uses RemoteRandomAccessFile.readAt directly for proper
+ * random access and seeking.
  */
-class SmbDataSource(private val context: Context) : BaseDataSource(/* isNetwork= */ true) {
+class RemoteDataSource(private val context: Context) : BaseDataSource(/* isNetwork= */ true) {
 
-    private var smbFile: com.hierynomus.smbj.share.File? = null
+    private var remoteFile: RemoteRandomAccessFile? = null
     private var bytesRemaining: Long = 0
     private var opened = false
     private var currentUri: Uri? = null
@@ -28,20 +29,14 @@ class SmbDataSource(private val context: Context) : BaseDataSource(/* isNetwork=
         transferInitializing(dataSpec)
 
         val uri = dataSpec.uri
-        val smbUrl = uri.toString()
-        val smbPath = SmbPath.parse(smbUrl)
-            ?: throw SmbClient.SmbException("Invalid SMB URI: $smbUrl")
+        val url = uri.toString()
 
         try {
-            // Open file directly, skipping the redundant getFileSize call
-            val file = SmbClient.openFile(
-                context,
-                smbPath.host,
-                smbPath.share,
-                smbPath.path
-            )
-            val fileSize = file.fileInformation.standardInformation.endOfFile
-            smbFile = file
+            val client = RemoteClients.forUrl(url)
+                ?: throw java.io.IOException("No remote client for URL: $url")
+            val file = client.openRandomAccess(context, url)
+            val fileSize = file.size
+            remoteFile = file
             currentFileOffset = dataSpec.position
 
             // Calculate bytes remaining robustly. If fileSize is invalid or smaller than position,
@@ -75,7 +70,7 @@ class SmbDataSource(private val context: Context) : BaseDataSource(/* isNetwork=
             return bytesRemaining
 
         } catch (e: Exception) {
-            throw java.io.IOException("Failed to open SMB file: ${e.message}", e)
+            throw java.io.IOException("Failed to open remote file: ${e.message}", e)
         }
     }
 
@@ -83,7 +78,7 @@ class SmbDataSource(private val context: Context) : BaseDataSource(/* isNetwork=
         if (length == 0) return 0
         if (bytesRemaining == 0L) return C.RESULT_END_OF_INPUT
 
-        val file = smbFile ?: return C.RESULT_END_OF_INPUT
+        val file = remoteFile ?: return C.RESULT_END_OF_INPUT
 
         try {
             // 1. Try to serve from read-ahead buffer
@@ -125,7 +120,7 @@ class SmbDataSource(private val context: Context) : BaseDataSource(/* isNetwork=
             // Limit to readBuffer size (2MB) just in case
             bytesToReadFromNetwork = minOf(bytesToReadFromNetwork, readBuffer.size)
             
-            val bytesRead = file.read(readBuffer, currentFileOffset, 0, bytesToReadFromNetwork)
+            val bytesRead = file.readAt(currentFileOffset, readBuffer, 0, bytesToReadFromNetwork)
 
             if (bytesRead < 0) {
                 if (bytesRemaining != C.LENGTH_UNSET.toLong() && bytesRemaining > 0) {
@@ -163,9 +158,9 @@ class SmbDataSource(private val context: Context) : BaseDataSource(/* isNetwork=
             if (e is java.io.InterruptedIOException || e is InterruptedException || e.cause is InterruptedException) {
                 // Clear interrupted status and throw InterruptedIOException for better ExoPlayer handling
                 Thread.interrupted()
-                throw java.io.InterruptedIOException("SMB read interrupted")
+                throw java.io.InterruptedIOException("Remote read interrupted")
             }
-            throw java.io.IOException("Failed to read SMB file: ${e.message}", e)
+            throw java.io.IOException("Failed to read remote file: ${e.message}", e)
         }
     }
 
@@ -174,11 +169,11 @@ class SmbDataSource(private val context: Context) : BaseDataSource(/* isNetwork=
     override fun close() {
         val wasOpened = opened
         try {
-            smbFile?.close()
+            remoteFile?.close()
         } catch (e: Exception) {
-            android.util.Log.w("SmbDataSource", "Error closing SMB file", e)
+            android.util.Log.w("RemoteDataSource", "Error closing remote file", e)
         } finally {
-            smbFile = null
+            remoteFile = null
             // We intentionally do NOT set currentUri = null here so the next open() can detect seeks
             opened = false
             bytesRemaining = 0
@@ -191,10 +186,10 @@ class SmbDataSource(private val context: Context) : BaseDataSource(/* isNetwork=
 }
 
 /**
- * Factory for creating SmbDataSource instances.
+ * Factory for creating RemoteDataSource instances.
  */
-class SmbDataSourceFactory(private val context: Context) : DataSource.Factory {
+class RemoteDataSourceFactory(private val context: Context) : DataSource.Factory {
     override fun createDataSource(): DataSource {
-        return SmbDataSource(context)
+        return RemoteDataSource(context)
     }
 }

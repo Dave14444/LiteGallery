@@ -45,7 +45,7 @@ object SmbMediaSource : MediaSource {
         context: Context,
         path: String
     ): androidx.media3.exoplayer.source.MediaSource {
-        val dataSourceFactory = SmbDataSourceFactory(context)
+        val dataSourceFactory = RemoteDataSourceFactory(context)
         return ProgressiveMediaSource.Factory(dataSourceFactory)
             .createMediaSource(
                 androidx.media3.common.MediaItem.fromUri(android.net.Uri.parse(path))
