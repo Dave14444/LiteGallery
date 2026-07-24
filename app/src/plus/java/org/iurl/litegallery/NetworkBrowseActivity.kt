@@ -489,8 +489,210 @@ class NetworkBrowseActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    private fun showConnectDialog(host: String, share: String, path: String = "", defaultName: String = host, onSuccess: () -> Unit) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_smb_connect, null)
+    /** Wire the SMB/NFS radio switch and the export-listing button of the connect dialog. */
+    private fun bindProtocolSwitch(dialogView: View) {
+        val smbRadio = dialogView.findViewById<android.widget.RadioButton>(R.id.protocolSmbRadio)
+        val nfsRadio = dialogView.findViewById<android.widget.RadioButton>(R.id.protocolNfsRadio)
+        val smbGroup = dialogView.findViewById<View>(R.id.smbFieldsGroup)
+        val nfsGroup = dialogView.findViewById<View>(R.id.nfsFieldsGroup)
+        val advancedCheck =
+            dialogView.findViewById<android.widget.CheckBox>(R.id.nfsAdvancedCheckBox)
+        val advancedGroup = dialogView.findViewById<View>(R.id.nfsAdvancedGroup)
+        val hostEdit = dialogView.findViewById<EditText>(R.id.hostEditText)
+        val exportEdit =
+            dialogView.findViewById<android.widget.AutoCompleteTextView>(R.id.exportEditText)
+        val listExportsButton =
+            dialogView.findViewById<android.widget.Button>(R.id.listExportsButton)
+
+        val applyProtocol = {
+            val nfs = nfsRadio.isChecked
+            smbGroup.visibility = if (nfs) View.GONE else View.VISIBLE
+            nfsGroup.visibility = if (nfs) View.VISIBLE else View.GONE
+        }
+        smbRadio.setOnCheckedChangeListener { _, _ -> applyProtocol() }
+        nfsRadio.setOnCheckedChangeListener { _, _ -> applyProtocol() }
+        applyProtocol()
+
+        advancedCheck.setOnCheckedChangeListener { _, isChecked ->
+            advancedGroup.visibility = if (isChecked) View.VISIBLE else View.GONE
+        }
+
+        listExportsButton.setOnClickListener {
+            val host = hostEdit.text.toString().trim().substringBefore('/')
+            if (host.isBlank()) {
+                Toast.makeText(this, R.string.smb_enter_host, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            listExportsButton.isEnabled = false
+            lifecycleScope.launch {
+                try {
+                    val exports =
+                        withContext(Dispatchers.IO) { NfsExportLister.listExports(host) }
+                    if (exports.isEmpty()) {
+                        Toast.makeText(
+                            this@NetworkBrowseActivity,
+                            R.string.nfs_no_exports_found,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        exportEdit.setAdapter(
+                            android.widget.ArrayAdapter(
+                                this@NetworkBrowseActivity,
+                                android.R.layout.simple_dropdown_item_1line,
+                                exports
+                            )
+                        )
+                        exportEdit.showDropDown()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e(
+                        "NetworkBrowseActivity",
+                        "Export listing failed for $host",
+                        e
+                    )
+                    Toast.makeText(
+                        this@NetworkBrowseActivity,
+                        getString(R.string.smb_connection_failed, e.message ?: "Unknown"),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } finally {
+                    listExportsButton.isEnabled = true
+                }
+            }
+        }
+    }
+
+    /**
+     * Read a NetworkServerConfig from the dialog fields, or null (after showing a
+     * toast) when required fields are missing. [existingId] is empty for new servers.
+     */
+    private fun readConfigFromDialog(
+        dialogView: View,
+        existingId: String
+    ): NetworkServerConfig? {
+        val nfsSelected =
+            dialogView.findViewById<android.widget.RadioButton>(R.id.protocolNfsRadio).isChecked
+        val hostInput =
+            dialogView.findViewById<EditText>(R.id.hostEditText).text.toString().trim()
+        val displayName =
+            dialogView.findViewById<EditText>(R.id.displayNameEditText).text.toString().trim()
+
+        if (hostInput.isBlank()) {
+            Toast.makeText(this, R.string.smb_enter_host, Toast.LENGTH_SHORT).show()
+            return null
+        }
+
+        if (nfsSelected) {
+            val export =
+                dialogView.findViewById<android.widget.AutoCompleteTextView>(R.id.exportEditText)
+                    .text.toString().trim().trimEnd('/')
+            if (export.isBlank() || !export.startsWith("/")) {
+                Toast.makeText(this, R.string.nfs_enter_export, Toast.LENGTH_SHORT).show()
+                return null
+            }
+            val host = hostInput.removePrefix("nfs://").substringBefore('/')
+            return NetworkServerConfig(
+                id = existingId,
+                displayName = displayName.ifBlank { host },
+                host = host,
+                protocol = NetworkServerConfig.PROTOCOL_NFS,
+                export = export,
+                uid = dialogView.findViewById<EditText>(R.id.uidEditText)
+                    .text.toString().toIntOrNull() ?: 0,
+                gid = dialogView.findViewById<EditText>(R.id.gidEditText)
+                    .text.toString().toIntOrNull() ?: 0
+            )
+        }
+
+        var parsedHost = hostInput
+        var parsedShare = ""
+        var parsedPath = ""
+        val smbPath =
+            SmbPath.parse(if (hostInput.startsWith("smb://")) hostInput else "smb://$hostInput")
+        if (smbPath != null) {
+            parsedHost = smbPath.host
+            parsedShare = smbPath.share
+            parsedPath = smbPath.path
+        } else {
+            val normalized =
+                if (hostInput.startsWith("smb://")) hostInput else "smb://$hostInput"
+            parsedHost = normalized.removePrefix("smb://").substringBefore("/")
+        }
+        return NetworkServerConfig(
+            id = existingId,
+            displayName = displayName.ifBlank { parsedHost },
+            host = parsedHost,
+            protocol = NetworkServerConfig.PROTOCOL_SMB,
+            share = parsedShare,
+            path = parsedPath,
+            username = dialogView.findViewById<EditText>(R.id.usernameEditText)
+                .text.toString().trim(),
+            password = dialogView.findViewById<EditText>(R.id.passwordEditText)
+                .text.toString(),
+            isGuest =
+                dialogView.findViewById<android.widget.CheckBox>(R.id.guestCheckBox).isChecked
+        )
+    }
+
+    /** Save-with-test shared by add and edit. Runs testConnection for the config's protocol. */
+    private fun testAndSaveServer(
+        config: NetworkServerConfig,
+        isNew: Boolean,
+        onSuccess: () -> Unit
+    ) {
+        val client = RemoteClients.forProtocol(config.protocol)
+        if (client == null) {
+            Toast.makeText(this, R.string.smb_connection_test_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        lifecycleScope.launch {
+            binding.progressBar.visibility = View.VISIBLE
+            try {
+                val success = withContext(Dispatchers.IO) { client.testConnection(config) }
+                if (success) {
+                    if (isNew) {
+                        NetworkConfigStore.addServer(this@NetworkBrowseActivity, config)
+                    } else {
+                        NetworkConfigStore.updateServer(this@NetworkBrowseActivity, config)
+                    }
+                    refreshSavedServers()
+                    Toast.makeText(
+                        this@NetworkBrowseActivity,
+                        R.string.smb_server_saved,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    onSuccess()
+                } else {
+                    val hint = if (config.isNfs) {
+                        R.string.nfs_error_mount_denied
+                    } else {
+                        R.string.smb_connection_test_failed
+                    }
+                    Toast.makeText(this@NetworkBrowseActivity, hint, Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@NetworkBrowseActivity,
+                    getString(R.string.smb_connection_failed, e.message ?: "Unknown"),
+                    Toast.LENGTH_SHORT
+                ).show()
+            } finally {
+                binding.progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    /** SMB credential prompt used when navigating to an unknown SMB host from the address bar. */
+    private fun showConnectDialog(
+        host: String,
+        share: String,
+        path: String = "",
+        defaultName: String = host,
+        onSuccess: () -> Unit
+    ) {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_network_connect, null)
+        // This prompt is SMB-only: hide the protocol switch and keep SMB fields.
+        dialogView.findViewById<View>(R.id.protocolGroup).visibility = View.GONE
         val usernameEdit = dialogView.findViewById<EditText>(R.id.usernameEditText)
         val passwordEdit = dialogView.findViewById<EditText>(R.id.passwordEditText)
         val displayNameEdit = dialogView.findViewById<EditText>(R.id.displayNameEditText)
@@ -521,219 +723,98 @@ class NetworkBrowseActivity : AppCompatActivity() {
                     password = passwordEdit.text.toString(),
                     isGuest = guestCheckBox.isChecked
                 )
-
-                // Save and connect
-                lifecycleScope.launch {
-                    binding.progressBar.visibility = View.VISIBLE
-                    try {
-                        val success = withContext(Dispatchers.IO) {
-                            SmbClient.testConnection(config)
-                        }
-                        if (success) {
-                            NetworkConfigStore.addServer(this@NetworkBrowseActivity, config)
-                            refreshSavedServers()
-                            onSuccess()
-                        } else {
-                            Toast.makeText(
-                                this@NetworkBrowseActivity,
-                                R.string.smb_connection_test_failed,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            this@NetworkBrowseActivity,
-                            getString(R.string.smb_connection_failed, e.message ?: "Unknown"),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } finally {
-                        binding.progressBar.visibility = View.GONE
-                    }
-                }
+                testAndSaveServer(config, isNew = true, onSuccess = onSuccess)
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
     private fun showEditServerDialog(server: NetworkServerConfig) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_smb_connect, null)
-        val usernameEdit = dialogView.findViewById<EditText>(R.id.usernameEditText)
-        val passwordEdit = dialogView.findViewById<EditText>(R.id.passwordEditText)
-        val displayNameEdit = dialogView.findViewById<EditText>(R.id.displayNameEditText)
-        val guestCheckBox = dialogView.findViewById<android.widget.CheckBox>(R.id.guestCheckBox)
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_network_connect, null)
         val hostEdit = dialogView.findViewById<EditText>(R.id.hostEditText)
+        val displayNameEdit = dialogView.findViewById<EditText>(R.id.displayNameEditText)
         hostEdit.visibility = View.VISIBLE
+        bindProtocolSwitch(dialogView)
 
-        val fullAddress = if (server.share.isNotBlank()) {
-            val p = if (server.path.isNotBlank()) "/${server.path}" else ""
-            "${server.host}/${server.share}$p"
-        } else server.host
-        hostEdit.setText(fullAddress)
+        val smbRadio = dialogView.findViewById<android.widget.RadioButton>(R.id.protocolSmbRadio)
+        val nfsRadio = dialogView.findViewById<android.widget.RadioButton>(R.id.protocolNfsRadio)
+        // The protocol of a saved server is fixed; hide the switch when editing.
+        dialogView.findViewById<View>(R.id.protocolGroup).visibility = View.GONE
+        if (server.isNfs) nfsRadio.isChecked = true else smbRadio.isChecked = true
+
         displayNameEdit.setText(server.displayName)
-        usernameEdit.setText(server.username)
-        passwordEdit.setText(server.password)
-        guestCheckBox.isChecked = server.isGuest
-
-        // Initial state
-        usernameEdit.isEnabled = !server.isGuest
-        passwordEdit.isEnabled = !server.isGuest
-
-        guestCheckBox.setOnCheckedChangeListener { _, isChecked ->
-            usernameEdit.isEnabled = !isChecked
-            passwordEdit.isEnabled = !isChecked
+        if (server.isNfs) {
+            hostEdit.setText(server.host)
+            dialogView.findViewById<android.widget.AutoCompleteTextView>(R.id.exportEditText)
+                .setText(server.export)
+            dialogView.findViewById<EditText>(R.id.uidEditText).setText(server.uid.toString())
+            dialogView.findViewById<EditText>(R.id.gidEditText).setText(server.gid.toString())
+            if (server.uid != 0 || server.gid != 0) {
+                dialogView.findViewById<android.widget.CheckBox>(R.id.nfsAdvancedCheckBox)
+                    .isChecked = true
+            }
+        } else {
+            val fullAddress = if (server.share.isNotBlank()) {
+                val p = if (server.path.isNotBlank()) "/${server.path}" else ""
+                "${server.host}/${server.share}$p"
+            } else {
+                server.host
+            }
+            hostEdit.setText(fullAddress)
+            val usernameEdit = dialogView.findViewById<EditText>(R.id.usernameEditText)
+            val passwordEdit = dialogView.findViewById<EditText>(R.id.passwordEditText)
+            val guestCheckBox =
+                dialogView.findViewById<android.widget.CheckBox>(R.id.guestCheckBox)
+            usernameEdit.setText(server.username)
+            passwordEdit.setText(server.password)
+            guestCheckBox.isChecked = server.isGuest
+            usernameEdit.isEnabled = !server.isGuest
+            passwordEdit.isEnabled = !server.isGuest
+            guestCheckBox.setOnCheckedChangeListener { _, isChecked ->
+                usernameEdit.isEnabled = !isChecked
+                passwordEdit.isEnabled = !isChecked
+            }
         }
 
         AlertDialog.Builder(this)
             .setTitle(R.string.smb_edit_server)
             .setView(dialogView)
             .setPositiveButton(R.string.smb_save) { _, _ ->
-                val hostInput = hostEdit.text.toString().trim()
-                if (hostInput.isBlank()) {
-                    Toast.makeText(this, R.string.smb_enter_host, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-
-                var parsedHost = hostInput
-                var parsedShare = ""
-                var parsedPath = ""
-                
-                val smbPath = SmbPath.parse(if (hostInput.startsWith("smb://")) hostInput else "smb://$hostInput")
-                if (smbPath != null) {
-                    parsedHost = smbPath.host
-                    parsedShare = smbPath.share
-                    parsedPath = smbPath.path
-                } else {
-                    val normalized = if (hostInput.startsWith("smb://")) hostInput else "smb://$hostInput"
-                    parsedHost = normalized.removePrefix("smb://").substringBefore("/")
-                }
-
-                val config = NetworkServerConfig(
-                    id = server.id,
-                    displayName = displayNameEdit.text.toString().trim().ifBlank { parsedHost },
-                    host = parsedHost,
-                    share = parsedShare,
-                    path = parsedPath,
-                    username = usernameEdit.text.toString().trim(),
-                    password = passwordEdit.text.toString(),
-                    isGuest = guestCheckBox.isChecked
-                )
-
-                lifecycleScope.launch {
-                    binding.progressBar.visibility = View.VISIBLE
-                    try {
-                        val success = withContext(Dispatchers.IO) {
-                            SmbClient.testConnection(config)
-                        }
-                        if (success) {
-                            NetworkConfigStore.updateServer(this@NetworkBrowseActivity, config)
-                            refreshSavedServers()
-                            Toast.makeText(
-                                this@NetworkBrowseActivity,
-                                R.string.smb_server_saved,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            Toast.makeText(
-                                this@NetworkBrowseActivity,
-                                R.string.smb_connection_test_failed,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            this@NetworkBrowseActivity,
-                            getString(R.string.smb_connection_failed, e.message ?: "Unknown"),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } finally {
-                        binding.progressBar.visibility = View.GONE
-                    }
-                }
+                val config = readConfigFromDialog(dialogView, existingId = server.id)
+                    ?: return@setPositiveButton
+                testAndSaveServer(config, isNew = false) {}
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
-    private fun showAddServerDialog() {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_smb_connect, null)
-        val usernameEdit = dialogView.findViewById<EditText>(R.id.usernameEditText)
-        val passwordEdit = dialogView.findViewById<EditText>(R.id.passwordEditText)
-        val displayNameEdit = dialogView.findViewById<EditText>(R.id.displayNameEditText)
-        val guestCheckBox = dialogView.findViewById<android.widget.CheckBox>(R.id.guestCheckBox)
+    private fun showAddServerDialog(prefillNfsHost: String? = null) {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_network_connect, null)
         val hostEdit = dialogView.findViewById<EditText>(R.id.hostEditText)
         hostEdit.visibility = View.VISIBLE
+        bindProtocolSwitch(dialogView)
 
+        val guestCheckBox = dialogView.findViewById<android.widget.CheckBox>(R.id.guestCheckBox)
+        val usernameEdit = dialogView.findViewById<EditText>(R.id.usernameEditText)
+        val passwordEdit = dialogView.findViewById<EditText>(R.id.passwordEditText)
         guestCheckBox.setOnCheckedChangeListener { _, isChecked ->
             usernameEdit.isEnabled = !isChecked
             passwordEdit.isEnabled = !isChecked
+        }
+
+        if (prefillNfsHost != null) {
+            dialogView.findViewById<android.widget.RadioButton>(R.id.protocolNfsRadio)
+                .isChecked = true
+            hostEdit.setText(prefillNfsHost)
         }
 
         AlertDialog.Builder(this)
             .setTitle(R.string.smb_add_server)
             .setView(dialogView)
             .setPositiveButton(R.string.smb_save) { _, _ ->
-                val hostInput = hostEdit.text.toString().trim()
-                if (hostInput.isBlank()) {
-                    Toast.makeText(this, R.string.smb_enter_host, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-
-                var parsedHost = hostInput
-                var parsedShare = ""
-                var parsedPath = ""
-                
-                val smbPath = SmbPath.parse(if (hostInput.startsWith("smb://")) hostInput else "smb://$hostInput")
-                if (smbPath != null) {
-                    parsedHost = smbPath.host
-                    parsedShare = smbPath.share
-                    parsedPath = smbPath.path
-                } else {
-                    val normalized = if (hostInput.startsWith("smb://")) hostInput else "smb://$hostInput"
-                    parsedHost = normalized.removePrefix("smb://").substringBefore("/")
-                }
-
-                val config = NetworkServerConfig(
-                    id = "",
-                    displayName = displayNameEdit.text.toString().trim().ifBlank { parsedHost },
-                    host = parsedHost,
-                    share = parsedShare,
-                    path = parsedPath,
-                    username = usernameEdit.text.toString().trim(),
-                    password = passwordEdit.text.toString(),
-                    isGuest = guestCheckBox.isChecked
-                )
-
-                lifecycleScope.launch {
-                    binding.progressBar.visibility = View.VISIBLE
-                    try {
-                        val success = withContext(Dispatchers.IO) {
-                            SmbClient.testConnection(config)
-                        }
-                        if (success) {
-                            NetworkConfigStore.addServer(this@NetworkBrowseActivity, config)
-                            refreshSavedServers()
-                            Toast.makeText(
-                                this@NetworkBrowseActivity,
-                                R.string.smb_server_saved,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            Toast.makeText(
-                                this@NetworkBrowseActivity,
-                                R.string.smb_connection_test_failed,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            this@NetworkBrowseActivity,
-                            getString(R.string.smb_connection_failed, e.message ?: "Unknown"),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } finally {
-                        binding.progressBar.visibility = View.GONE
-                    }
-                }
+                val config = readConfigFromDialog(dialogView, existingId = "")
+                    ?: return@setPositiveButton
+                testAndSaveServer(config, isNew = true) {}
             }
             .setNegativeButton(R.string.cancel, null)
             .show()

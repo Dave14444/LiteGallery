@@ -28,4 +28,18 @@
     <string name="smb_guest_login">Connect as Guest</string>
     <string name="smb_username_hint">Username</string>
     <string name="smb_password_hint">Password</string>
+
+    <!-- Network protocol selection and NFS fields (plus flavor only) -->
+    <string name="protocol_smb">SMB</string>
+    <string name="protocol_nfs">NFS</string>
+    <string name="nfs_export_hint">Export path (e.g. /volume1/photo)</string>
+    <string name="nfs_list_exports">List exports</string>
+    <string name="nfs_no_exports_found">No exports found — enter the path manually</string>
+    <string name="nfs_show_advanced">Advanced (UID/GID)</string>
+    <string name="nfs_uid_hint">UID</string>
+    <string name="nfs_gid_hint">GID</string>
+    <string name="nfs_enter_export">Please choose or enter an export path</string>
+    <string name="nfs_error_unreachable">NFS service unreachable. Check that NFS is enabled on the server and the firewall allows ports 111 and 2049.</string>
+    <string name="nfs_error_mount_denied">Mount denied. Check the export\'s IP allowlist and permissions, and allow connections from non-privileged ports in the NAS NFS settings.</string>
+    <string name="nfs_error_access">Read permission denied. Adjust the advanced UID/GID values or the export\'s squash setting.</string>
 </resources>
