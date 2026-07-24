@@ -10,7 +10,7 @@
         <activity
             android:name=".NetworkBrowseActivity"
             android:exported="false"
-            android:label="@string/smb_browse_title"
+            android:label="@string/network_browse_title"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
     </application>

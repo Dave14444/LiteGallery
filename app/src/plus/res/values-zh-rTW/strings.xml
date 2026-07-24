@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- SMB Settings (plus flavor only) -->
-    <string name="smb_browse_title">網路（SMB）</string>
-    <string name="smb_address_hint">smb://192.168.1.100/share</string>
+    <string name="network_browse_title">網路分享</string>
+    <string name="network_address_hint">smb:// 或 nfs:// 位址</string>
     <string name="smb_connect_button">前往</string>
     <string name="smb_saved_servers">已儲存的伺服器</string>
     <string name="smb_add_server">新增伺服器</string>

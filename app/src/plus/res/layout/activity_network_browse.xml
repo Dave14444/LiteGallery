@@ -44,7 +44,7 @@
             android:layout_width="0dp"
             android:layout_height="44dp"
             android:layout_weight="1"
-            android:hint="@string/smb_address_hint"
+            android:hint="@string/network_address_hint"
             android:inputType="textUri"
             android:singleLine="true"
             android:imeOptions="actionGo"

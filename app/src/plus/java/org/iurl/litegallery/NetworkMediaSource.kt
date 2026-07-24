@@ -21,7 +21,7 @@ object NetworkMediaSource : MediaSource {
     override fun homeEntry(context: Context): MediaFolder {
         val serverCount = NetworkConfigStore.getAllServers(context).size
         return MediaFolder(
-            name = context.getString(R.string.smb_browse_title),
+            name = context.getString(R.string.network_browse_title),
             // Sentinel path routed back to this source via handles(); kept as "smb://"
             // for compatibility with folder entries persisted by earlier versions.
             path = "smb://",

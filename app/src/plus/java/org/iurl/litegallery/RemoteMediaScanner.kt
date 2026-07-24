@@ -75,23 +75,16 @@ class RemoteMediaScanner(private val context: Context) {
 
     /**
      * List directories and media files in a remote folder (for browsing).
+     * Listing failures propagate so the browse UI can show the cause.
      */
     suspend fun listDirectory(folderUrl: String): List<RemoteFileInfo> =
         withContext(Dispatchers.IO) {
-            val client = RemoteClients.forUrl(folderUrl) ?: return@withContext emptyList()
-            try {
-                client.listFiles(context, folderUrl)
-                    .sortedWith(
-                        compareByDescending<RemoteFileInfo> { it.isDirectory }
-                            .thenBy { it.name.lowercase() }
-                    )
-            } catch (e: Exception) {
-                android.util.Log.e(
-                    "RemoteMediaScanner",
-                    "Failed to list directory: $folderUrl",
-                    e
+            val client = RemoteClients.forUrl(folderUrl)
+                ?: throw java.io.IOException("Unsupported address: $folderUrl")
+            client.listFiles(context, folderUrl)
+                .sortedWith(
+                    compareByDescending<RemoteFileInfo> { it.isDirectory }
+                        .thenBy { it.name.lowercase() }
                 )
-                emptyList()
-            }
         }
 }

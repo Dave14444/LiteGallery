@@ -121,7 +121,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
             setDisplayShowHomeEnabled(true)
-            title = getString(R.string.smb_browse_title)
+            title = getString(R.string.network_browse_title)
         }
         
         binding.homeButton.setOnClickListener {
@@ -136,7 +136,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
         binding.recyclerView.visibility = View.GONE
         binding.emptyView.visibility = View.GONE
         binding.addressEditText.setText("")
-        supportActionBar?.title = getString(R.string.smb_browse_title)
+        supportActionBar?.title = getString(R.string.network_browse_title)
     }
 
     private fun setupSwipeRefresh() {
@@ -162,22 +162,43 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Normalize address
-            val smbAddress = if (address.startsWith("smb://")) {
-                address
-            } else if (address.startsWith("\\\\") || address.startsWith("//")) {
-                "smb://${address.removePrefix("\\\\").removePrefix("//").replace('\\', '/')}"
-            } else {
-                "smb://$address"
-            }
-            
-            if (binding.addressEditText.text.toString() != smbAddress) {
-                binding.addressEditText.setText(smbAddress)
-                binding.addressEditText.setSelection(smbAddress.length)
+            val normalized = when {
+                address.startsWith("smb://") || address.startsWith("nfs://") -> address
+                address.startsWith("\\\\") || address.startsWith("//") ->
+                    "smb://${address.removePrefix("\\\\").removePrefix("//").replace('\\', '/')}"
+                else -> "smb://$address"
             }
 
-            // Check if we need credentials
-            val smbPath = SmbPath.parse(smbAddress)
+            if (binding.addressEditText.text.toString() != normalized) {
+                binding.addressEditText.setText(normalized)
+                binding.addressEditText.setSelection(normalized.length)
+            }
+
+            if (NfsPath.isNfs(normalized)) {
+                val nfsPath = NfsPath.parse(normalized)
+                if (nfsPath == null) {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.smb_invalid_address),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@setOnClickListener
+                }
+                val hasConfig = NetworkConfigStore.getAllServers(this).any {
+                    it.isNfs && it.host.equals(nfsPath.host, ignoreCase = true) &&
+                        NfsPath.matchExport(listOf(it.export), nfsPath.fullPath) != null
+                }
+                if (hasConfig) {
+                    navigateTo(normalized)
+                } else {
+                    // No saved export covers this URL: collect one via the add dialog.
+                    showAddServerDialog(prefillNfsHost = nfsPath.host)
+                }
+                return@setOnClickListener
+            }
+
+            // SMB flow
+            val smbPath = SmbPath.parse(normalized)
             if (smbPath == null) {
                 Toast.makeText(this, getString(R.string.smb_invalid_address), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -186,23 +207,26 @@ class NetworkBrowseActivity : AppCompatActivity() {
             // Check if we have saved credentials for this exact path
             val allConfigs = NetworkConfigStore.getAllServers(this)
             val exactConfig = allConfigs.find {
-                it.host.equals(smbPath.host, ignoreCase = true) &&
+                !it.isNfs &&
+                    it.host.equals(smbPath.host, ignoreCase = true) &&
                 it.share.equals(smbPath.share, ignoreCase = true) &&
                 it.path.equals(smbPath.path, ignoreCase = true)
             }
             if (exactConfig != null) {
-                navigateTo(smbAddress)
+                navigateTo(normalized)
                 return@setOnClickListener
             }
 
             // Otherwise, check if we have ANY credentials for this host
-            val hostConfig = NetworkConfigStore.getServerByHost(this, smbPath.host)
+            val hostConfig = allConfigs.find {
+                !it.isNfs && it.host.equals(smbPath.host, ignoreCase = true)
+            }
             if (hostConfig != null) {
-                navigateTo(smbAddress)
+                navigateTo(normalized)
             } else {
                 val defaultName = smbPath.host + if (smbPath.path.isNotBlank()) " - " + smbPath.path.substringAfterLast('/') else if (smbPath.share.isNotBlank()) " - " + smbPath.share else ""
                 showConnectDialog(smbPath.host, smbPath.share, smbPath.path, defaultName) {
-                    navigateTo(smbAddress)
+                    navigateTo(normalized)
                 }
             }
         }
@@ -230,6 +254,26 @@ class NetworkBrowseActivity : AppCompatActivity() {
             val address = binding.addressEditText.text.toString().trim()
             if (address.isBlank()) return@setOnClickListener
 
+            if (NfsPath.isNfs(address)) {
+                val nfsPath = NfsPath.parse(address) ?: return@setOnClickListener
+                val saved = NetworkConfigStore.getAllServers(this).find {
+                    it.isNfs && it.rootUrl().equals(address.trimEnd('/'), ignoreCase = true)
+                }
+                if (saved != null) {
+                    NetworkConfigStore.deleteServer(this, saved.id)
+                    Toast.makeText(
+                        this,
+                        getString(R.string.smb_server_removed),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    updateStarButtonState()
+                    refreshSavedServers()
+                } else {
+                    showAddServerDialog(prefillNfsHost = nfsPath.host)
+                }
+                return@setOnClickListener
+            }
+
             val smbPath = SmbPath.parse(if (address.startsWith("smb://")) address else "smb://$address")
             if (smbPath == null) {
                 Toast.makeText(this, getString(R.string.smb_invalid_address), Toast.LENGTH_SHORT).show()
@@ -238,7 +282,8 @@ class NetworkBrowseActivity : AppCompatActivity() {
 
             val allServers = NetworkConfigStore.getAllServers(this)
             val exactConfig = allServers.find {
-                it.host.equals(smbPath.host, ignoreCase = true) &&
+                !it.isNfs &&
+                    it.host.equals(smbPath.host, ignoreCase = true) &&
                 it.share.equals(smbPath.share, ignoreCase = true) &&
                 it.path.equals(smbPath.path, ignoreCase = true)
             }
@@ -252,9 +297,11 @@ class NetworkBrowseActivity : AppCompatActivity() {
             } else {
                 // Not saved -> Add it
                 val defaultName = smbPath.host + if (smbPath.path.isNotBlank()) " - " + smbPath.path.substringAfterLast('/') else if (smbPath.share.isNotBlank()) " - " + smbPath.share else ""
-                
+
                 // If we already have credentials for this host, reuse them
-                val hostConfig = NetworkConfigStore.getServerByHost(this, smbPath.host)
+                val hostConfig = allServers.find {
+                    !it.isNfs && it.host.equals(smbPath.host, ignoreCase = true)
+                }
                 if (hostConfig != null && hostConfig.isAuthenticated) {
                     val newConfig = hostConfig.copy(
                         id = "", // generate new id
@@ -279,25 +326,15 @@ class NetworkBrowseActivity : AppCompatActivity() {
     }
 
     private fun updateStarButtonState() {
-        val address = binding.addressEditText.text.toString().trim()
+        val address = binding.addressEditText.text.toString().trim().trimEnd('/')
         if (address.isBlank()) {
             setSaveServerButtonSaved(false)
             return
         }
-
-        val smbPath = SmbPath.parse(if (address.startsWith("smb://")) address else "smb://$address")
-        if (smbPath == null) {
-            setSaveServerButtonSaved(false)
-            return
+        val normalized = if (RemotePath.isRemote(address)) address else "smb://$address"
+        val isSaved = NetworkConfigStore.getAllServers(this).any {
+            it.rootUrl().equals(normalized, ignoreCase = true)
         }
-
-        val allServers = NetworkConfigStore.getAllServers(this)
-        val isSaved = allServers.any {
-            it.host.equals(smbPath.host, ignoreCase = true) &&
-            it.share.equals(smbPath.share, ignoreCase = true) &&
-            it.path.equals(smbPath.path, ignoreCase = true)
-        }
-
         setSaveServerButtonSaved(isSaved)
     }
 
@@ -371,23 +408,39 @@ class NetworkBrowseActivity : AppCompatActivity() {
             val deleteButton = itemView.findViewById<ImageButton>(R.id.deleteServerButton)
 
             nameText.text = server.displayName.ifBlank { server.host }
-            val sharePart = if (server.share.isNotBlank()) "/${server.share}" else ""
-            val pathPart = if (server.path.isNotBlank()) "/${server.path}" else ""
-            val connectionInfo = if (server.isGuest) "(Guest)" else "(${server.username})"
-            hostText.text = "${server.host}$sharePart$pathPart $connectionInfo"
+            val badge = itemView.findViewById<TextView>(R.id.serverProtocolBadge)
+            badge.setText(if (server.isNfs) R.string.protocol_nfs else R.string.protocol_smb)
+
+            if (server.isNfs) {
+                hostText.text = "${server.host}${server.export} (uid ${server.uid})"
+            } else {
+                val sharePart = if (server.share.isNotBlank()) "/${server.share}" else ""
+                val pathPart = if (server.path.isNotBlank()) "/${server.path}" else ""
+                val connectionInfo = if (server.isGuest) "(Guest)" else "(${server.username})"
+                hostText.text = "${server.host}$sharePart$pathPart $connectionInfo"
+            }
 
             itemView.setOnClickListener {
-                val address = if (server.share.isNotBlank()) {
-                    val p = if (server.path.isNotBlank()) "/${server.path}" else ""
-                    "smb://${server.host}/${server.share}$p"
+                if (server.isNfs) {
+                    binding.addressEditText.setText(server.rootUrl())
+                    navigateTo(server.rootUrl())
                 } else {
-                    "smb://${server.host}"
-                }
-                binding.addressEditText.setText(address)
-                if (server.share.isNotBlank()) {
-                    binding.connectButton.performClick()
-                } else {
-                    Toast.makeText(this, getString(R.string.smb_enter_share_name), Toast.LENGTH_SHORT).show()
+                    val address = if (server.share.isNotBlank()) {
+                        val p = if (server.path.isNotBlank()) "/${server.path}" else ""
+                        "smb://${server.host}/${server.share}$p"
+                    } else {
+                        "smb://${server.host}"
+                    }
+                    binding.addressEditText.setText(address)
+                    if (server.share.isNotBlank()) {
+                        binding.connectButton.performClick()
+                    } else {
+                        Toast.makeText(
+                            this,
+                            getString(R.string.smb_enter_share_name),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             }
 
@@ -401,7 +454,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
                     .setMessage(getString(R.string.smb_delete_server_message, server.displayName.ifBlank { server.host }))
                     .setPositiveButton(R.string.delete) { _, _ ->
                         NetworkConfigStore.deleteServer(this, server.id)
-                        SmbClient.disconnect(server.host)
+                        RemoteClients.forProtocol(server.protocol)?.disconnect(server.host)
                         refreshSavedServers()
                     }
                     .setNegativeButton(R.string.cancel, null)
@@ -412,11 +465,32 @@ class NetworkBrowseActivity : AppCompatActivity() {
         }
     }
 
-    private fun navigateTo(smbAddress: String) {
+    /** Best-effort mapping of an NFS failure to an actionable hint string, or null. */
+    private fun nfsErrorHintRes(e: Throwable): Int? {
+        var t: Throwable? = e
+        while (t != null) {
+            val message = t.message ?: ""
+            when {
+                t is java.net.ConnectException || t is java.net.SocketTimeoutException ||
+                    t is java.net.NoRouteToHostException || t is java.net.UnknownHostException ||
+                    t is NfsExportLister.ExportListException ->
+                    return R.string.nfs_error_unreachable
+                message.contains("NFS3ERR_ACCES", ignoreCase = true) ||
+                    message.contains("ACCES", ignoreCase = true) ->
+                    return R.string.nfs_error_access
+                message.contains("mount", ignoreCase = true) ->
+                    return R.string.nfs_error_mount_denied
+            }
+            t = t.cause
+        }
+        return null
+    }
+
+    private fun navigateTo(address: String) {
         if (isLoading) return
 
-        currentPath = smbAddress
-        binding.addressEditText.setText(smbAddress)
+        currentPath = address
+        binding.addressEditText.setText(address)
         binding.savedServersLayout.visibility = View.GONE
         binding.homeButton.visibility = View.VISIBLE
         
@@ -429,14 +503,12 @@ class NetworkBrowseActivity : AppCompatActivity() {
         isLoading = true
 
         // Update toolbar title
-        val smbPath = SmbPath.parse(smbAddress)
-        supportActionBar?.title = smbPath?.let {
-            if (it.path.isBlank()) it.share else it.path.substringAfterLast('/')
-        } ?: getString(R.string.smb_browse_title)
+        supportActionBar?.title = address.trimEnd('/').substringAfterLast('/')
+            .ifBlank { getString(R.string.network_browse_title) }
 
         lifecycleScope.launch {
             try {
-                val items = remoteMediaScanner.listDirectory(smbAddress)
+                val items = remoteMediaScanner.listDirectory(address)
 
                 if (items.isEmpty()) {
                     binding.emptyView.visibility = View.VISIBLE
@@ -447,12 +519,14 @@ class NetworkBrowseActivity : AppCompatActivity() {
                     binding.emptyView.visibility = View.GONE
                 }
             } catch (e: Exception) {
-                android.util.Log.e("NetworkBrowseActivity", "Failed to navigate to $smbAddress", e)
-                Toast.makeText(
-                    this@NetworkBrowseActivity,
-                    getString(R.string.smb_connection_failed, e.message ?: "Unknown error"),
-                    Toast.LENGTH_LONG
-                ).show()
+                android.util.Log.e("NetworkBrowseActivity", "Failed to navigate to $address", e)
+                val hintRes = if (NfsPath.isNfs(address)) nfsErrorHintRes(e) else null
+                val message = if (hintRes != null) {
+                    getString(hintRes)
+                } else {
+                    getString(R.string.smb_connection_failed, e.message ?: "Unknown error")
+                }
+                Toast.makeText(this@NetworkBrowseActivity, message, Toast.LENGTH_LONG).show()
                 binding.emptyView.visibility = View.VISIBLE
                 binding.recyclerView.visibility = View.GONE
             } finally {
@@ -464,16 +538,30 @@ class NetworkBrowseActivity : AppCompatActivity() {
     }
 
     private fun navigateUp() {
-        val smbPath = SmbPath.parse(currentPath) ?: run {
-            finish()
-            return
+        val parent = when {
+            SmbPath.isSmb(currentPath) ->
+                SmbPath.parse(currentPath)?.let {
+                    if (it.path.isBlank()) null else it.parentFolderPath
+                }
+            NfsPath.isNfs(currentPath) -> nfsParentOrNull(currentPath)
+            else -> null
         }
+        if (parent == null) goHome() else navigateTo(parent)
+    }
 
-        if (smbPath.path.isBlank()) {
-            // At share root, go back to saved servers
-            goHome()
+    /** Parent URL of an NFS folder, or null when at (or above) the saved export root. */
+    private fun nfsParentOrNull(url: String): String? {
+        val nfsPath = NfsPath.parse(url) ?: return null
+        val exports = NetworkConfigStore.getAllServers(this)
+            .filter { it.isNfs && it.host.equals(nfsPath.host, ignoreCase = true) }
+            .map { it.export }
+        val export = NfsPath.matchExport(exports, nfsPath.fullPath) ?: return null
+        if (nfsPath.fullPath == export) return null
+        val parent = nfsPath.fullPath.substringBeforeLast('/', "")
+        return if (parent.isEmpty() || NfsPath.matchExport(exports, parent) == null) {
+            null
         } else {
-            navigateTo(smbPath.parentFolderPath)
+            NfsPath.toUrl(nfsPath.host, parent)
         }
     }
 
@@ -518,7 +606,9 @@ class NetworkBrowseActivity : AppCompatActivity() {
         }
 
         listExportsButton.setOnClickListener {
-            val host = hostEdit.text.toString().trim().substringBefore('/')
+            val host = hostEdit.text.toString().trim()
+                .removePrefix("nfs://")
+                .substringBefore('/')
             if (host.isBlank()) {
                 Toast.makeText(this, R.string.smb_enter_host, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener

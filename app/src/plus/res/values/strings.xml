@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- SMB Settings (plus flavor only) -->
-    <string name="smb_browse_title">Network (SMB)</string>
-    <string name="smb_address_hint">smb://192.168.1.100/share</string>
+    <string name="network_browse_title">Network Shares</string>
+    <string name="network_address_hint">smb:// or nfs:// address</string>
     <string name="smb_connect_button">Go</string>
     <string name="smb_saved_servers">Saved Servers</string>
     <string name="smb_add_server">Add Server</string>
