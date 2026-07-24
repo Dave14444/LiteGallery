@@ -105,6 +105,8 @@ dependencies {
     // SMB client (plus flavor only — keeps the core build network-free)
     plusImplementation 'com.hierynomus:smbj:0.14.0'
     plusImplementation 'org.slf4j:slf4j-android:1.7.36'
+    // NFS client (plus flavor only — pure-Java NFSv3, Apache-2.0)
+    plusImplementation 'com.emc.ecs:nfs-client:1.1.0'
     
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'androidx.test:core:1.5.0'
