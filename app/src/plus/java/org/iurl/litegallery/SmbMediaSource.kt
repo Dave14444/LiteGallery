@@ -33,7 +33,7 @@ object SmbMediaSource : MediaSource {
 
     override val folderIconRes: Int = R.drawable.ic_network
 
-    override fun canLoadThumbnail(path: String): Boolean = SmbModelLoader.isSmbImage(path)
+    override fun canLoadThumbnail(path: String): Boolean = RemoteModelLoader.isRemoteImage(path)
 
     override suspend fun scanFolder(context: Context, folderPath: String): List<MediaItem> =
         SmbMediaScanner(context).scanSmbMediaInFolder(folderPath)

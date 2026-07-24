@@ -15,35 +15,39 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
-class SmbModelLoaderTest {
+class RemoteModelLoaderTest {
 
-    private lateinit var loader: SmbModelLoader
+    private lateinit var loader: RemoteModelLoader
 
     @Before
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        loader = SmbModelLoader(context)
+        loader = RemoteModelLoader(context)
     }
 
     @Test
-    fun isSmbImage_acceptsOnlySmbImageExtensions() {
-        assertTrue(SmbModelLoader.isSmbImage("smb://host/share/photo.JPG"))
-        assertTrue(SmbModelLoader.isSmbImage("smb://host/share/folder/image.heic"))
-        assertFalse(SmbModelLoader.isSmbImage("smb://host/share/video.mp4"))
-        assertFalse(SmbModelLoader.isSmbImage("smb://host/share/no-extension"))
-        assertFalse(SmbModelLoader.isSmbImage("/storage/emulated/0/DCIM/photo.jpg"))
+    fun isRemoteImage_acceptsSmbAndNfsImageExtensions() {
+        assertTrue(RemoteModelLoader.isRemoteImage("smb://host/share/photo.JPG"))
+        assertTrue(RemoteModelLoader.isRemoteImage("smb://host/share/folder/image.heic"))
+        assertTrue(RemoteModelLoader.isRemoteImage("nfs://host/volume1/photo/image.png"))
+        assertFalse(RemoteModelLoader.isRemoteImage("smb://host/share/video.mp4"))
+        assertFalse(RemoteModelLoader.isRemoteImage("nfs://host/volume1/video.mp4"))
+        assertFalse(RemoteModelLoader.isRemoteImage("smb://host/share/no-extension"))
+        assertFalse(RemoteModelLoader.isRemoteImage("/storage/emulated/0/DCIM/photo.jpg"))
     }
 
     @Test
-    fun handles_returnsTrueOnlyForSmbImages() {
+    fun handles_returnsTrueOnlyForRemoteImages() {
         assertTrue(loader.handles("smb://host/share/photo.webp"))
+        assertTrue(loader.handles("nfs://host/volume1/photo.webp"))
         assertFalse(loader.handles("smb://host/share/movie.mkv"))
         assertFalse(loader.handles("content://media/external/images/media/1"))
     }
 
     @Test
-    fun buildLoadData_returnsFetcherOnlyForSmbImages() {
+    fun buildLoadData_returnsFetcherOnlyForRemoteImages() {
         assertNotNull(loader.buildLoadData("smb://host/share/photo.png", 100, 100, Options()))
+        assertNotNull(loader.buildLoadData("nfs://host/volume1/photo.png", 100, 100, Options()))
         assertNull(loader.buildLoadData("smb://host/share/movie.mp4", 100, 100, Options()))
         assertNull(loader.buildLoadData("/storage/emulated/0/DCIM/photo.png", 100, 100, Options()))
     }

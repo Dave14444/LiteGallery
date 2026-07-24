@@ -12,22 +12,15 @@ import com.bumptech.glide.signature.ObjectKey
 import java.io.InputStream
 
 /**
- * Glide ModelLoader for loading images from SMB shares.
- * Intercepts String models starting with "smb://" and loads them via SmbClient.
+ * Glide ModelLoader for loading images from remote shares. Intercepts String models
+ * starting with a remote scheme (smb://, nfs://) and loads them via [RemoteClients].
  */
-class SmbModelLoader(private val context: Context) : ModelLoader<String, InputStream> {
+class RemoteModelLoader(private val context: Context) : ModelLoader<String, InputStream> {
 
     companion object {
-        private val IMAGE_EXTENSIONS = setOf(
-            "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif"
-        )
-
-        /** Check if an SMB path points to an image (not a video). */
-        fun isSmbImage(path: String): Boolean {
-            if (!SmbPath.isSmb(path)) return false
-            val ext = path.substringAfterLast('.', "").lowercase()
-            return IMAGE_EXTENSIONS.contains(ext)
-        }
+        /** Check if a remote URL points to an image (not a video). */
+        fun isRemoteImage(path: String): Boolean =
+            RemotePath.isRemote(path) && RemoteFileTypes.isImage(path)
     }
 
     override fun buildLoadData(
@@ -36,41 +29,33 @@ class SmbModelLoader(private val context: Context) : ModelLoader<String, InputSt
         height: Int,
         options: Options
     ): ModelLoader.LoadData<InputStream>? {
-        if (!isSmbImage(model)) {
-            return null // Only handle SMB image paths; videos can't be decoded as images
+        if (!isRemoteImage(model)) {
+            return null // Only handle remote image paths; videos can't be decoded as images
         }
-        return ModelLoader.LoadData(ObjectKey(model), SmbDataFetcher(context, model))
+        return ModelLoader.LoadData(ObjectKey(model), RemoteImageFetcher(context, model))
     }
 
-    override fun handles(model: String): Boolean {
-        return isSmbImage(model)
-    }
+    override fun handles(model: String): Boolean = isRemoteImage(model)
 }
 
 /**
- * Glide DataFetcher that reads image data from SMB shares.
+ * Glide DataFetcher that reads image data from remote shares.
  */
-class SmbDataFetcher(
+class RemoteImageFetcher(
     private val context: Context,
-    private val smbUrl: String
+    private val url: String
 ) : DataFetcher<InputStream> {
 
     private var inputStream: InputStream? = null
 
     override fun loadData(priority: Priority, callback: DataFetcher.DataCallback<in InputStream>) {
         try {
-            val smbPath = SmbPath.parse(smbUrl)
-            if (smbPath == null) {
-                callback.onLoadFailed(Exception("Invalid SMB path: $smbUrl"))
+            val client = RemoteClients.forUrl(url)
+            if (client == null) {
+                callback.onLoadFailed(Exception("No remote client for URL: $url"))
                 return
             }
-
-            val stream = SmbClient.openInputStream(
-                context,
-                smbPath.host,
-                smbPath.share,
-                smbPath.path
-            )
+            val stream = client.openInputStream(context, url)
             inputStream = stream
             callback.onDataReady(stream)
         } catch (e: Exception) {
@@ -87,7 +72,7 @@ class SmbDataFetcher(
     }
 
     override fun cancel() {
-        // No-op: SMB reads are synchronous
+        // No-op: remote reads are synchronous
     }
 
     override fun getDataClass(): Class<InputStream> = InputStream::class.java
@@ -96,14 +81,14 @@ class SmbDataFetcher(
 }
 
 /**
- * Factory for creating SmbModelLoader instances.
- * Register this with Glide in LiteGalleryApplication.
+ * Factory for creating RemoteModelLoader instances.
+ * Registered with Glide by MediaSourceBootstrap.
  */
-class SmbModelLoaderFactory(private val context: Context) :
+class RemoteModelLoaderFactory(private val context: Context) :
     ModelLoaderFactory<String, InputStream> {
 
     override fun build(multiFactory: MultiModelLoaderFactory): ModelLoader<String, InputStream> {
-        return SmbModelLoader(context)
+        return RemoteModelLoader(context)
     }
 
     override fun teardown() {
