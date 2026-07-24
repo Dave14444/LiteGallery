@@ -19,7 +19,7 @@ object SmbMediaSource : MediaSource {
     override fun handles(path: String): Boolean = SmbPath.isSmb(path)
 
     override fun homeEntry(context: Context): MediaFolder {
-        val serverCount = SmbConfigStore.getAllServers(context).size
+        val serverCount = NetworkConfigStore.getAllServers(context).size
         return MediaFolder(
             name = context.getString(R.string.smb_browse_title),
             path = "smb://",

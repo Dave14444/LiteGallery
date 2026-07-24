@@ -1,0 +1,184 @@
+package org.iurl.litegallery
+
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE, sdk = [34])
+class NetworkConfigStoreTest {
+
+    private lateinit var context: Context
+
+    @Before
+    fun setUp() {
+        context = ApplicationProvider.getApplicationContext()
+        clearStore()
+    }
+
+    @After
+    fun tearDown() {
+        clearStore()
+    }
+
+    @Test
+    fun addServer_generatesIdAndPersistsFields() {
+        val saved = NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "",
+                displayName = "NAS",
+                host = "nas.local",
+                share = "Photos",
+                path = "Trips",
+                port = 1445,
+                username = "arthur",
+                password = "secret"
+            )
+        )
+
+        assertNotEquals("", saved.id)
+        assertTrue(saved.isAuthenticated)
+        assertEquals(saved, NetworkConfigStore.getServerById(context, saved.id))
+    }
+
+    @Test
+    fun getServerByHost_matchesIgnoringCase() {
+        val saved = NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(id = "one", displayName = "NAS", host = "NAS.LOCAL", isGuest = true)
+        )
+
+        assertEquals(saved, NetworkConfigStore.getServerByHost(context, "nas.local"))
+    }
+
+    @Test
+    fun updateServer_replacesMatchingIdOnly() {
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(id = "one", displayName = "Old", host = "one.local")
+        )
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(id = "two", displayName = "Other", host = "two.local")
+        )
+
+        NetworkConfigStore.updateServer(
+            context,
+            NetworkServerConfig(id = "one", displayName = "New", host = "one.local", share = "Media")
+        )
+
+        assertEquals("New", NetworkConfigStore.getServerById(context, "one")?.displayName)
+        assertEquals("Media", NetworkConfigStore.getServerById(context, "one")?.share)
+        assertEquals("Other", NetworkConfigStore.getServerById(context, "two")?.displayName)
+    }
+
+    @Test
+    fun deleteServer_removesMatchingIdOnly() {
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(id = "one", displayName = "One", host = "one.local")
+        )
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(id = "two", displayName = "Two", host = "two.local")
+        )
+
+        NetworkConfigStore.deleteServer(context, "one")
+
+        assertNull(NetworkConfigStore.getServerById(context, "one"))
+        assertNotNull(NetworkConfigStore.getServerById(context, "two"))
+    }
+
+    @Test
+    fun getAllServers_returnsEmptyListForMalformedJson() {
+        context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
+            .edit()
+            .putString("servers_json", "{not json")
+            .commit()
+
+        assertTrue(NetworkConfigStore.getAllServers(context).isEmpty())
+    }
+
+    @Test
+    fun getAllServers_parsesLegacyEntriesWithoutProtocolAsSmb() {
+        context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
+            .edit()
+            .putString(
+                "servers_json",
+                """[{"id":"legacy","displayName":"NAS","host":"nas.local","share":"Photos",""" +
+                    """"path":"","port":445,"username":"u","password":"p","isGuest":false}]"""
+            )
+            .commit()
+
+        val servers = NetworkConfigStore.getAllServers(context)
+
+        assertEquals(1, servers.size)
+        assertEquals(NetworkServerConfig.PROTOCOL_SMB, servers[0].protocol)
+        assertEquals("", servers[0].export)
+        assertEquals(0, servers[0].uid)
+        assertEquals(0, servers[0].gid)
+    }
+
+    @Test
+    fun addServer_roundTripsNfsFields() {
+        val saved = NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "",
+                displayName = "NAS NFS",
+                host = "nas.local",
+                protocol = NetworkServerConfig.PROTOCOL_NFS,
+                export = "/volume1/photo",
+                uid = 1000,
+                gid = 100
+            )
+        )
+
+        val loaded = NetworkConfigStore.getServerById(context, saved.id)
+
+        assertEquals(NetworkServerConfig.PROTOCOL_NFS, loaded?.protocol)
+        assertEquals("/volume1/photo", loaded?.export)
+        assertEquals(1000, loaded?.uid)
+        assertEquals(100, loaded?.gid)
+        assertEquals(true, loaded?.isNfs)
+    }
+
+    @Test
+    fun rootUrl_buildsProtocolSpecificRoot() {
+        assertEquals(
+            "nfs://nas.local/volume1/photo",
+            NetworkServerConfig(
+                id = "a", displayName = "", host = "nas.local",
+                protocol = NetworkServerConfig.PROTOCOL_NFS, export = "/volume1/photo"
+            ).rootUrl()
+        )
+        assertEquals(
+            "smb://nas.local/Photos/Trips",
+            NetworkServerConfig(
+                id = "b", displayName = "", host = "nas.local", share = "Photos", path = "Trips"
+            ).rootUrl()
+        )
+        assertEquals(
+            "smb://nas.local",
+            NetworkServerConfig(id = "c", displayName = "", host = "nas.local").rootUrl()
+        )
+    }
+
+    private fun clearStore() {
+        context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+    }
+}

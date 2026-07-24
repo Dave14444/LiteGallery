@@ -184,7 +184,7 @@ class SmbBrowseActivity : AppCompatActivity() {
             }
 
             // Check if we have saved credentials for this exact path
-            val allConfigs = SmbConfigStore.getAllServers(this)
+            val allConfigs = NetworkConfigStore.getAllServers(this)
             val exactConfig = allConfigs.find {
                 it.host.equals(smbPath.host, ignoreCase = true) &&
                 it.share.equals(smbPath.share, ignoreCase = true) &&
@@ -196,7 +196,7 @@ class SmbBrowseActivity : AppCompatActivity() {
             }
 
             // Otherwise, check if we have ANY credentials for this host
-            val hostConfig = SmbConfigStore.getServerByHost(this, smbPath.host)
+            val hostConfig = NetworkConfigStore.getServerByHost(this, smbPath.host)
             if (hostConfig != null) {
                 navigateTo(smbAddress)
             } else {
@@ -236,7 +236,7 @@ class SmbBrowseActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val allServers = SmbConfigStore.getAllServers(this)
+            val allServers = NetworkConfigStore.getAllServers(this)
             val exactConfig = allServers.find {
                 it.host.equals(smbPath.host, ignoreCase = true) &&
                 it.share.equals(smbPath.share, ignoreCase = true) &&
@@ -245,7 +245,7 @@ class SmbBrowseActivity : AppCompatActivity() {
 
             if (exactConfig != null) {
                 // Already saved -> Delete it
-                SmbConfigStore.deleteServer(this, exactConfig.id)
+                NetworkConfigStore.deleteServer(this, exactConfig.id)
                 Toast.makeText(this, getString(R.string.smb_server_removed), Toast.LENGTH_SHORT).show()
                 updateStarButtonState()
                 refreshSavedServers()
@@ -254,7 +254,7 @@ class SmbBrowseActivity : AppCompatActivity() {
                 val defaultName = smbPath.host + if (smbPath.path.isNotBlank()) " - " + smbPath.path.substringAfterLast('/') else if (smbPath.share.isNotBlank()) " - " + smbPath.share else ""
                 
                 // If we already have credentials for this host, reuse them
-                val hostConfig = SmbConfigStore.getServerByHost(this, smbPath.host)
+                val hostConfig = NetworkConfigStore.getServerByHost(this, smbPath.host)
                 if (hostConfig != null && hostConfig.isAuthenticated) {
                     val newConfig = hostConfig.copy(
                         id = "", // generate new id
@@ -262,7 +262,7 @@ class SmbBrowseActivity : AppCompatActivity() {
                         share = smbPath.share,
                         path = smbPath.path
                     )
-                    SmbConfigStore.addServer(this, newConfig)
+                    NetworkConfigStore.addServer(this, newConfig)
                     Toast.makeText(this, getString(R.string.smb_server_saved), Toast.LENGTH_SHORT).show()
                     updateStarButtonState()
                     refreshSavedServers()
@@ -291,7 +291,7 @@ class SmbBrowseActivity : AppCompatActivity() {
             return
         }
 
-        val allServers = SmbConfigStore.getAllServers(this)
+        val allServers = NetworkConfigStore.getAllServers(this)
         val isSaved = allServers.any {
             it.host.equals(smbPath.host, ignoreCase = true) &&
             it.share.equals(smbPath.share, ignoreCase = true) &&
@@ -350,7 +350,7 @@ class SmbBrowseActivity : AppCompatActivity() {
 
     private fun refreshSavedServers() {
         updateStarButtonState()
-        val servers = SmbConfigStore.getAllServers(this)
+        val servers = NetworkConfigStore.getAllServers(this)
         if (servers.isEmpty() && currentPath.isBlank()) {
             binding.savedServersLayout.visibility = View.VISIBLE
             binding.savedServersList.visibility = View.GONE
@@ -368,7 +368,7 @@ class SmbBrowseActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupSavedServersList(servers: List<SmbConfig>) {
+    private fun setupSavedServersList(servers: List<NetworkServerConfig>) {
         binding.savedServersList.removeAllViews()
         for (server in servers) {
             val itemView = LayoutInflater.from(this).inflate(R.layout.item_smb_server, binding.savedServersList, false)
@@ -407,7 +407,7 @@ class SmbBrowseActivity : AppCompatActivity() {
                     .setTitle(R.string.smb_delete_server_title)
                     .setMessage(getString(R.string.smb_delete_server_message, server.displayName.ifBlank { server.host }))
                     .setPositiveButton(R.string.delete) { _, _ ->
-                        SmbConfigStore.deleteServer(this, server.id)
+                        NetworkConfigStore.deleteServer(this, server.id)
                         SmbClient.disconnect(server.host)
                         refreshSavedServers()
                     }
@@ -527,7 +527,7 @@ class SmbBrowseActivity : AppCompatActivity() {
             .setTitle(getString(R.string.smb_connect_to, host))
             .setView(dialogView)
             .setPositiveButton(R.string.smb_connect) { _, _ ->
-                val config = SmbConfig(
+                val config = NetworkServerConfig(
                     id = "",
                     displayName = displayNameEdit.text.toString().trim(),
                     host = host,
@@ -546,7 +546,7 @@ class SmbBrowseActivity : AppCompatActivity() {
                             SmbClient.testConnection(config)
                         }
                         if (success) {
-                            SmbConfigStore.addServer(this@SmbBrowseActivity, config)
+                            NetworkConfigStore.addServer(this@SmbBrowseActivity, config)
                             refreshSavedServers()
                             onSuccess()
                         } else {
@@ -571,7 +571,7 @@ class SmbBrowseActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun showEditServerDialog(server: SmbConfig) {
+    private fun showEditServerDialog(server: NetworkServerConfig) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_smb_connect, null)
         val usernameEdit = dialogView.findViewById<EditText>(R.id.usernameEditText)
         val passwordEdit = dialogView.findViewById<EditText>(R.id.passwordEditText)
@@ -623,7 +623,7 @@ class SmbBrowseActivity : AppCompatActivity() {
                     parsedHost = normalized.removePrefix("smb://").substringBefore("/")
                 }
 
-                val config = SmbConfig(
+                val config = NetworkServerConfig(
                     id = server.id,
                     displayName = displayNameEdit.text.toString().trim().ifBlank { parsedHost },
                     host = parsedHost,
@@ -641,7 +641,7 @@ class SmbBrowseActivity : AppCompatActivity() {
                             SmbClient.testConnection(config)
                         }
                         if (success) {
-                            SmbConfigStore.updateServer(this@SmbBrowseActivity, config)
+                            NetworkConfigStore.updateServer(this@SmbBrowseActivity, config)
                             refreshSavedServers()
                             Toast.makeText(this@SmbBrowseActivity, R.string.smb_server_saved, Toast.LENGTH_SHORT).show()
                         } else {
@@ -700,7 +700,7 @@ class SmbBrowseActivity : AppCompatActivity() {
                     parsedHost = normalized.removePrefix("smb://").substringBefore("/")
                 }
 
-                val config = SmbConfig(
+                val config = NetworkServerConfig(
                     id = "",
                     displayName = displayNameEdit.text.toString().trim().ifBlank { parsedHost },
                     host = parsedHost,
@@ -718,7 +718,7 @@ class SmbBrowseActivity : AppCompatActivity() {
                             SmbClient.testConnection(config)
                         }
                         if (success) {
-                            SmbConfigStore.addServer(this@SmbBrowseActivity, config)
+                            NetworkConfigStore.addServer(this@SmbBrowseActivity, config)
                             refreshSavedServers()
                             Toast.makeText(this@SmbBrowseActivity, R.string.smb_server_saved, Toast.LENGTH_SHORT).show()
                         } else {

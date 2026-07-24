@@ -251,7 +251,7 @@ object SmbClient {
      * Test connection to an SMB server.
      * Returns true if connection is successful.
      */
-    fun testConnection(config: SmbConfig): Boolean {
+    fun testConnection(config: NetworkServerConfig): Boolean {
         return try {
             val connection = client.connect(config.host, config.port)
             val authContext = if (config.isGuest) {
@@ -314,12 +314,12 @@ object SmbClient {
 
     // --- Internal helpers ---
 
-    private fun resolveConfig(context: Context, host: String): SmbConfig? {
-        return SmbConfigStore.getServerByHost(context, host)
+    private fun resolveConfig(context: Context, host: String): NetworkServerConfig? {
+        return NetworkConfigStore.getServerByHost(context, host)
     }
 
     @Synchronized
-    private fun getOrCreateConnection(config: SmbConfig): Connection {
+    private fun getOrCreateConnection(config: NetworkServerConfig): Connection {
         val existing = connections[config.host]
         if (existing != null && existing.isConnected) {
             return existing
@@ -337,7 +337,7 @@ object SmbClient {
     }
 
     @Synchronized
-    private fun getOrCreateSession(config: SmbConfig): Session {
+    private fun getOrCreateSession(config: NetworkServerConfig): Session {
         val key = "${config.host}|${config.username}"
         val existing = sessions[key]
         if (existing != null) {
@@ -374,7 +374,7 @@ object SmbClient {
     }
 
     @Synchronized
-    private fun getOrCreateShareWithConfig(config: SmbConfig, shareName: String): DiskShare {
+    private fun getOrCreateShareWithConfig(config: NetworkServerConfig, shareName: String): DiskShare {
         val key = "${config.host}|${config.username}|$shareName"
         val existing = shares[key]
         if (existing != null) {
