@@ -39,7 +39,7 @@ class SmbBrowseActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySmbBrowseBinding
     private lateinit var browseAdapter: SmbBrowseAdapter
-    private lateinit var smbMediaScanner: SmbMediaScanner
+    private lateinit var remoteMediaScanner: RemoteMediaScanner
     private var currentPath: String = ""
     private var isLoading = false
     private var currentPackKey: String? = null
@@ -65,7 +65,7 @@ class SmbBrowseActivity : AppCompatActivity() {
         }
 
         currentPackKey = ThemeHelper.getCurrentPack(this).key
-        smbMediaScanner = SmbMediaScanner(this)
+        remoteMediaScanner = RemoteMediaScanner(this)
 
         setupToolbar()
         setupAddressBar()
@@ -319,15 +319,7 @@ class SmbBrowseActivity : AppCompatActivity() {
         browseAdapter = SmbBrowseAdapter(
             onItemClick = { item ->
                 if (item.isDirectory) {
-                    val smbPath = SmbPath.parse(currentPath)
-                    if (smbPath != null) {
-                        val newPath = if (smbPath.path.isBlank()) {
-                            "smb://${smbPath.host}/${smbPath.share}/${item.name}"
-                        } else {
-                            "smb://${smbPath.host}/${smbPath.share}/${smbPath.path}/${item.name}"
-                        }
-                        navigateTo(newPath)
-                    }
+                    navigateTo(item.url)
                 } else if (item.isMedia) {
                     // Open media viewer with full folder context for swipe support
                     openMediaViewer(item)
@@ -441,13 +433,9 @@ class SmbBrowseActivity : AppCompatActivity() {
             if (it.path.isBlank()) it.share else it.path.substringAfterLast('/')
         } ?: getString(R.string.smb_browse_title)
 
-        // Give the adapter the host/share so it can build full smb:// urls for thumbnails.
-        browseAdapter.shareHost = smbPath?.host
-        browseAdapter.shareName = smbPath?.share
-
         lifecycleScope.launch {
             try {
-                val items = smbMediaScanner.listSmbDirectory(smbAddress)
+                val items = remoteMediaScanner.listDirectory(smbAddress)
 
                 if (items.isEmpty()) {
                     binding.emptyView.visibility = View.VISIBLE
@@ -488,16 +476,11 @@ class SmbBrowseActivity : AppCompatActivity() {
         }
     }
 
-    private fun openMediaViewer(item: SmbClient.SmbFileInfo) {
+    private fun openMediaViewer(item: RemoteFileInfo) {
         // Open the media viewer directly on the clicked file. The viewer scans the SMB
-        // folder through MediaSourceRegistry/SmbMediaSource for swipe context and positions
+        // folder through MediaSourceRegistry/NetworkMediaSource for swipe context and positions
         // itself to the target path, so tapping a file lands on that exact photo/video.
-        val smbPath = SmbPath.parse(currentPath)
-        val targetUrl = if (smbPath != null) {
-            SmbPath.toUrl(smbPath.host, smbPath.share, item.path)
-        } else {
-            item.path
-        }
+        val targetUrl = item.url
         val intent = Intent(this, MediaViewerActivity::class.java).apply {
             putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, currentPath)
             putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, targetUrl)
@@ -744,12 +727,8 @@ class SmbBrowseActivity : AppCompatActivity() {
  * RecyclerView adapter for SMB browse file listing.
  */
 class SmbBrowseAdapter(
-    private val onItemClick: (SmbClient.SmbFileInfo) -> Unit
-) : ListAdapter<SmbClient.SmbFileInfo, SmbBrowseAdapter.SmbFileViewHolder>(SmbFileDiffCallback()) {
-
-    /** Host + share of the directory currently shown, used to build full smb:// urls for thumbnails. */
-    var shareHost: String? = null
-    var shareName: String? = null
+    private val onItemClick: (RemoteFileInfo) -> Unit
+) : ListAdapter<RemoteFileInfo, SmbBrowseAdapter.SmbFileViewHolder>(SmbFileDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SmbFileViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -770,7 +749,7 @@ class SmbBrowseAdapter(
             ThemeColorResolver.resolveColor(itemView.context, com.google.android.material.R.attr.colorOnSurfaceVariant),
         )
 
-        fun bind(item: SmbClient.SmbFileInfo) {
+        fun bind(item: RemoteFileInfo) {
             nameText.text = item.name
 
             if (item.isDirectory) {
@@ -785,15 +764,7 @@ class SmbBrowseAdapter(
                 if (item.isMedia) {
                     // Show thumbnail for media files
                     thumbnailView.visibility = View.VISIBLE
-                    // SmbModelLoader only handles full smb:// urls, so build one from the
-                    // host/share context plus the file's share-relative path.
-                    val host = shareHost
-                    val share = shareName
-                    val model = if (host != null && share != null) {
-                        SmbPath.toUrl(host, share, item.path)
-                    } else {
-                        item.path
-                    }
+                    val model = item.url
                     val context = itemView.context
                     if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
                         Glide.with(context)
@@ -833,11 +804,11 @@ class SmbBrowseAdapter(
         }
     }
 
-    private class SmbFileDiffCallback : DiffUtil.ItemCallback<SmbClient.SmbFileInfo>() {
-        override fun areItemsTheSame(oldItem: SmbClient.SmbFileInfo, newItem: SmbClient.SmbFileInfo): Boolean =
-            oldItem.path == newItem.path && oldItem.isDirectory == newItem.isDirectory
+    private class SmbFileDiffCallback : DiffUtil.ItemCallback<RemoteFileInfo>() {
+        override fun areItemsTheSame(oldItem: RemoteFileInfo, newItem: RemoteFileInfo): Boolean =
+            oldItem.url == newItem.url && oldItem.isDirectory == newItem.isDirectory
 
-        override fun areContentsTheSame(oldItem: SmbClient.SmbFileInfo, newItem: SmbClient.SmbFileInfo): Boolean =
+        override fun areContentsTheSame(oldItem: RemoteFileInfo, newItem: RemoteFileInfo): Boolean =
             oldItem == newItem
     }
 }

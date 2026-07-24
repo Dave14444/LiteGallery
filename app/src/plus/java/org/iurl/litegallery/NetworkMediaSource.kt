@@ -8,20 +8,22 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
 /**
- * [MediaSource] implementation for SMB network shares.
+ * [MediaSource] implementation for network shares (SMB and NFS).
  *
- * Only present in the `plus` flavor. It wraps the existing SMB classes
- * ([SmbClient], [SmbMediaScanner], [SmbDataSource], [SmbBrowseActivity], …) and
- * is registered with [MediaSourceRegistry] at startup by `MediaSourceBootstrap`.
+ * Only present in the `plus` flavor. It works through the protocol-agnostic
+ * [RemoteClients] seam and is registered with [MediaSourceRegistry] at startup
+ * by `MediaSourceBootstrap`.
  */
-object SmbMediaSource : MediaSource {
+object NetworkMediaSource : MediaSource {
 
-    override fun handles(path: String): Boolean = SmbPath.isSmb(path)
+    override fun handles(path: String): Boolean = RemotePath.isRemote(path)
 
     override fun homeEntry(context: Context): MediaFolder {
         val serverCount = NetworkConfigStore.getAllServers(context).size
         return MediaFolder(
             name = context.getString(R.string.smb_browse_title),
+            // Sentinel path routed back to this source via handles(); kept as "smb://"
+            // for compatibility with folder entries persisted by earlier versions.
             path = "smb://",
             itemCount = serverCount,
             thumbnail = null
@@ -36,10 +38,10 @@ object SmbMediaSource : MediaSource {
     override fun canLoadThumbnail(path: String): Boolean = RemoteModelLoader.isRemoteImage(path)
 
     override suspend fun scanFolder(context: Context, folderPath: String): List<MediaItem> =
-        SmbMediaScanner(context).scanSmbMediaInFolder(folderPath)
+        RemoteMediaScanner(context).scanMediaInFolder(folderPath)
 
     override fun scanFolderStreamed(context: Context, folderPath: String): Flow<LoadEvent> =
-        SmbMediaScanner(context).scanSmbMediaInFolderStreamed(folderPath)
+        RemoteMediaScanner(context).scanMediaInFolderStreamed(folderPath)
 
     override fun createExoMediaSource(
         context: Context,
@@ -58,23 +60,20 @@ object SmbMediaSource : MediaSource {
         newBaseName: String,
         extension: String
     ): RenameOutcome = withContext(Dispatchers.IO) {
-        val smbPath = SmbPath.parse(path) ?: return@withContext RenameOutcome.Failed
+        val client = RemoteClients.forUrl(path) ?: return@withContext RenameOutcome.Failed
+        val parentUrl = path.substringBeforeLast('/', "")
+        if (parentUrl.isBlank()) return@withContext RenameOutcome.Failed
         val newFileName = if (extension.isNotEmpty()) "$newBaseName.$extension" else newBaseName
-        val oldFilePath = smbPath.path
-        val newFilePath =
-            if (smbPath.parentPath.isBlank()) newFileName else "${smbPath.parentPath}/$newFileName"
-        val newSmbFullPath = "smb://${smbPath.host}/${smbPath.share}/$newFilePath"
+        val newUrl = "$parentUrl/$newFileName"
 
         when {
-            SmbClient.fileExists(context, smbPath.host, smbPath.share, newFilePath) ->
-                RenameOutcome.AlreadyExists
-            SmbClient.rename(context, smbPath.host, smbPath.share, oldFilePath, newFilePath) ->
-                RenameOutcome.Success(newSmbFullPath)
+            client.fileExists(context, newUrl) -> RenameOutcome.AlreadyExists
+            client.rename(context, path, newUrl) -> RenameOutcome.Success(newUrl)
             else -> RenameOutcome.Failed
         }
     }
 
     override fun shutdown() {
-        SmbClient.disconnectAll()
+        RemoteClients.all().forEach { it.disconnectAll() }
     }
 }

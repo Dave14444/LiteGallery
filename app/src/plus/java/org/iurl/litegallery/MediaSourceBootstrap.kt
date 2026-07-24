@@ -9,7 +9,7 @@ import java.io.InputStream
  */
 object MediaSourceBootstrap {
     fun init(app: Application) {
-        MediaSourceRegistry.register(SmbMediaSource)
+        MediaSourceRegistry.register(NetworkMediaSource)
 
         // Allow Glide to load image thumbnails from remote shares (smb:// and nfs:// models).
         Glide.get(app).registry.prepend(

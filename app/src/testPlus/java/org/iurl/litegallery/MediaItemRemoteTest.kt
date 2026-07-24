@@ -14,7 +14,7 @@ class MediaItemRemoteTest {
 
     @Before
     fun registerSmbSource() {
-        MediaSourceRegistry.register(SmbMediaSource)
+        MediaSourceRegistry.register(NetworkMediaSource)
     }
 
     @Test
