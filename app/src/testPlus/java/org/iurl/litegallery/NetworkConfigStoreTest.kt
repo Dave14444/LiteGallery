@@ -59,7 +59,10 @@ class NetworkConfigStoreTest {
             NetworkServerConfig(id = "one", displayName = "NAS", host = "NAS.LOCAL", isGuest = true)
         )
 
-        assertEquals(saved, NetworkConfigStore.getServerByHost(context, "nas.local"))
+        assertEquals(
+            saved,
+            NetworkConfigStore.getServerByHost(context, "nas.local", NetworkServerConfig.PROTOCOL_SMB)
+        )
     }
 
     @Test
