@@ -56,12 +56,19 @@ data class NfsPath(
             return if (slash < 0) {
                 NfsPath(rest, "")
             } else {
-                NfsPath(rest.substring(0, slash), rest.substring(slash))
+                NfsPath(rest.substring(0, slash), collapseSlashes(rest.substring(slash)))
             }
         }
 
         /** Build a full nfs:// URL. [fullPath] must start with "/" or be empty. */
-        fun toUrl(host: String, fullPath: String): String = "nfs://$host$fullPath"
+        fun toUrl(host: String, fullPath: String): String = "nfs://$host" + collapseSlashes(fullPath)
+
+        /**
+         * Collapse runs of "/" into a single separator. The NFS library can report a
+         * child path that duplicates the separator (e.g. an export-root "/" handle plus
+         * a "/name" child), which would otherwise corrupt export-boundary resolution.
+         */
+        private fun collapseSlashes(path: String): String = path.replace(Regex("/{2,}"), "/")
 
         /** Check if a path string is an NFS path. */
         fun isNfs(path: String): Boolean = path.startsWith("nfs://")

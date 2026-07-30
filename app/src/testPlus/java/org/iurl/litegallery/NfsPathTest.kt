@@ -68,4 +68,24 @@ class NfsPathTest {
         assertEquals("nfs://nas/volume1/photo", NfsPath.toUrl("nas", "/volume1/photo"))
         assertEquals("nfs://nas", NfsPath.toUrl("nas", ""))
     }
+
+    @Test
+    fun toUrl_collapsesDuplicateSlashes() {
+        // Guards the export-root case: if the NFS library reports a child path that
+        // duplicates the separator (export "/volume1/photo" + child "/img.jpg" reached
+        // through a "/" root handle), the built URL must still have single slashes.
+        assertEquals(
+            "nfs://nas/volume1/photo/img.jpg",
+            NfsPath.toUrl("nas", "/volume1/photo" + "//img.jpg")
+        )
+    }
+
+    @Test
+    fun parse_collapsesDuplicateSlashesSoResolutionStaysCorrect() {
+        val path = NfsPath.parse("nfs://nas/volume1/photo//img.jpg")
+
+        requireNotNull(path)
+        assertEquals("/volume1/photo/img.jpg", path.fullPath)
+        assertEquals("/img.jpg", path.innerPath("/volume1/photo"))
+    }
 }
