@@ -194,6 +194,9 @@ object NfsFileClient : RemoteFileClient {
         false
     }
 
+    // Dropping the cached Nfs3 is all that is needed: the handle holds no open socket.
+    // The EMC client routes every RPC through a process-wide NetMgr singleton that owns
+    // the actual connections, so there is nothing on the Nfs3 object to close here.
     override fun disconnect(host: String) {
         mounts.keys.filter { it.startsWith("$host|") }.forEach { mounts.remove(it) }
     }
