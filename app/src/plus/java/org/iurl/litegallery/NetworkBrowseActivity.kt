@@ -566,7 +566,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
     }
 
     private fun openMediaViewer(item: RemoteFileInfo) {
-        // Open the media viewer directly on the clicked file. The viewer scans the SMB
+        // Open the media viewer directly on the clicked file. The viewer scans the network
         // folder through MediaSourceRegistry/NetworkMediaSource for swipe context and positions
         // itself to the target path, so tapping a file lands on that exact photo/video.
         val targetUrl = item.url
@@ -912,7 +912,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
 }
 
 /**
- * RecyclerView adapter for SMB browse file listing.
+ * RecyclerView adapter for network (SMB/NFS) browse file listing.
  */
 class NetworkBrowseAdapter(
     private val onItemClick: (RemoteFileInfo) -> Unit
