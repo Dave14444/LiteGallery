@@ -63,6 +63,50 @@ class NetworkConfigStoreTest {
     }
 
     @Test
+    fun getServerByHost_withProtocol_returnsConfigOfThatProtocolIgnoringCase() {
+        // NFS entry saved first, SMB entry second, on the same host. The SMB-filtered
+        // lookup must return the SMB config, not the NFS one that was stored earlier.
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "nfs", displayName = "NFS", host = "nas.local",
+                protocol = NetworkServerConfig.PROTOCOL_NFS, export = "/volume1/photo"
+            )
+        )
+        val smb = NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "smb", displayName = "SMB", host = "nas.local",
+                share = "Photos", username = "bob", password = "pw"
+            )
+        )
+
+        val resolved = NetworkConfigStore.getServerByHost(
+            context, "NAS.LOCAL", NetworkServerConfig.PROTOCOL_SMB
+        )
+
+        assertEquals(smb, resolved)
+        assertEquals(NetworkServerConfig.PROTOCOL_SMB, resolved?.protocol)
+    }
+
+    @Test
+    fun getServerByHost_withProtocol_returnsNullWhenNoConfigOfThatProtocol() {
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "nfs", displayName = "NFS", host = "nas.local",
+                protocol = NetworkServerConfig.PROTOCOL_NFS, export = "/volume1/photo"
+            )
+        )
+
+        assertNull(
+            NetworkConfigStore.getServerByHost(
+                context, "nas.local", NetworkServerConfig.PROTOCOL_SMB
+            )
+        )
+    }
+
+    @Test
     fun updateServer_replacesMatchingIdOnly() {
         NetworkConfigStore.addServer(
             context,

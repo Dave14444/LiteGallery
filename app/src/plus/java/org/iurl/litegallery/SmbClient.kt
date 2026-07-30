@@ -315,7 +315,7 @@ object SmbClient {
     // --- Internal helpers ---
 
     private fun resolveConfig(context: Context, host: String): NetworkServerConfig? {
-        return NetworkConfigStore.getServerByHost(context, host)
+        return NetworkConfigStore.getServerByHost(context, host, NetworkServerConfig.PROTOCOL_SMB)
     }
 
     @Synchronized

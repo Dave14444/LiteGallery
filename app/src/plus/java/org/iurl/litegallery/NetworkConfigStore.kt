@@ -32,6 +32,17 @@ object NetworkConfigStore {
         return getAllServers(context).find { it.host.equals(host, ignoreCase = true) }
     }
 
+    /**
+     * The saved server for [host] that uses [protocol], or null. Filtering by protocol
+     * matters when a host has both an SMB and an NFS entry: an SMB caller must not
+     * receive the NFS config (which carries no share/credentials) or vice versa.
+     */
+    fun getServerByHost(context: Context, host: String, protocol: String): NetworkServerConfig? {
+        return getAllServers(context).find {
+            it.protocol == protocol && it.host.equals(host, ignoreCase = true)
+        }
+    }
+
     fun getServerById(context: Context, id: String): NetworkServerConfig? {
         return getAllServers(context).find { it.id == id }
     }
