@@ -13,6 +13,7 @@ object LocaleHelper {
     const val LANGUAGE_ENGLISH = "en"
     const val LANGUAGE_TRADITIONAL_CHINESE = "zh_TW"
     const val LANGUAGE_SIMPLIFIED_CHINESE = "zh_CN"
+    const val LANGUAGE_GERMAN = "de"
 
     /**
      * Apply the saved locale preference to the app
@@ -57,6 +58,7 @@ object LocaleHelper {
             LANGUAGE_ENGLISH -> context.getString(R.string.language_english)
             LANGUAGE_TRADITIONAL_CHINESE -> context.getString(R.string.language_traditional_chinese)
             LANGUAGE_SIMPLIFIED_CHINESE -> context.getString(R.string.language_simplified_chinese)
+            LANGUAGE_GERMAN -> context.getString(R.string.language_german)
             else -> context.getString(R.string.language_system_default)
         }
     }
@@ -69,6 +71,7 @@ object LocaleHelper {
             LANGUAGE_ENGLISH -> LocaleListCompat.forLanguageTags("en")
             LANGUAGE_TRADITIONAL_CHINESE -> LocaleListCompat.forLanguageTags("zh-TW")
             LANGUAGE_SIMPLIFIED_CHINESE -> LocaleListCompat.forLanguageTags("zh-CN")
+            LANGUAGE_GERMAN -> LocaleListCompat.forLanguageTags("de") 
             else -> LocaleListCompat.getEmptyLocaleList()
         }
     }
