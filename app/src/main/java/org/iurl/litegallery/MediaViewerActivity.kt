@@ -547,9 +547,44 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun applyActionBarCustomization() {
         val prefs = getSharedPreferences(ActionBarPreferences.PREFS_NAME, MODE_PRIVATE)
         val defaultOrder = ActionBarPreferences.DEFAULT_ACTION_ORDER
-        val order = (prefs.getString(ActionBarPreferences.KEY_ORDER, null)?.split(',')?.filter { it.isNotBlank() } ?: defaultOrder)
-        val visible = (prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: defaultOrder.toSet())
+        val order = (
+    prefs.getString(ActionBarPreferences.KEY_ORDER, null)
+        ?.split(',')
+        ?.filter { it.isNotBlank() }
+        ?: defaultOrder
+)
 
+// Migrate existing installations so the new Share action is visible.
+if (!prefs.getBoolean("share_action_migrated", false)) {
+    val storedVisible = prefs.getString(
+        ActionBarPreferences.KEY_VISIBLE, null
+    )
+
+    if (storedVisible != null &&
+        storedVisible.split(',').none { it.trim() == "share" }
+    ) {
+        val migratedVisible = (
+            storedVisible.split(',')
+                .filter { it.isNotBlank() } + "share"
+        ).distinct().joinToString(",")
+
+        prefs.edit()
+            .putString(ActionBarPreferences.KEY_VISIBLE, migratedVisible)
+            .apply()
+    }
+
+    prefs.edit()
+        .putBoolean("share_action_migrated", true)
+        .apply()
+}
+
+val visible = (
+    prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)
+        ?.split(',')
+        ?.filter { it.isNotBlank() }
+        ?.toSet()
+        ?: defaultOrder.toSet()
+)
         val container = binding.actionButtonsContainer
         container.removeAllViews()
 
