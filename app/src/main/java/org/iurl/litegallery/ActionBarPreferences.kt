@@ -8,6 +8,7 @@ object ActionBarPreferences {
     // Keep first-install defaults aligned with Customize Action Bar settings UI.
     val DEFAULT_ACTION_ORDER = listOf(
         "delete",
+        "share",
         "rename",
         "rotate_screen",
         "properties",
