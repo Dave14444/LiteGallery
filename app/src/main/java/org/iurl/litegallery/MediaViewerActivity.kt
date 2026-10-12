@@ -3883,3 +3883,67 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
 }
+private fun shareCurrent() {
+    val item = getCurrentMediaItem() ?: return
+
+    lifecycleScope.launch {
+        try {
+            val source = MediaSourceRegistry.forPath(item.path)
+
+            val uri = if (source != null) {
+                val shareFile = source.prepareShareFile(
+                    this@MediaViewerActivity,
+                    item.path
+                ) ?: throw java.io.IOException(
+                    "Could not prepare remote file for sharing"
+                )
+
+                androidx.core.content.FileProvider.getUriForFile(
+                    this@MediaViewerActivity,
+                    "${applicationContext.packageName}.fileprovider",
+                    shareFile
+                )
+            } else {
+                buildSecureUriForItem(item)
+                    ?: throw java.io.IOException(
+                        "Could not create URI for media file"
+                    )
+            }
+
+            val shareIntent = android.content.Intent(
+                android.content.Intent.ACTION_SEND
+            ).apply {
+                type = item.mimeType
+                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                clipData = android.content.ClipData.newUri(
+                    contentResolver,
+                    "media",
+                    uri
+                )
+                addFlags(
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+
+            startActivity(
+                android.content.Intent.createChooser(
+                    shareIntent,
+                    getString(R.string.share)
+                )
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.e(
+                "MediaViewerActivity",
+                "Share failed",
+                e
+            )
+            android.widget.Toast.makeText(
+                this@MediaViewerActivity,
+                "Datei konnte nicht geteilt werden",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+}
