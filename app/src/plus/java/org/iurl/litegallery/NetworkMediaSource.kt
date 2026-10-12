@@ -77,3 +77,57 @@ object NetworkMediaSource : MediaSource {
         RemoteClients.all().forEach { it.disconnectAll() }
     }
 }
+--- a/app/src/plus/java/org/iurl/litegallery/NetworkMediaSource.kt
++++ b/app/src/plus/java/org/iurl/litegallery/NetworkMediaSource.kt
+@@
+ import android.content.Context
+ import android.content.Intent
+ import androidx.media3.exoplayer.source.ProgressiveMediaSource
++import java.io.File
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.withContext
+@@
+     override val folderIconRes: Int = R.drawable.ic_network
+
+     override fun canLoadThumbnail(path: String): Boolean = RemoteModelLoader.isRemoteImage(path)
+
++    /**
++     * Copy a remote file to the app cache because Android share targets
++     * cannot directly read smb:// or nfs:// URLs.
++     */
++    override suspend fun prepareShareFile(context: Context, path: String): File? =
++        withContext(Dispatchers.IO) {
++            val client = RemoteClients.forUrl(path)
++                ?: return@withContext null
++
++            val shareDir = File(context.cacheDir, "shared_media")
++            if (!shareDir.exists() && !shareDir.mkdirs()) {
++                return@withContext null
++            }
++
++            val extension = path.substringAfterLast('/')
++                .substringAfterLast('.', "")
++                .takeIf {
++                    it.isNotBlank() &&
++                        it.length <= 10 &&
++                        it.all { char -> char.isLetterOrDigit() }
++                }
++            val suffix = extension?.let { ".$it" } ?: ".bin"
++            val target = File.createTempFile("share_", suffix, shareDir)
++
++            try {
++                client.openInputStream(context, path).use { input ->
++                    target.outputStream().use { output ->
++                        input.copyTo(output)
++                    }
++                }
++                target
++            } catch (e: Exception) {
++                target.delete()
++                throw e
++            }
++        }
++
+     override suspend fun scanFolder(context: Context, folderPath: String): List<MediaItem> =
+         RemoteMediaScanner(context).scanMediaInFolder(folderPath)
