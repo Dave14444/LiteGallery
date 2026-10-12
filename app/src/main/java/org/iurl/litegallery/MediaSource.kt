@@ -50,6 +50,16 @@ interface MediaSource {
         extension: String
     ): RenameOutcome
 
+    /**
+ * Copy a remote media file to a local destination for sharing.
+ * Returns false if exporting the file is not supported or fails.
+ */
+suspend fun copyToCache(
+    context: Context,
+    path: String,
+    destination: java.io.File
+): Boolean = false
+    
     /** Release any held resources (connections, caches) on app shutdown. */
     fun shutdown()
 }
