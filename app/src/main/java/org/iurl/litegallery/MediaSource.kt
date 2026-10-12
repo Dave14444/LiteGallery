@@ -60,3 +60,22 @@ sealed class RenameOutcome {
     object AlreadyExists : RenameOutcome()
     object Failed : RenameOutcome()
 }
+--- a/app/src/main/java/org/iurl/litegallery/MediaSource.kt
++++ b/app/src/main/java/org/iurl/litegallery/MediaSource.kt
+@@
+ import android.content.Context
+ import android.content.Intent
++import java.io.File
+ import kotlinx.coroutines.flow.Flow
+@@
+     /** Whether a thumbnail can be loaded (via Glide) for the given media [path]. */
+     fun canLoadThumbnail(path: String): Boolean
+
++    /**
++     * Prepare a remote item as a local file for Android sharing.
++     * Sources that do not need this can keep the default implementation.
++     */
++    suspend fun prepareShareFile(context: Context, path: String): File? = null
++
+     /** Scan a folder owned by this source into full media items. */
+     suspend fun scanFolder(context: Context, folderPath: String): List<MediaItem>
