@@ -72,7 +72,34 @@ object NetworkMediaSource : MediaSource {
             else -> RenameOutcome.Failed
         }
     }
+override suspend fun copyToCache(
+    context: Context,
+    path: String,
+    destination: java.io.File
+): Boolean = withContext(Dispatchers.IO) {
+    val client = RemoteClients.forUrl(path)
+        ?: return@withContext false
 
+    try {
+        destination.parentFile?.mkdirs()
+
+        client.openInputStream(context, path).use { input ->
+            destination.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        destination.isFile && destination.length() > 0L
+    } catch (e: Exception) {
+        destination.delete()
+        android.util.Log.e(
+            "NetworkMediaSource",
+            "Failed to copy remote media for sharing",
+            e
+        )
+        false
+    }
+}
     override fun shutdown() {
         RemoteClients.all().forEach { it.disconnectAll() }
     }
