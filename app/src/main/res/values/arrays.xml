@@ -237,6 +237,7 @@
         <item>@string/language_english</item>
         <item>@string/language_traditional_chinese</item>
         <item>@string/language_simplified_chinese</item>
+        <item>@string/language_german</item>
     </string-array>
 
     <string-array name="language_values">
@@ -244,6 +245,7 @@
         <item>en</item>
         <item>zh_TW</item>
         <item>zh_CN</item>
+        <item>de</item>
     </string-array>
 
 </resources>
