@@ -1257,21 +1257,110 @@ val visible = (
         resultRenamedIds.add(updatedItem.id)
     }
 
-    private fun shareCurrent() {
-        val item = getCurrentMediaItem() ?: return
+    
+private fun shareCurrent() {
+    val item = getCurrentMediaItem() ?: return
+
+    lifecycleScope.launch {
         try {
-            val uri = buildSecureUriForItem(item) ?: return
-            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            val uri = if (item.isRemote) {
+                val source = MediaSourceRegistry.forPath(item.path)
+
+                if (source == null) {
+                    android.widget.Toast.makeText(
+                        this@MediaViewerActivity,
+                        "Netzwerkquelle nicht gefunden.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    return@launch
+                }
+
+                val shareDir = java.io.File(cacheDir, "share").apply {
+                    mkdirs()
+                }
+
+                val extension = item.extension
+                    .takeIf { it.isNotBlank() }
+                    ?.let { ".$it" } ?: ".tmp"
+
+                val cachedFile = java.io.File.createTempFile(
+                    "shared_",
+                    extension,
+                    shareDir
+                )
+
+                val copied = source.copyToCache(
+                    this@MediaViewerActivity,
+                    item.path,
+                    cachedFile
+                )
+
+                if (!copied) {
+                    cachedFile.delete()
+
+                    android.widget.Toast.makeText(
+                        this@MediaViewerActivity,
+                        "Das Netzwerkbild konnte nicht zum Teilen geladen werden.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    return@launch
+                }
+
+                androidx.core.content.FileProvider.getUriForFile(
+                    this@MediaViewerActivity,
+                    "${applicationContext.packageName}.fileprovider",
+                    cachedFile
+                )
+            } else {
+                buildSecureUriForItem(item)
+            }
+
+            if (uri == null) {
+                android.widget.Toast.makeText(
+                    this@MediaViewerActivity,
+                    "Die Datei konnte nicht zum Teilen vorbereitet werden.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
+
+            val shareIntent = android.content.Intent(
+                android.content.Intent.ACTION_SEND
+            ).apply {
                 type = item.mimeType
                 putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                clipData = android.content.ClipData.newUri(contentResolver, "media", uri)
-                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                clipData = android.content.ClipData.newUri(
+                    contentResolver,
+                    "media",
+                    uri
+                )
+                addFlags(
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
             }
-            startActivity(android.content.Intent.createChooser(shareIntent, getString(R.string.share)))
+
+            startActivity(
+                android.content.Intent.createChooser(
+                    shareIntent,
+                    getString(R.string.share)
+                )
+            )
         } catch (e: Exception) {
-            android.util.Log.e("MediaViewerActivity", "Share failed: ${e.message}")
+            android.util.Log.e(
+                "MediaViewerActivity",
+                "Share failed",
+                e
+            )
+
+            android.widget.Toast.makeText(
+                this@MediaViewerActivity,
+                "Teilen fehlgeschlagen: ${e.localizedMessage ?: "Unbekannter Fehler"}",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
     }
+}
+
 
     private fun editCurrent() {
         val item = getCurrentMediaItem() ?: return
