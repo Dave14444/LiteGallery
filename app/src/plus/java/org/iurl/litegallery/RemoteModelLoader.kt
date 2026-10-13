@@ -19,8 +19,18 @@ class RemoteModelLoader(private val context: Context) : ModelLoader<String, Inpu
 
     companion object {
         /** Check if a remote URL points to an image (not a video). */
-        fun isRemoteImage(path: String): Boolean =
-            RemotePath.isRemote(path) && RemoteFileTypes.isImage(path)
+        private const val SMB_THUMB_PREFIX = "smbthumb://"
+
+fun isRemoteImage(path: String): Boolean {
+    val imagePath = if (path.startsWith(SMB_THUMB_PREFIX)) {
+        path.removePrefix(SMB_THUMB_PREFIX)
+    } else {
+        path
+    }
+
+    return RemotePath.isRemote(imagePath) &&
+        RemoteFileTypes.isImage(imagePath)
+}
     }
 
     override fun buildLoadData(
@@ -50,18 +60,29 @@ class RemoteImageFetcher(
 
     override fun loadData(priority: Priority, callback: DataFetcher.DataCallback<in InputStream>) {
         try {
-            val client = RemoteClients.forUrl(url)
-            if (client == null) {
-                callback.onLoadFailed(Exception("No remote client for URL: $url"))
-                return
-            }
-            val stream = if (SmbPath.isSmb(url)) {
-    SmbThumbnailCache.openThumbnailStream(context, url)
+            val isThumbnail = url.startsWith("smbthumb://")
+val imageUrl = if (isThumbnail) {
+    url.removePrefix("smbthumb://")
 } else {
-    client.openInputStream(context, url)
-            }
-            inputStream = stream
-            callback.onDataReady(stream)
+    url
+}
+
+val client = RemoteClients.forUrl(imageUrl)
+if (client == null) {
+    callback.onLoadFailed(
+        Exception("No remote client for URL: $imageUrl")
+    )
+    return
+}
+
+val stream = if (isThumbnail && SmbPath.isSmb(imageUrl)) {
+    SmbThumbnailCache.openThumbnailStream(context, imageUrl)
+} else {
+    client.openInputStream(context, imageUrl)
+}
+
+inputStream = stream
+callback.onDataReady(stream)
         } catch (e: Exception) {
             callback.onLoadFailed(e)
         }
