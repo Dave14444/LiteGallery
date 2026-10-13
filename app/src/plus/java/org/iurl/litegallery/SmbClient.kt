@@ -247,6 +247,28 @@ object SmbClient {
         }
     }
 
+
+    /**
+     * Get the last-modified timestamp of a file on the SMB share.
+     */
+    fun getLastModified(
+        context: Context,
+        host: String,
+        shareName: String,
+        filePath: String
+    ): Long {
+        val smbPath = filePath.replace('/', '\\')
+        return try {
+            executeWithRetry(context, host, shareName) { share ->
+                share.getFileInformation(smbPath).lastWriteTime.toEpochMillis()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SmbClient", "Failed to get last-modified time: $smbPath", e)
+            -1L
+        }
+    }
+
+    
     /**
      * Rename a file on the SMB share.
      */
