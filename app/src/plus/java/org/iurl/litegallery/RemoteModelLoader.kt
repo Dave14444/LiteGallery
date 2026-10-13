@@ -39,6 +39,7 @@ fun isRemoteImage(path: String): Boolean {
         height: Int,
         options: Options
     ): ModelLoader.LoadData<InputStream>? {
+        android.util.Log.i("SmbThumbDiag", "BUILD_LOAD_DATA: model=$model isImage=${isRemoteImage(model)}")
         if (!isRemoteImage(model)) {
             return null // Only handle remote image paths; videos can't be decoded as images
         }
