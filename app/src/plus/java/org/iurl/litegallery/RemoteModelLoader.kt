@@ -45,7 +45,22 @@ fun isRemoteImage(path: String): Boolean {
         return ModelLoader.LoadData(ObjectKey(model), RemoteImageFetcher(context, model))
     }
 
-    override fun handles(model: String): Boolean = isRemoteImage(model)
+    override fun handles(model: String): Boolean {
+    val isRemote = model.startsWith("smb://") ||
+        model.startsWith("smbthumb://") ||
+        model.startsWith("nfs://")
+
+    val result = isRemoteImage(model)
+
+    if (isRemote) {
+        android.util.Log.i(
+            "SmbThumbDiag",
+            "HANDLES: model=$model result=$result"
+        )
+    }
+
+    return result
+}
 }
 
 /**
@@ -59,6 +74,7 @@ class RemoteImageFetcher(
     private var inputStream: InputStream? = null
 
     override fun loadData(priority: Priority, callback: DataFetcher.DataCallback<in InputStream>) {
+        android.util.Log.i("SmbThumbDiag", "FETCH: url=$url")
         try {
             val isThumbnail = url.startsWith("smbthumb://")
 val imageUrl = if (isThumbnail) {
@@ -76,6 +92,7 @@ if (client == null) {
 }
 
 val stream = if (isThumbnail && SmbPath.isSmb(imageUrl)) {
+    android.util.Log.i("SmbThumbDiag", "CACHE_ROUTE: $imageUrl")
     SmbThumbnailCache.openThumbnailStream(context, imageUrl)
 } else {
     client.openInputStream(context, imageUrl)
