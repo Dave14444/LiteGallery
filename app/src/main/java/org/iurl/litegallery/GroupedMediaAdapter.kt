@@ -210,7 +210,15 @@ class GroupedMediaAdapter(
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
             Glide.with(binding.root.context)
-                .load(skeleton.thumbnailModel())
+                
+.load(
+    if (skeleton.path.startsWith("smb://")) {
+        "smbthumb://${skeleton.path}"
+    } else {
+        skeleton.thumbnailModel()
+    }
+)
+
                 .centerCrop()
                 .placeholder(R.drawable.ic_image_placeholder)
                 .error(R.drawable.ic_image_placeholder)
@@ -230,7 +238,15 @@ class GroupedMediaAdapter(
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
             Glide.with(binding.root.context)
-                .load(skeleton.thumbnailModel())
+                
+.load(
+    if (skeleton.path.startsWith("smb://")) {
+        "smbthumb://${skeleton.path}"
+    } else {
+        skeleton.thumbnailModel()
+    }
+)
+
                 .centerCrop()
                 .placeholder(R.drawable.ic_image_placeholder)
                 .error(R.drawable.ic_image_placeholder)
@@ -250,7 +266,15 @@ class GroupedMediaAdapter(
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
             Glide.with(binding.root.context)
-                .load(skeleton.thumbnailModel())
+                
+.load(
+    if (skeleton.path.startsWith("smb://")) {
+        "smbthumb://${skeleton.path}"
+    } else {
+        skeleton.thumbnailModel()
+    }
+)
+
                 .centerCrop()
                 .placeholder(R.drawable.ic_image_placeholder)
                 .error(R.drawable.ic_image_placeholder)
