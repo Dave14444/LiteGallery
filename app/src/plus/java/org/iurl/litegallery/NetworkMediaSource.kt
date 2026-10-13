@@ -28,10 +28,33 @@ object NetworkMediaSource : MediaSource {
             itemCount = serverCount,
             thumbnail = null
         )
+
+        override fun homeEntries(context: Context): List<MediaFolder> {
+    val networkHub = homeEntry(context)
+
+    val savedConnections = NetworkConfigStore.getAllServers(context)
+        .map { server ->
+            MediaFolder(
+                name = server.displayName.ifBlank { server.host },
+                path = server.rootUrl(),
+                itemCount = 0,
+                thumbnail = null
+            )
+        }
+
+    return listOf(networkHub) + savedConnections
+        }
     }
 
     override fun browseIntent(context: Context): Intent =
-        Intent(context, NetworkBrowseActivity::class.java)
+    Intent(context, NetworkBrowseActivity::class.java)
+
+override fun browseIntent(context: Context, path: String): Intent =
+    Intent(context, NetworkBrowseActivity::class.java).apply {
+        if (path != "smb://") {
+            putExtra(NetworkBrowseActivity.EXTRA_START_PATH, path)
+        }
+    }
 
     override val folderIconRes: Int = R.drawable.ic_network
 
