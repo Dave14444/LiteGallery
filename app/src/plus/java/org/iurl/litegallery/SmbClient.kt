@@ -260,7 +260,7 @@ object SmbClient {
         val smbPath = filePath.replace('/', '\\')
         return try {
             executeWithRetry(context, host, shareName) { share ->
-                share.getFileInformation(smbPath).lastWriteTime.toEpochMillis()
+                share.getFileInformation(smbPath).basicInformation.lastWriteTime.toEpochMillis()
             }
         } catch (e: Exception) {
             android.util.Log.e("SmbClient", "Failed to get last-modified time: $smbPath", e)
