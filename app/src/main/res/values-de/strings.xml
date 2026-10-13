@@ -1,0 +1,532 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LiteGallery</string>
+    <string name="settings_title">Einstellungen</string>
+    <string name="reload_video">Video neu laden</string>
+    <string name="copy_playback_diagnostics">Wiedergabediagnose kopieren</string>
+    <string name="playback_diagnostics_copied">Wiedergabediagnose kopiert</string>
+    <string name="playback_diagnostics_empty">Noch keine Wiedergabediagnose vorhanden</string>
+    <string name="trash_bin_title">Papierkorb</string>
+
+    <!-- Hauptansicht -->
+    <string name="no_media_folders">Keine Medienordner gefunden</string>
+    <string name="loading">Wird geladen …</string>
+    <string name="permission_required">Speicherberechtigung erforderlich</string>
+    <string name="grant_permission">Berechtigung erteilen</string>
+
+    <!-- Ordneransicht -->
+    <string name="items_count">%d Elemente</string>
+    <string name="thumbnail_view">Miniaturansicht</string>
+    <string name="list_view">Listenansicht</string>
+    <string name="detailed_view">Detailansicht</string>
+
+    <!-- Medienbetrachter -->
+    <string name="delete">Löschen</string>
+    <string name="share">Teilen</string>
+    <string name="edit">Bearbeiten</string>
+    <string name="properties">Eigenschaften</string>
+    <string name="rename">Umbenennen</string>
+    <string name="copy">Kopieren</string>
+    <string name="move">Verschieben</string>
+    <string name="rotate">Drehen</string>
+    <string name="rotate_screen">Bildschirm drehen</string>
+
+    <!-- Dateioperationen -->
+    <string name="file_conflict_title">Dateikonflikt</string>
+    <string name="file_conflict_message">Eine Datei mit diesem Namen existiert bereits. Was möchtest du tun?</string>
+    <string name="overwrite">Überschreiben</string>
+    <string name="use_new_name">Neuen Namen verwenden</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="rename_file">Datei umbenennen</string>
+    <string name="new_name">Neuer Name</string>
+    <string name="ok">OK</string>
+
+    <!-- Löschen und Papierkorb -->
+    <string name="delete_confirmation">Diese Datei löschen?</string>
+    <string name="move_to_trash">In den Papierkorb verschieben</string>
+    <string name="delete_permanently">Endgültig löschen</string>
+    <string name="restore">Wiederherstellen</string>
+    <string name="empty_trash">Papierkorb leeren</string>
+    <string name="empty_trash_confirmation">Alle Dateien im Papierkorb endgültig löschen?</string>
+
+    <!-- Eigenschaften -->
+    <string name="file_name">Dateiname</string>
+    <string name="file_type">Dateityp</string>
+    <string name="file_size">Dateigröße</string>
+    <string name="file_date">Datum</string>
+    <string name="file_path">Dateipfad</string>
+    <string name="resolution">Auflösung</string>
+    <string name="duration">Dauer</string>
+    <string name="copy_path">Pfad kopieren</string>
+    <string name="copy_all_info">Alle Informationen kopieren</string>
+    <string name="properties_path_copied">Pfad kopiert</string>
+    <string name="properties_copied">Eigenschaften kopiert</string>
+    <string name="unknown_value">Unbekannt</string>
+
+    <!-- Einstellungen -->
+    <string name="default_sort_order">Standard-Sortierung</string>
+    <string name="sort_by_date">Nach Datum sortieren</string>
+    <string name="sort_by_name">Nach Name sortieren</string>
+    <string name="ascending">Aufsteigend</string>
+    <string name="descending">Absteigend</string>
+    <string name="customize_action_bar">Aktionsleiste anpassen</string>
+    <string name="action_bar_buttons">Schaltflächen der Aktionsleiste</string>
+
+    <!-- Allgemein -->
+    <string name="yes">Ja</string>
+    <string name="no">Nein</string>
+    <string name="done">Fertig</string>
+    <string name="error">Fehler</string>
+    <string name="success">Erfolgreich</string>
+    <string name="retry">Erneut versuchen</string>
+
+    <!-- Weitere Funktionen -->
+    <string name="no_media_found">Keine Medien gefunden</string>
+    <string name="refresh">Aktualisieren</string>
+    <string name="view_mode">Ansichtsmodus</string>
+    <string name="sort">Sortieren</string>
+    <string name="menu">Menü</string>
+    <string name="play_pause">Wiedergabe/Pause</string>
+    <string name="frame_backward">Ein Bild zurück</string>
+    <string name="frame_forward">Ein Bild weiter</string>
+    <string name="frame_mode">Einzelbildmodus</string>
+    <string name="expand_controls">Steuerelemente ausklappen</string>
+    <string name="expand_info_sheet">Infofeld ausklappen</string>
+    <string name="minimize_info_sheet">Infofeld einklappen</string>
+    <string name="brightness">Helligkeit</string>
+    <string name="contrast">Kontrast</string>
+
+    <!-- Papierkorb -->
+    <string name="trash_bin_empty">Der Papierkorb ist leer</string>
+    <string name="trash_source_label">Papierkorbquelle</string>
+    <string name="trash_source_app">App-Papierkorb</string>
+    <string name="trash_source_system">System-Papierkorb</string>
+    <string name="trash_source_badge_app">APP</string>
+    <string name="trash_source_badge_system">SYSTEM</string>
+    <string name="trash_source_badge_content_description">Papierkorbquelle: %1$s</string>
+    <string name="original_file_path">Ursprünglicher Pfad</string>
+    <string name="restore_all">Alle wiederherstellen</string>
+    <string name="restore_all_confirmation">Alle Dateien im Papierkorb wiederherstellen?</string>
+    <string name="restore_selected">Ausgewählte wiederherstellen</string>
+    <string name="delete_selected_permanently">Ausgewählte endgültig löschen</string>
+    <string name="delete_selected_confirmation">%d ausgewählte Dateien endgültig löschen?</string>
+    <string name="trash_selected_count">%d ausgewählt</string>
+    <string name="select_all">Alle auswählen</string>
+    <string name="clear_selection">Auswahl aufheben</string>
+    <string name="trash_auto_cleaned_count">%d abgelaufene Dateien automatisch aus dem Papierkorb gelöscht</string>
+    <string name="trash_reindexed_count">%d Papierkorbdateien neu indiziert</string>
+
+      <!-- Einstellungen -->
+    <string name="display_settings">Anzeigeeinstellungen</string>
+    <string name="action_bar_settings">Einstellungen der Aktionsleiste</string>
+    <string name="general_settings">Allgemeine Einstellungen</string>
+    <string name="storage_and_privacy_settings">Speicher und Datenschutz</string>
+    <string name="advanced_settings">Erweiterte Einstellungen</string>
+    <string name="about_settings">Über</string>
+    <string name="about_settings_summary_placeholder">App-Name · Edition · Version</string>
+    <string name="about_settings_summary_format">%1$s · %2$s · %3$s</string>
+    <string name="about_app_name_title">App-Name</string>
+    <string name="about_edition_title">Edition</string>
+    <string name="about_version_title">Version</string>
+    <string name="about_build_type_title">Build-Typ</string>
+    <string name="about_capabilities_title">Enthaltene Funktionen</string>
+    <string name="app_edition_core">Core</string>
+    <string name="app_edition_plus">Plus</string>
+    <string name="about_capabilities_core">Lokale Medien durchsuchen, ohne Netzwerkfreigaben</string>
+    <string name="about_capabilities_plus">Enthält das Durchsuchen von SMB-Netzwerkfreigaben</string>
+    <string name="default_view_mode">Standardansicht</string>
+    <string name="default_group_by">Standardgruppierung</string>
+    <string name="remember_folder_sort_order_title">Sortierung pro Ordner merken</string>
+    <string name="remember_folder_sort_order_summary">Beim nächsten Öffnen eines Ordners die zuletzt gewählte Sortierung verwenden</string>
+    <string name="remember_folder_view_mode_title">Ansicht pro Ordner merken</string>
+    <string name="remember_folder_view_mode_summary">Beim nächsten Öffnen eines Ordners die zuletzt gewählte Ansicht verwenden</string>
+    <string name="remember_folder_group_by_title">Gruppierung pro Ordner merken</string>
+    <string name="remember_folder_group_by_summary">Beim nächsten Öffnen eines Ordners die zuletzt gewählte Gruppierung verwenden</string>
+    <string name="customize_action_bar_summary">Reihenfolge und Sichtbarkeit der Schaltflächen anpassen</string>
+    <string name="restore_brightness_title">Helligkeit wiederherstellen</string>
+    <string name="restore_brightness_summary">Beim Beenden der App die ursprüngliche Helligkeit wiederherstellen</string>
+    <string name="remember_video_brightness_title">Videohelligkeit merken</string>
+    <string name="remember_video_brightness_summary">Bei der nächsten Videowiedergabe die zuletzt eingestellte Helligkeit verwenden</string>
+    <string name="remember_media_viewer_info_sheet_state_title">Zustand des Infofelds merken</string>
+    <string name="remember_media_viewer_info_sheet_state_summary">Beim nächsten Öffnen des Medienbetrachters den zuletzt verwendeten Zustand des Infofelds wiederherstellen</string>
+    <string name="restore_volume_title">Lautstärke wiederherstellen</string>
+    <string name="restore_volume_summary">Beim Beenden der App die ursprüngliche Lautstärke wiederherstellen</string>
+    <string name="playback_diagnostics_setting_title">Wiedergabediagnose aktivieren</string>
+    <string name="playback_diagnostics_setting_summary">Wiedergabeereignisse zur Fehlerbehebung erfassen</string>
+    <string name="external_folder_access_prompt_setting_title">Ordnerzugriff abfragen</string>
+    <string name="external_folder_access_prompt_setting_summary">Bei externen Dateien nach dem Ordnerzugriff fragen. Aktiviere diese Option, um die Abfrage wieder einzuschalten.</string>
+    <string name="advanced_full_storage_mode_title">Vollständiger Speicherzugriff</string>
+    <string name="advanced_full_storage_mode_summary">Öffne die Systemeinstellungen, um die Berechtigung für den vollständigen Speicherzugriff zu verwalten. So musst du normalerweise nicht jeden Ordner einzeln freigeben. Diese Berechtigung ist jedoch weitreichend.</string>
+    <string name="advanced_full_storage_mode_summary_enabled">Vollständiger Speicherzugriff ist gewährt. Einzelne Ordner müssen normalerweise nicht freigegeben werden. Tippe hier, um die Berechtigung in den Systemeinstellungen zu verwalten.</string>
+    <string name="advanced_full_storage_mode_summary_permission_missing">Vollständiger Speicherzugriff ist nicht gewährt. Tippe hier, um die Systemeinstellungen zu öffnen.</string>
+    <string name="advanced_full_storage_open_failed">Einstellungen für den vollständigen Speicherzugriff konnten nicht geöffnet werden</string>
+    <string name="manage_external_folder_grants_title">Ordnerfreigaben verwalten</string>
+    <string name="manage_external_folder_grants_summary_none">Keine gespeicherten Ordnerfreigaben</string>
+    <string name="manage_external_folder_grants_summary_format">%1$d gespeicherte Zuordnungen, %2$d dauerhaft gewährte Ordnerfreigaben</string>
+    <string name="manage_external_folder_grants_dialog_title">Externe Ordnerfreigaben</string>
+    <string name="manage_external_folder_grants_dialog_mappings_header">Gespeicherte Zuordnungen</string>
+    <string name="manage_external_folder_grants_dialog_persisted_header">Dauerhafte Ordnerfreigaben</string>
+    <string name="manage_external_folder_grants_dialog_none">Keine</string>
+    <string name="manage_external_folder_grants_dialog_summary_format">%1$d gespeicherte Zuordnungen, %2$d dauerhaft gewährte Ordnerfreigaben</string>
+    <string name="manage_external_folder_grants_item_parent">Übergeordneter Ordner</string>
+    <string name="manage_external_folder_grants_item_tree">Freigegebener Ordnerbaum</string>
+    <string name="manage_external_folder_grants_item_folder">Ordner</string>
+    <string name="reset_external_folder_grants_title">Ordnerfreigaben zurücksetzen</string>
+    <string name="reset_external_folder_grants_summary">Alle Ordnerfreigaben widerrufen und gespeicherte Zuordnungen löschen</string>
+    <string name="reset_external_folder_grants_confirm_title">Ordnerfreigaben zurücksetzen?</string>
+    <string name="reset_external_folder_grants_confirm_message">Alle Freigaben für externe Ordner werden widerrufen und gespeicherte Zuordnungen gelöscht.</string>
+    <string name="reset_external_folder_grants_warning_access_disabled">Die Ordnerzugriffsabfrage ist ausgeschaltet und der vollständige Speicherzugriff wurde nicht gewährt. Nach dem Zurücksetzen kann das Durchsuchen externer Ordner fehlschlagen. Du kannst die Abfrage in den Einstellungen aktivieren oder den vollständigen Speicherzugriff gewähren.</string>
+    <string name="reset_external_folder_grants_done">%1$d gespeicherte Zuordnungen gelöscht und %2$d dauerhafte Ordnerfreigaben widerrufen</string>
+    <string name="external_folder_access_title">Ordnerzugriff gewähren</string>
+    <string name="external_folder_access_message">Damit du weitere Dateien im selben externen Ordner durchsuchen kannst, musst du den Zugriff auf diesen Ordner freigeben. Alternativ kannst du in den Einstellungen den vollständigen Speicherzugriff aktivieren.</string>
+    <string name="external_folder_access_target_folder_label">Zielordner</string>
+    <string name="external_folder_access_target_folder">Zielordner: %1$s</string>
+    <string name="external_folder_access_if_not_opened_hint">Falls der Ordner nicht automatisch geöffnet wird, navigiere bitte manuell dorthin.</string>
+    <string name="external_folder_access_select_folder_hint">Gib diesen Ordner im Auswahlfenster frei: %1$s</string>
+    <string name="storage_internal_label">Interner Speicher</string>
+    <string name="storage_external_label_format">Externer Speicher (%1$s)</string>
+    <string name="external_folder_access_dont_show_again">Nicht erneut anzeigen</string>
+    <string name="grant_folder_access">Ordnerzugriff gewähren</string>
+    <string name="external_folder_access_cancelled">Kein Ordnerzugriff gewährt. Es wird nur die aktuelle Datei angezeigt.</string>
+    <string name="external_folder_access_cancelled_with_settings_hint">Kein Ordnerzugriff gewährt. Es wird nur die aktuelle Datei angezeigt. In den Einstellungen kannst du die Ordnerzugriffsabfrage wieder aktivieren oder den vollständigen Speicherzugriff gewähren.</string>
+    <string name="external_folder_access_failed">Der Ordner konnte über die gewährte Berechtigung nicht geladen werden</string>
+    <string name="trash_retention_days_title">Aufbewahrungsdauer im Papierkorb</string>
+    <string name="trash_retention_days_summary_default">Dateien im App-Papierkorb nach 30 Tagen automatisch löschen</string>
+    <string name="trash_retention_days_summary_disabled">Deaktiviert (manuelles Leeren nur für den App-Papierkorb)</string>
+    <string name="trash_retention_days_summary_format">Dateien im App-Papierkorb nach %d Tagen automatisch löschen</string>
+    <string name="trash_retention_scope_note_with_system">Die Aufbewahrungsdauer gilt nur für den App-Papierkorb. Der System-Papierkorb wird von Android verwaltet und kann von anderen Galerie-Apps gemeinsam genutzt werden.</string>
+    <string name="trash_retention_scope_note_app_only">Die Aufbewahrungsdauer gilt nur für den App-Papierkorb.</string>
+    <string name="trash_retention_never">Nie automatisch löschen</string>
+    <string name="trash_retention_days_1">1 Tag</string>
+    <string name="trash_retention_days_3">3 Tage</string>
+    <string name="trash_retention_days_7">7 Tage</string>
+    <string name="trash_retention_days_14">14 Tage</string>
+    <string name="trash_retention_days_30">30 Tage</string>
+    <string name="trash_retention_days_60">60 Tage</string>
+    <string name="trash_retention_days_90">90 Tage</string>
+    <string name="sort_by_date_desc">Nach Datum sortieren (neueste zuerst)</string>
+    <string name="sort_by_date_asc">Nach Datum sortieren (älteste zuerst)</string>
+    <string name="sort_by_name_asc">Nach Name sortieren (A–Z)</string>
+    <string name="sort_by_name_desc">Nach Name sortieren (Z–A)</string>
+    <string name="sort_by_size_desc">Nach Größe sortieren (größte zuerst)</string>
+    <string name="sort_by_size_asc">Nach Größe sortieren (kleinste zuerst)</string>
+    <string name="folder_sort_chip_date_desc">Datum: Neueste</string>
+    <string name="folder_sort_chip_date_asc">Datum: Älteste</string>
+    <string name="folder_sort_chip_name_asc">Name: A–Z</string>
+    <string name="folder_sort_chip_name_desc">Name: Z–A</string>
+    <string name="folder_sort_chip_size_desc">Größe: Größte</string>
+    <string name="folder_sort_chip_size_asc">Größe: Kleinste</string>
+    <string name="folder_sort_content_description">Sortierung: %1$s</string>
+    <string name="group_by">Gruppieren nach</string>
+    <string name="group_none">Keine</string>
+    <string name="group_date">Datum</string>
+    <string name="group_name">Name</string>
+    <string name="group_size">Größe</string>
+    <string name="group_type">Typ</string>
+    <string name="folder_group_chip_format">Gruppe: %1$s</string>
+    <string name="folder_group_chip_none">Gruppe: Keine</string>
+    <string name="folder_group_content_description">Gruppe: %1$s</string>
+    <string name="group_unknown_date">Unbekanntes Datum</string>
+    <string name="group_unknown_size">Unbekannte Größe</string>
+    <string name="group_type_image">Bild</string>
+    <string name="group_type_video">Video</string>
+    <string name="group_type_other">Sonstiges</string>
+
+    <!-- Designmodus -->
+    <string name="theme_auto">Systemeinstellung verwenden</string>
+    <string name="theme_light">Helles Design</string>
+    <string name="theme_dark">Dunkles Design</string>
+
+    <!-- Designpakete -->
+    <string name="theme_pack_title">Design</string>
+    <string name="theme_pack_summary">Schrift, Layout und Farbpalette als Paket</string>
+    <string name="theme_pack_summary_format">%1$s · %2$s</string>
+    <string name="theme_pack_eyebrow">Erscheinungsbild</string>
+    <string name="theme_pack_subtitle">Jedes Design verändert Schrift, Oberflächen und Akzentfarbe.</string>
+    <string name="theme_pack_mode_label">Modus</string>
+    <string name="theme_pack_footer_title">Fotos sehen immer gleich aus</string>
+    <string name="theme_pack_footer_subtitle">Das Design verändert nur die Oberfläche. Deine Originalbilder bleiben unverändert.</string>
+
+    <!-- Modusauswahl -->
+    <string name="mode_auto">Automatisch</string>
+    <string name="mode_light">Hell</string>
+    <string name="mode_dark">Dunkel</string>
+
+    <!-- Hinweise zu Designmodi -->
+    <string name="pack_caption_dark_only">Nur dunkler Modus.</string>
+    <string name="pack_caption_light_only">Nur heller Modus.</string>
+    <string name="pack_caption_dual">Automatisch, hell und dunkel werden unterstützt.</string>
+
+    <!-- Designkennzeichnungen -->
+    <string name="pack_badge_dark_only">NUR DUNKEL</string>
+    <string name="pack_badge_light_only">NUR HELL</string>
+    <string name="pack_badge_dual">AUTO · HELL · DUNKEL</string>
+    <string name="pack_active_chip">AKTIV</string>
+
+    <!-- Designnamen und Untertitel -->
+    <string name="pack_first_light_name">Erstes Licht</string>
+    <string name="pack_first_light_sub">Klar · serifenlos · Türkis</string>
+    <string name="pack_warm_paper_name">Warmes Papier</string>
+    <string name="pack_warm_paper_sub">Creme · Serifenschrift · Terrakotta</string>
+    <string name="pack_editorial_name">Editorial Noir</string>
+    <string name="pack_editorial_sub">Dunkel · Serifenschrift · Bernstein</string>
+    <string name="pack_monolith_name">Monolith</string>
+    <string name="pack_monolith_sub">Graphit · Monospace · Limette</string>
+    <string name="pack_prism_name">Prisma</string>
+    <string name="pack_prism_sub">Violett · Farbverlauf · Magenta</string>
+    <string name="pack_brutalist_name">Sharp Brutalist</string>
+    <string name="pack_brutalist_sub">Cremeweiß · kräftig · leuchtendes Orange</string>
+
+      <!-- Einstellungen für schnelles Umbenennen -->
+    <string name="quick_rename_settings">Schnelles Umbenennen</string>
+    <string name="quick_rename_options_title">Optionen zum schnellen Umbenennen</string>
+    <string name="rename_history_count">Anzahl der Verlaufseinträge</string>
+    <string name="rename_default_sort">Standard-Sortierung</string>
+    <string name="rename_sort_key_time">Zeit</string>
+    <string name="rename_sort_key_text">Text</string>
+    <string name="rename_sort_key_text_ignore_alphanum">Text (Zahlen ignorieren)</string>
+    <string name="rename_options_header_prefixes">--- PRÄFIXE ---</string>
+    <string name="rename_options_header_suffixes">--- SUFFIXE ---</string>
+    <string name="rename_option_delete_title">Umbenennungsoption löschen</string>
+    <string name="rename_option_delete_message">„%1$s“ aus „%2$s“ löschen?</string>
+    <string name="rename_option_category_prefix">Präfixe</string>
+    <string name="rename_option_category_suffix">Suffixe</string>
+    <string name="rename_add_prefix_hint">Präfix eingeben</string>
+    <string name="rename_add_suffix_hint">Suffix eingeben</string>
+    <string name="rename_add_prefix_title">Präfix hinzufügen</string>
+    <string name="rename_add_suffix_title">Suffix hinzufügen</string>
+    <string name="rename_preview_format">Vorschau: %1$s</string>
+    <string name="time_descending">Zeit (neueste zuerst)</string>
+    <string name="time_ascending">Zeit (älteste zuerst)</string>
+    <string name="text_ascending">Text (A–Z)</string>
+    <string name="text_descending">Text (Z–A)</string>
+    <string name="text_ignore_alphanum_ascending">Text, Zahlen ignorieren (A–Z)</string>
+    <string name="text_ignore_alphanum_descending">Text, Zahlen ignorieren (Z–A)</string>
+
+    <!-- Dateinamensanzeige -->
+    <string name="filename_max_lines_title">Maximale Zeilen für Dateinamen</string>
+    <string name="filename_max_lines_summary">Maximale Zeilenanzahl für Dateinamen (0 = unbegrenzt)</string>
+    <string name="filename_max_lines_1">1 Zeile</string>
+    <string name="filename_max_lines_2">2 Zeilen</string>
+    <string name="filename_max_lines_3">3 Zeilen</string>
+    <string name="filename_max_lines_0">Unbegrenzt viele Zeilen</string>
+
+    <!-- Zoom -->
+    <string name="zoom_max_scale_title">Maximaler Zoom</string>
+    <string name="zoom_max_scale_summary">Maximale Vergrößerung für Bilder</string>
+    <string name="zoom_scale_2x">2-fach</string>
+    <string name="zoom_scale_3x">3-fach</string>
+    <string name="zoom_scale_4x">4-fach</string>
+    <string name="zoom_scale_5x">5-fach</string>
+    <string name="zoom_scale_6x">6-fach</string>
+    <string name="zoom_scale_8x">8-fach</string>
+    <string name="zoom_scale_10x">10-fach</string>
+
+    <!-- Videoeinstellungen -->
+    <string name="video_settings">Videoeinstellungen</string>
+    <string name="video_single_tap_title">Aktion bei einmaligem Tippen</string>
+    <string name="video_single_tap_summary">Aktion, die bei einmaligem Tippen ausgeführt wird</string>
+    <string name="video_double_tap_title">Aktion bei zweimaligem Tippen</string>
+    <string name="video_double_tap_summary">Aktion, die bei zweimaligem Tippen ausgeführt wird</string>
+    <string name="video_left_swipe_up_title">Wischgeste nach oben auf der linken Seite</string>
+    <string name="video_left_swipe_up_summary">Aktion beim Wischen nach oben auf der linken Seite</string>
+    <string name="video_left_swipe_down_title">Wischgeste nach unten auf der linken Seite</string>
+    <string name="video_left_swipe_down_summary">Aktion beim Wischen nach unten auf der linken Seite</string>
+    <string name="video_right_swipe_up_title">Wischgeste nach oben auf der rechten Seite</string>
+    <string name="video_right_swipe_up_summary">Aktion beim Wischen nach oben auf der rechten Seite</string>
+    <string name="video_right_swipe_down_title">Wischgeste nach unten auf der rechten Seite</string>
+    <string name="video_right_swipe_down_summary">Aktion beim Wischen nach unten auf der rechten Seite</string>
+
+    <!-- Aktionen für Videogesten -->
+    <string name="video_action_play_pause">Wiedergabe/Pause</string>
+    <string name="video_action_show_hide_ui">Bedienelemente ein-/ausblenden</string>
+    <string name="video_action_cycle_zoom">Zoomstufe wechseln</string>
+    <string name="video_action_zoom_in_out">Vergrößern/Verkleinern</string>
+    <string name="video_action_show_ui">Videosteuerung anzeigen</string>
+    <string name="video_action_hide_ui">Videosteuerung ausblenden</string>
+    <string name="video_action_zoom_in">Vergrößern</string>
+    <string name="video_action_zoom_out">Verkleinern</string>
+    <string name="video_action_brightness_up">Helligkeit erhöhen</string>
+    <string name="video_action_brightness_down">Helligkeit verringern</string>
+    <string name="video_action_volume_up">Lautstärke erhöhen</string>
+    <string name="video_action_volume_down">Lautstärke verringern</string>
+
+    <!-- Einstellungen exportieren/importieren -->
+    <string name="export_settings">Einstellungen exportieren</string>
+    <string name="import_settings">Einstellungen importieren</string>
+    <string name="export_settings_summary">Alle Einstellungen in eine Datei exportieren</string>
+    <string name="import_settings_summary">Einstellungen aus einer Datei importieren</string>
+    <string name="export_success">Einstellungen erfolgreich exportiert</string>
+    <string name="import_success">Einstellungen erfolgreich importiert</string>
+    <string name="export_failed">Einstellungen konnten nicht exportiert werden</string>
+    <string name="import_failed">Einstellungen konnten nicht importiert werden</string>
+    <string name="invalid_settings_file">Ungültige Einstellungsdatei</string>
+    <string name="settings_imported_count">%1$d Einstellungen importiert, %2$d inkompatible Einstellungen übersprungen</string>
+
+    <!-- Leere Ansichten und Ladezustände -->
+    <string name="tap_to_scan_media">Tippe, um nach Mediendateien zu suchen</string>
+    <string name="scanning_for_media">Suche nach Medien …</string>
+
+    <!-- Dialog zum Umbenennen -->
+    <string name="enter_new_name">Neuen Namen eingeben:</string>
+    <string name="quick_add_label">Schnell hinzufügen:</string>
+    <string name="add_prefix">+ Präfix</string>
+    <string name="add_suffix">+ Suffix</string>
+    <string name="close">Schließen</string>
+
+    <!-- Platzhalter des Videoplayers -->
+    <string name="time_placeholder">00:00</string>
+    <string name="zoom_placeholder">1x</string>
+
+    <!-- Einstellungsbereiche -->
+    <string name="settings_backup">Einstellungssicherung</string>
+
+    <!-- Spracheinstellungen -->
+    <string name="language_title">Sprache</string>
+    <string name="language_summary">Sprache der App auswählen</string>
+    <string name="language_english">Englisch</string>
+    <string name="language_traditional_chinese">Traditionelles Chinesisch</string>
+    <string name="language_simplified_chinese">Vereinfachtes Chinesisch</string>
+    <string name="language_system_default">Systemsprache verwenden</string>
+    <string name="language_german">Deutsch</string>
+
+    <!-- Elementanzahl -->
+    <string name="items_10">10 Elemente</string>
+    <string name="items_20">20 Elemente</string>
+    <string name="items_30">30 Elemente</string>
+    <string name="items_50">50 Elemente</string>
+    <string name="items_100">100 Elemente</string>
+
+    <!-- Startseite -->
+    <string name="home_overview_label">Übersicht</string>
+    <string name="home_overview_unit">Erinnerungen</string>
+    <string name="home_stat_photos">Fotos</string>
+    <string name="home_stat_videos">Videos</string>
+    <string name="home_stat_folders">Ordner</string>
+    <string name="home_stat_size">Größe</string>
+    <string name="home_section_folders">Ordner</string>
+    <string name="home_sort_recent">Zuletzt hinzugefügt</string>
+    <string name="home_sort_recent_content_description">Sortierung: Neueste</string>
+    <string name="folder_meta_format">%1$s · %2$s</string>
+
+    <!-- Ordneransicht -->
+    <string name="folder_eyebrow">Ordner</string>
+    <string name="folder_search_eyebrow_format">Suche in %1$s</string>
+    <string name="folder_stat_videos_format">%d Videos</string>
+
+    <!-- Medienbetrachter -->
+    <string name="viewer_position_format">%1$d/%2$d</string>
+
+      <!-- Papierkorb -->
+    <string name="trash_subtitle_format">%1$d Elemente · Löschung nach %2$d Tagen</string>
+    <string name="trash_subtitle_no_retention_format">%d Elemente</string>
+    <string name="trash_remain_days_format">Noch %dd</string>
+    <string name="trash_from_label">aus %s</string>
+
+    <!-- Einstellungen: Offline-Hinweis -->
+    <string name="settings_offline_title">Dauerhaft offline</string>
+    <string name="settings_offline_body">Keine Netzwerkberechtigung, keine Tracker, keine Cloud. Deine Fotos bleiben hier.</string>
+
+    <!-- Benutzerdefiniertes Design -->
+    <string name="pack_custom_name">Benutzerdefiniert</string>
+    <string name="pack_custom_sub">Deine Farben, dein Stil</string>
+    <string name="custom_theme_customize">Design anpassen …</string>
+    <string name="custom_theme_editor_title">Benutzerdefiniertes Design</string>
+    <string name="custom_color_bg">Hintergrund</string>
+    <string name="custom_color_surface">Oberfläche</string>
+    <string name="custom_color_card">Karte</string>
+    <string name="custom_color_text">Text</string>
+    <string name="custom_color_dim">Sekundärer Text</string>
+    <string name="custom_color_accent">Akzentfarbe</string>
+    <string name="custom_color_on_accent">Text auf Akzentfarbe</string>
+    <string name="custom_font_label">Schriftart</string>
+    <string name="custom_font_sans_serif">Serifenlos (Standard)</string>
+    <string name="custom_font_fraunces">Fraunces</string>
+    <string name="custom_font_cormorant">Cormorant Garamond</string>
+    <string name="custom_font_jetbrains">JetBrains Mono</string>
+    <string name="custom_font_archivo">Archivo Black</string>
+    <string name="custom_corner_label">Eckenradius</string>
+    <string name="custom_corner_none">Keine</string>
+    <string name="custom_corner_small">Klein</string>
+    <string name="custom_corner_medium">Mittel</string>
+    <string name="custom_corner_large">Groß</string>
+    <string name="custom_section_colors">Farben</string>
+    <string name="custom_section_typography">Typografie</string>
+    <string name="custom_section_shape">Form</string>
+    <string name="custom_section_preview">Vorschau</string>
+    <string name="custom_section_gradient">Farbverlauf</string>
+    <string name="custom_gradient_start">Startfarbe</string>
+    <string name="custom_gradient_end">Endfarbe</string>
+    <string name="custom_gradient_angle">Winkel</string>
+    <string name="custom_gradient_clear">Farbverlauf entfernen</string>
+    <string name="custom_gradient_none">Keiner</string>
+    <string name="custom_gradient_unset">—</string>
+    <string name="custom_reset">Auf Standardwerte zurücksetzen</string>
+    <string name="custom_reset_confirm">Benutzerdefiniertes Design auf die Standardwerte zurücksetzen?</string>
+    <string name="custom_preview_headline">Überschrift</string>
+    <string name="custom_preview_body">So wird Fließtext mit deinen benutzerdefinierten Designeinstellungen dargestellt.</string>
+    <string name="custom_color_dialog_title">Farbe eingeben</string>
+    <string name="custom_color_dialog_hint">#RRGGBB</string>
+    <string name="custom_color_invalid">Ungültiger Farbcode</string>
+    <string name="custom_mode_light">Hell</string>
+    <string name="custom_mode_dark">Dunkel</string>
+    <string name="custom_reset_from_builtin">Aus integriertem Design übernehmen …</string>
+    <string name="custom_reset_from_mode_title">%1$s – Modus auswählen</string>
+    <string name="custom_reset_from_confirm">Alle benutzerdefinierten Designeinstellungen aus %1$s (%2$s) übernehmen?</string>
+
+    <!-- Kontrastprüfung für benutzerdefinierte Designs -->
+    <string name="custom_contrast_aaa">AAA</string>
+    <string name="custom_contrast_aa">AA</string>
+    <string name="custom_contrast_low">Niedrig</string>
+    <string name="custom_contrast_warning">Geringer Kontrast</string>
+    <string name="custom_preview_main_screen">Hauptbildschirm</string>
+    <string name="custom_preview_card_label">Karte</string>
+    <string name="custom_preview_button">Aktionsschaltfläche</string>
+    <string name="fast_scroll_thumb_content_description">Griff für schnelles Scrollen</string>
+    <string name="fast_scroll_position_content_description">Aktueller Scrollbereich</string>
+
+    <!-- Suche -->
+    <string name="search">Suchen</string>
+    <string name="search_hint_folder">Nach Namen suchen</string>
+    <string name="search_hint_global_media">Nach Namen suchen</string>
+    <string name="global_search_title">Alle Medien</string>
+    <string name="global_search_eyebrow">Globale Suche</string>
+    <string name="search_chip_type_all">Alle</string>
+    <string name="search_chip_type_images">Bilder</string>
+    <string name="search_chip_type_videos">Videos</string>
+    <string name="search_chip_date_any">Beliebiges Datum</string>
+    <string name="search_chip_date_format">%1$s – %2$s</string>
+    <string name="search_date_today">Heute</string>
+    <string name="search_date_last_7_days">Letzte 7 Tage</string>
+    <string name="search_date_last_30_days">Letzte 30 Tage</string>
+    <string name="search_date_this_year">Dieses Jahr</string>
+    <string name="search_date_last_year">Letztes Jahr</string>
+    <string name="search_date_custom">Benutzerdefiniert …</string>
+    <string name="search_chip_size_any">Beliebige Größe</string>
+    <string name="search_chip_size_lt_1mb">&lt; 1 MB</string>
+    <string name="search_chip_size_1_10mb">1–10 MB</string>
+    <string name="search_chip_size_10_100mb">10–100 MB</string>
+    <string name="search_chip_size_gt_100mb">&gt; 100 MB</string>
+    <string name="search_chip_size_custom">Benutzerdefiniert</string>
+    <string name="search_no_results">Keine Ergebnisse für diese Filter</string>
+    <string name="search_no_folders">Keine Ordner für diese Filter gefunden</string>
+    <string name="search_no_media">Keine Medien für diese Filter gefunden</string>
+    <string name="search_global_media_prompt_title">Alle Medien durchsuchen</string>
+    <string name="search_global_media_prompt_subtitle">Gib einen Namen ein oder wähle Filter, um indizierte Fotos und Videos zu durchsuchen.</string>
+    <string name="search_global_media_error">Indizierte Medien konnten nicht durchsucht werden</string>
+    <string name="search_result_folder_content_description">Ordner: %1$s</string>
+    <string name="search_wait_until_loaded">Warte, bis die Ergebnisse vollständig geladen sind, bevor du Medien öffnest.</string>
+    <string name="search_clear_filters">Filter zurücksetzen</string>
+    <string name="search_count_format">%1$d von %2$d</string>
+    <string name="search_size_invalid">Ungültiger Größenbereich</string>
+    <string name="search_size_title">Größe</string>
+    <string name="search_size_custom_title">Benutzerdefinierter Größenbereich</string>
+    <string name="search_size_min">Mindestgröße</string>
+    <string name="search_size_max">Maximalgröße</string>
+    <string name="search_date_title">Datumsbereich</string>
+    <string name="search_date_start_label">Startdatum</string>
+    <string name="search_date_end_label">Enddatum</string>
+    <string name="search_date_format_hint">JJJJ/MM/TT</string>
+    <string name="search_date_invalid">Ungültiger Datumsbereich</string>
+</resources>
+
