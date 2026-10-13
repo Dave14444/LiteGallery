@@ -18,9 +18,22 @@ object SmbThumbnailCache {
 
     private const val CACHE_DIR = ".LiteGalleryThumbnails"
     private const val THUMB_SIZE = 256
+    private val imageLocks = mutableMapOf<String, Any>()
 
-    @Synchronized
     fun openThumbnailStream(context: Context, imageUrl: String): InputStream {
+    val lock = synchronized(imageLocks) {
+        imageLocks.getOrPut(imageUrl) { Any() }
+    }
+
+    return synchronized(lock) {
+        openThumbnailStreamLocked(context, imageUrl)
+    }
+}
+
+private fun openThumbnailStreamLocked(
+    context: Context,
+    imageUrl: String
+): InputStream {
         android.util.Log.i(
     "SmbThumbDiag",
     "OPEN: $imageUrl"
