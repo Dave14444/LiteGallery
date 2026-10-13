@@ -21,6 +21,12 @@ interface MediaSource {
     /** A virtual home-screen folder representing this source, or null to show none. */
     fun homeEntry(context: Context): MediaFolder?
 
+    fun homeEntries(context: Context): List<MediaFolder> =
+    listOfNotNull(homeEntry(context))
+
+fun browseIntent(context: Context, path: String): Intent =
+    browseIntent(context)
+    
     /** Intent that opens this source's browse UI. */
     fun browseIntent(context: Context): Intent
 
