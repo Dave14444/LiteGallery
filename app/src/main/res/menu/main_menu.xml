@@ -27,4 +27,9 @@
         android:title="@string/settings_title"
         app:showAsAction="ifRoom" />
 
+    <item
+    android:id="@+id/action_hidden_folders"
+    android:title="@string/hidden_folders_title"
+    app:showAsAction="never" />
+    
 </menu>
