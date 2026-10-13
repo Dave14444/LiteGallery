@@ -55,7 +55,11 @@ class RemoteImageFetcher(
                 callback.onLoadFailed(Exception("No remote client for URL: $url"))
                 return
             }
-            val stream = client.openInputStream(context, url)
+            val stream = if (SmbPath.isSmb(url)) {
+    SmbThumbnailCache.openThumbnailStream(context, url)
+} else {
+    client.openInputStream(context, url)
+            }
             inputStream = stream
             callback.onDataReady(stream)
         } catch (e: Exception) {
