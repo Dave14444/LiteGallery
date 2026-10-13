@@ -188,10 +188,13 @@ class MediaAdapter(
     ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
 )
 .diskCacheStrategy(
-    if (skeleton.isRemote) {
-        DiskCacheStrategy.RESOURCE
-    } else {
-        DiskCacheStrategy.AUTOMATIC
+    when {
+        skeleton.path.startsWith("smb://") ->
+            DiskCacheStrategy.NONE
+        skeleton.isRemote ->
+            DiskCacheStrategy.RESOURCE
+        else ->
+            DiskCacheStrategy.AUTOMATIC
     }
 )
 .centerCrop()
@@ -256,10 +259,13 @@ class MediaAdapter(
     ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
 )
 .diskCacheStrategy(
-    if (skeleton.isRemote) {
-        DiskCacheStrategy.RESOURCE
-    } else {
-        DiskCacheStrategy.AUTOMATIC
+    when {
+        skeleton.path.startsWith("smb://") ->
+            DiskCacheStrategy.NONE
+        skeleton.isRemote ->
+            DiskCacheStrategy.RESOURCE
+        else ->
+            DiskCacheStrategy.AUTOMATIC
     }
 )
 .centerCrop()
@@ -315,10 +321,13 @@ class MediaAdapter(
     ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
 )
 .diskCacheStrategy(
-    if (skeleton.isRemote) {
-        DiskCacheStrategy.RESOURCE
-    } else {
-        DiskCacheStrategy.AUTOMATIC
+    when {
+        skeleton.path.startsWith("smb://") ->
+            DiskCacheStrategy.NONE
+        skeleton.isRemote ->
+            DiskCacheStrategy.RESOURCE
+        else ->
+            DiskCacheStrategy.AUTOMATIC
     }
 )
 .centerCrop()
