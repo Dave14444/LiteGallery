@@ -15,7 +15,7 @@ import java.text.NumberFormat
 class FolderAdapter(
     private val onFolderClick: (MediaFolder) -> Unit,
     private val onFolderLongClick: (MediaFolder) -> Unit
-) :
+) : ListAdapter<MediaFolder, FolderAdapter.FolderViewHolder>(FolderDiffCallback()) { 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FolderViewHolder {
         val binding = ItemFolderBinding.inflate(LayoutInflater.from(parent.context), parent, false)
