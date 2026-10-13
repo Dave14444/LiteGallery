@@ -405,7 +405,7 @@ class MediaViewerActivity : AppCompatActivity() {
         }
         
         binding.viewPager.adapter = mediaViewerAdapter
-        binding.viewPager.layoutDirection = View.LAYOUT_DIRECTION_RTL
+        binding.viewPager.layoutDirection = View.LAYOUT_DIRECTION_LTR
         
         // Add page change callback to handle video transitions
         binding.viewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
