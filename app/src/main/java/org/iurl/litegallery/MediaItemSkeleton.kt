@@ -40,17 +40,30 @@ data class MediaItemSkeleton(
         )
     }
 
-    fun thumbnailModel(): Any {
-        if (isRemote) return path
-        if (path.startsWith("content://")) return Uri.parse(path)
-        if (id > MediaItem.NO_MEDIASTORE_ID) {
-            val baseUri = if (isVideo) {
-                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-            } else {
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-            }
-            return ContentUris.withAppendedId(baseUri, id)
+
+        
+fun thumbnailModel(): Any {
+    if (isRemote) {
+        return if (path.startsWith("smb://")) {
+            "smbthumb://$path"
+        } else {
+            path
         }
-        return path
     }
+
+    if (path.startsWith("content://")) return Uri.parse(path)
+
+    if (id > MediaItem.NO_MEDIASTORE_ID) {
+        val baseUri = if (isVideo) {
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        } else {
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        }
+        return ContentUris.withAppendedId(baseUri, id)
+    }
+
+    return path
+}
+
+    
 }
