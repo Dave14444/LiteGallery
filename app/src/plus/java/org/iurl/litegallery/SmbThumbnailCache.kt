@@ -19,6 +19,7 @@ object SmbThumbnailCache {
     private const val CACHE_DIR = ".LiteGalleryThumbnails"
     private const val THUMB_SIZE = 256
 
+    @Synchronized
     fun openThumbnailStream(context: Context, imageUrl: String): InputStream {
         val path = SmbPath.parse(imageUrl)
             ?: return RemoteClients.forUrl(imageUrl)!!.openInputStream(context, imageUrl)
@@ -43,7 +44,7 @@ object SmbThumbnailCache {
         }
 
         val thumbnailBytes = createThumbnail(context, imageUrl)
-        try {
+               try {
             SmbClient.writeBytes(
                 context,
                 path.host,
@@ -51,15 +52,33 @@ object SmbThumbnailCache {
                 "$CACHE_DIR/$cacheKey.jpg",
                 thumbnailBytes
             )
+
+            if (client.fileExists(context, cachePath)) {
+                try {
+                    return client.openInputStream(context, cachePath)
+                } catch (e: Exception) {
+                    android.util.Log.w(
+                        "SmbThumbnailCache",
+                        "Thumbnail was saved but could not be reopened: $cachePath",
+                        e
+                    )
+                }
+            } else {
+                android.util.Log.e(
+                    "SmbThumbnailCache",
+                    "Thumbnail write returned without a verifiable cache file: $cachePath"
+                )
+            }
         } catch (e: Exception) {
-            android.util.Log.w(
+            android.util.Log.e(
                 "SmbThumbnailCache",
-                "Could not save thumbnail to SMB cache",
+                "Could not save thumbnail to SMB cache: $cachePath",
                 e
             )
         }
 
-        // Return the generated image even if the NAS cache could not be written.
+        // Display the generated thumbnail even if persistent caching failed.
+
         return ByteArrayInputStream(thumbnailBytes)
     }
 
