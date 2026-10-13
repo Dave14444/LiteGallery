@@ -340,7 +340,14 @@ class FolderViewActivity : AppCompatActivity() {
                     else -> null
                 }
                 if (skeleton == null || (skeleton.isRemote && skeleton.isVideo)) return mutableListOf()
-                return mutableListOf(skeleton.thumbnailModel())
+                
+val thumbnailModel = if (skeleton.path.startsWith("smb://")) {
+    "smbthumb://${skeleton.path}"
+} else {
+    skeleton.thumbnailModel()
+}
+return mutableListOf(thumbnailModel)
+
             }
 
             override fun getPreloadRequestBuilder(item: Any): RequestBuilder<Drawable>? {
