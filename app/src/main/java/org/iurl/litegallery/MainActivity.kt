@@ -215,6 +215,10 @@ class MainActivity : AppCompatActivity() {
                 refreshFromUserAction(fromSwipeRefresh = false)
                 true
             }
+            R.id.action_hidden_folders -> {
+    showHiddenFoldersDialog()
+    true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
