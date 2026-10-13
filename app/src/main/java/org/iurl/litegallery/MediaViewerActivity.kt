@@ -405,7 +405,6 @@ class MediaViewerActivity : AppCompatActivity() {
         }
         
         binding.viewPager.adapter = mediaViewerAdapter
-        binding.viewPager.layoutDirection = View.LAYOUT_DIRECTION_LTR
         
         // Add page change callback to handle video transitions
         binding.viewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
@@ -1572,7 +1571,14 @@ private fun shareCurrent() {
         previousPosition = currentPosition // Initialize previousPosition
         
         folderPath?.let { path ->
-            lifecycleScope.launch {
+    binding.viewPager.layoutDirection =
+        if (MediaSourceRegistry.forPath(path) != null) {
+            View.LAYOUT_DIRECTION_RTL
+        } else {
+            View.LAYOUT_DIRECTION_LTR
+        }
+
+    lifecycleScope.launch {
                 try {
                     val targetPath = mediaPath
                     val cachedSnapshot = FolderMediaRepository.get(path, targetPath)
