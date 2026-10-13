@@ -152,6 +152,56 @@ object SmbClient {
         }
     }
 
+
+    /**
+     * Write bytes to a file on the SMB share, creating the parent
+     * directory when necessary.
+     */
+    fun writeBytes(
+        context: Context,
+        host: String,
+        shareName: String,
+        filePath: String,
+        bytes: ByteArray
+    ) {
+        val smbPath = filePath.replace('/', '\\')
+        val parent = smbPath.substringBeforeLast('\\', "")
+
+        executeWithRetry(context, host, shareName) { share ->
+            if (parent.isNotBlank() && !share.folderExists(parent)) {
+                try {
+                    share.mkdir(parent)
+                } catch (_: Exception) {
+                    // Another thumbnail request may have created it.
+                    if (!share.folderExists(parent)) throw
+                }
+            }
+
+            val file = share.openFile(
+                smbPath,
+                EnumSet.of(AccessMask.GENERIC_WRITE),
+                null,
+                EnumSet.of(
+                    SMB2ShareAccess.FILE_SHARE_READ,
+                    SMB2ShareAccess.FILE_SHARE_WRITE,
+                    SMB2ShareAccess.FILE_SHARE_DELETE
+                ),
+                SMB2CreateDisposition.FILE_OVERWRITE_IF,
+                null
+            )
+
+            try {
+                file.outputStream.use { output ->
+                    output.write(bytes)
+                    output.flush()
+                }
+            } finally {
+                file.close()
+            }
+        }
+    }
+
+    
     /**
      * Open an SMB file for reading with seek support (for ExoPlayer DataSource).
      * Returns the smbj File object. Caller must close it.
