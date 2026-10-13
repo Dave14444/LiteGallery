@@ -17,16 +17,35 @@ android {
         applicationId "org.iurl.litegallery"
         minSdk 24
         targetSdk 36
-        versionCode 610
+        versionCode 611
         versionName "6.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Use the persistent upload key in GitHub Actions.
+    // Local builds keep their normal Android debug signing.
+    if (System.getenv("ANDROID_KEYSTORE_PATH")) {
+        signingConfigs {
+            upload {
+                storeFile file(System.getenv("ANDROID_KEYSTORE_PATH"))
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
+    
     buildTypes {
         debug {
             enableUnitTestCoverage true
+
+            if (System.getenv("ANDROID_KEYSTORE_PATH")) {
+                signingConfig signingConfigs.upload
+            }
         }
+
 
         release {
             minifyEnabled true
