@@ -528,5 +528,13 @@
     <string name="search_date_end_label">Enddatum</string>
     <string name="search_date_format_hint">JJJJ/MM/TT</string>
     <string name="search_date_invalid">Ungültiger Datumsbereich</string>
+
+<string name="hide_folder">Ordner ausblenden</string>
+<string name="hide_folder_confirmation">Diesen Ordner auf der Startseite ausblenden?</string>
+<string name="hidden_folders_title">Ausgeblendete Ordner</string>
+<string name="no_hidden_folders">Keine ausgeblendeten Ordner vorhanden</string>
+<string name="unhide_folder">Ordner wieder einblenden</string>
+<string name="unhide_folder_confirmation">Diesen Ordner wieder auf der Startseite anzeigen?</string>
+    
 </resources>
 
