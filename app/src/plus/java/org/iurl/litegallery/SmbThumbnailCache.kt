@@ -44,9 +44,16 @@ private fun openThumbnailStreamLocked(
         val client = RemoteClients.forUrl(imageUrl)
             ?: throw IllegalArgumentException("No remote client for $imageUrl")
 
+        
         val fileSize = client.getFileSize(context, imageUrl)
-        val cacheKey = sha256("$imageUrl|$fileSize|thumb-v2")
-        val cachePath = SmbPath.toUrl(
+        val lastModified = SmbClient.getLastModified(
+            context,
+            path.host,
+            path.share,
+            path.path
+        )
+        val cacheKey = sha256("$imageUrl|$fileSize|$lastModified|thumb-v3")
+val cachePath = SmbPath.toUrl(
             path.host,
             path.share,
             "$CACHE_DIR/$cacheKey.jpg"
