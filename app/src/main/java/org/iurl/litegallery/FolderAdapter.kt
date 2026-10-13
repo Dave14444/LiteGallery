@@ -12,8 +12,10 @@ import com.bumptech.glide.Glide
 import org.iurl.litegallery.databinding.ItemFolderBinding
 import java.text.NumberFormat
 
-class FolderAdapter(private val onFolderClick: (MediaFolder) -> Unit) :
-    ListAdapter<MediaFolder, FolderAdapter.FolderViewHolder>(FolderDiffCallback()) {
+class FolderAdapter(
+    private val onFolderClick: (MediaFolder) -> Unit,
+    private val onFolderLongClick: (MediaFolder) -> Unit
+) :
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FolderViewHolder {
         val binding = ItemFolderBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -54,8 +56,13 @@ class FolderAdapter(private val onFolderClick: (MediaFolder) -> Unit) :
             }
 
             binding.root.setOnClickListener {
-                onFolderClick(folder)
-            }
+    onFolderClick(folder)
+}
+
+binding.root.setOnLongClickListener {
+    onFolderLongClick(folder)
+    true
+}
         }
 
         private fun formatCount(count: Int): String {
