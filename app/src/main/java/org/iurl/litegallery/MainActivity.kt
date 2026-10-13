@@ -229,25 +229,25 @@ class MainActivity : AppCompatActivity() {
         )
         updateHomeSortIndicator()
 
-        folderAdapter = FolderAdapter(
-    onFolderClick = { folder ->
-            val source = MediaSourceRegistry.forPath(folder.path)
-            if (source != null) {
-                startActivity(source.browseIntent(this))
-            } else {
-                val intent = Intent(this, FolderViewActivity::class.java).apply {
-                    putExtra(FolderViewActivity.EXTRA_FOLDER_PATH, folder.path)
-                    putExtra(FolderViewActivity.EXTRA_FOLDER_NAME, folder.name)
-                }
-                folderViewLauncher.launch(intent)
-            }
-        }
 
-        },
-    onFolderLongClick = { folder ->
-        showHideFolderDialog(folder)
-    }
-)
+        folderAdapter = FolderAdapter(
+            onFolderClick = { folder ->
+                val source = MediaSourceRegistry.forPath(folder.path)
+                if (source != null) {
+                    startActivity(source.browseIntent(this))
+                } else {
+                    val intent = Intent(this, FolderViewActivity::class.java).apply {
+                        putExtra(FolderViewActivity.EXTRA_FOLDER_PATH, folder.path)
+                        putExtra(FolderViewActivity.EXTRA_FOLDER_NAME, folder.name)
+                    }
+                    folderViewLauncher.launch(intent)
+                }
+            },
+            onFolderLongClick = { folder ->
+                showHideFolderDialog(folder)
+            }
+        )
+
         folderConcatAdapter = ConcatAdapter(headerAdapter, folderAdapter)
         showFolderAdapter()
     }
@@ -799,7 +799,6 @@ private fun showHiddenFoldersDialog() {
         currentHomeSortOrder = HomeFolderSorter.parseSortOrder(
             prefs.getString(PREF_HOME_FOLDER_SORT_ORDER, HomeFolderSorter.DEFAULT_SORT_ORDER)
         )    
-            private const val PREF_HIDDEN_HOME_FOLDERS = "hidden_home_folder_paths"
         
         return currentHomeSortOrder != previousSortOrder
     }
@@ -855,6 +854,7 @@ private fun showHiddenFoldersDialog() {
         private const val HOME_BACKGROUND_THRESHOLD = 500
         private const val GRID_SPAN_COUNT = 2
         private const val PREF_HOME_FOLDER_SORT_ORDER = "home_folder_sort_order"
+        private const val PREF_HIDDEN_HOME_FOLDERS = "hidden_home_folder_paths"
     }
 
     private fun canUseAdvancedAllFilesAccess(): Boolean {
