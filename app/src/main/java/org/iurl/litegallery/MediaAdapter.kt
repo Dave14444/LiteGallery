@@ -183,7 +183,13 @@ class MediaAdapter(
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
                 Glide.with(binding.root.context)
-                    .load(skeleton.thumbnailModel())
+                    .load(
+    if (skeleton.path.startsWith("smb://")) {
+        "smbthumb://${skeleton.path}"
+    } else {
+        skeleton.thumbnailModel()
+    }
+)
 .signature(
     ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
 )
@@ -254,7 +260,13 @@ class MediaAdapter(
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
                 Glide.with(binding.root.context)
-                    .load(skeleton.thumbnailModel())
+                    .load(
+    if (skeleton.path.startsWith("smb://")) {
+        "smbthumb://${skeleton.path}"
+    } else {
+        skeleton.thumbnailModel()
+    }
+)
 .signature(
     ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
 )
@@ -316,7 +328,13 @@ class MediaAdapter(
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
                 Glide.with(binding.root.context)
-                    .load(skeleton.thumbnailModel())
+                    .load(
+    if (skeleton.path.startsWith("smb://")) {
+        "smbthumb://${skeleton.path}"
+    } else {
+        skeleton.thumbnailModel()
+    }
+)
 .signature(
     ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
 )
