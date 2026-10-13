@@ -18,33 +18,35 @@ object NetworkMediaSource : MediaSource {
 
     override fun handles(path: String): Boolean = RemotePath.isRemote(path)
 
+    
     override fun homeEntry(context: Context): MediaFolder {
         val serverCount = NetworkConfigStore.getAllServers(context).size
         return MediaFolder(
             name = context.getString(R.string.network_browse_title),
-            // Sentinel path routed back to this source via handles(); kept as "smb://"
-            // for compatibility with folder entries persisted by earlier versions.
+            // Sentinel path for the network browse hub.
             path = "smb://",
             itemCount = serverCount,
             thumbnail = null
         )
-
-        override fun homeEntries(context: Context): List<MediaFolder> {
-    val networkHub = homeEntry(context)
-
-    val savedConnections = NetworkConfigStore.getAllServers(context)
-        .map { server ->
-            MediaFolder(
-                name = server.displayName.ifBlank { server.host },
-                path = server.rootUrl(),
-                itemCount = 0,
-                thumbnail = null
-            )
-        }
-
-    return listOf(networkHub) + savedConnections
-        }
     }
+
+    override fun homeEntries(context: Context): List<MediaFolder> {
+        val networkHub = homeEntry(context)
+
+        val savedConnections = NetworkConfigStore.getAllServers(context)
+            .map { server ->
+                MediaFolder(
+                    name = server.displayName.ifBlank { server.host },
+                    path = server.rootUrl(),
+                    itemCount = 0,
+                    thumbnail = null
+                )
+            }
+
+        return listOf(networkHub) + savedConnections
+    }
+
+
 
     override fun browseIntent(context: Context): Intent =
     Intent(context, NetworkBrowseActivity::class.java)
