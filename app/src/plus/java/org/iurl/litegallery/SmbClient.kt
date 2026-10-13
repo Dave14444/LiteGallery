@@ -94,7 +94,7 @@ object SmbClient {
                 for (info in listing) {
                     val name = info.fileName
                     // Skip . and .. entries
-                    if (name == "." || name == "..") continue
+                    if (name == "." || name == ".." || name.startsWith(".")) continue
 
                     val isDir = info.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value != 0L
                     val isHidden = info.fileAttributes and FileAttributes.FILE_ATTRIBUTE_HIDDEN.value != 0L
