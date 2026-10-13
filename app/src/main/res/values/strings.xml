@@ -527,4 +527,12 @@
     <string name="search_date_end_label">End date</string>
     <string name="search_date_format_hint">YYYY/MM/DD</string>
     <string name="search_date_invalid">Invalid date range</string>
+
+    <string name="hide_folder">Hide folder</string>
+<string name="hide_folder_confirmation">Hide this folder from the home screen?</string>
+<string name="hidden_folders_title">Hidden folders</string>
+<string name="no_hidden_folders">No hidden folders</string>
+<string name="unhide_folder">Unhide folder</string>
+<string name="unhide_folder_confirmation">Show this folder on the home screen again?</string>
+
 </resources>
