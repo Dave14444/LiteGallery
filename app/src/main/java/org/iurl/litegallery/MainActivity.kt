@@ -234,7 +234,7 @@ class MainActivity : AppCompatActivity() {
             onFolderClick = { folder ->
                 val source = MediaSourceRegistry.forPath(folder.path)
                 if (source != null) {
-                    startActivity(source.browseIntent(this))
+                    startActivity(source.browseIntent(this, folder.path))
                 } else {
                     val intent = Intent(this, FolderViewActivity::class.java).apply {
                         putExtra(FolderViewActivity.EXTRA_FOLDER_PATH, folder.path)
@@ -566,8 +566,9 @@ class MainActivity : AppCompatActivity() {
                 // Append optional media-source home entries (e.g. SMB in the plus flavor),
                 // then sort through the same path as user-initiated changes.
                 val sourceEntries = withContext(Dispatchers.IO) {
-                    MediaSourceRegistry.all().mapNotNull { it.homeEntry(this@MainActivity) }
-                }
+                    MediaSourceRegistry.all().flatMap {
+    it.homeEntries(this@MainActivity)
+                    } }
                 currentHomeFolders = scannedFolders + sourceEntries
                 val folders = buildHomeDisplayFolders()
                 val overviewStats = buildOverviewStats(scannedFolders)
