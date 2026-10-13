@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private var lastUserRefreshAtMs = 0L
     private var currentHomeSortOrder: String = HomeFolderSorter.DEFAULT_SORT_ORDER
     private var currentHomeFolders: List<MediaFolder> = emptyList()
+    private val hiddenHomeFolderPaths = mutableSetOf<String>()
     private var mediaIndexSyncJob: Job? = null
     private var homeTransformJob: Job? = null
     private var searchMenuItem: MenuItem? = null
@@ -152,6 +153,7 @@ class MainActivity : AppCompatActivity() {
         collapseHomeSearchIfNeeded()
 
         val homeSortOrderChanged = loadHomeSortOrderPreference()
+        loadHiddenHomeFolders()
         if (homeSortOrderChanged) {
             updateHomeSortIndicator()
             if (::folderAdapter.isInitialized && currentHomeFolders.isNotEmpty()) {
@@ -223,7 +225,8 @@ class MainActivity : AppCompatActivity() {
         )
         updateHomeSortIndicator()
 
-        folderAdapter = FolderAdapter { folder ->
+        folderAdapter = FolderAdapter(
+    onFolderClick = { folder ->
             val source = MediaSourceRegistry.forPath(folder.path)
             if (source != null) {
                 startActivity(source.browseIntent(this))
@@ -236,6 +239,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        },
+    onFolderLongClick = { folder ->
+        showHideFolderDialog(folder)
+    }
+)
         folderConcatAdapter = ConcatAdapter(headerAdapter, folderAdapter)
         showFolderAdapter()
     }
@@ -617,6 +625,70 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadHiddenHomeFolders() {
+    val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+    hiddenHomeFolderPaths.clear()
+    hiddenHomeFolderPaths.addAll(
+        prefs.getStringSet(PREF_HIDDEN_HOME_FOLDERS, emptySet()) ?: emptySet()
+    )
+}
+
+private fun saveHiddenHomeFolders() {
+    PreferenceManager.getDefaultSharedPreferences(this)
+        .edit()
+        .putStringSet(PREF_HIDDEN_HOME_FOLDERS, hiddenHomeFolderPaths.toSet())
+        .apply()
+}
+
+private fun showHideFolderDialog(folder: MediaFolder) {
+    android.app.AlertDialog.Builder(this)
+        .setTitle(folder.name)
+        .setMessage(R.string.hide_folder_confirmation)
+        .setPositiveButton(R.string.hide_folder) { _, _ ->
+            hiddenHomeFolderPaths.add(folder.path)
+            saveHiddenHomeFolders()
+            applyHomeDisplayTransform(scrollToTop = false)
+        }
+        .setNegativeButton(R.string.cancel, null)
+        .showThemed()
+}
+
+private fun showHiddenFoldersDialog() {
+    val hiddenFolders = currentHomeFolders
+        .filter { it.path in hiddenHomeFolderPaths }
+        .sortedBy { it.name.lowercase() }
+
+    if (hiddenFolders.isEmpty()) {
+        android.widget.Toast.makeText(
+            this,
+            R.string.no_hidden_folders,
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
+
+    val names = hiddenFolders.map { it.name }.toTypedArray()
+
+    android.app.AlertDialog.Builder(this)
+        .setTitle(R.string.hidden_folders_title)
+        .setItems(names) { dialog, which ->
+            val folder = hiddenFolders[which]
+
+            android.app.AlertDialog.Builder(this)
+                .setTitle(folder.name)
+                .setMessage(R.string.unhide_folder_confirmation)
+                .setPositiveButton(R.string.unhide_folder) { _, _ ->
+                    hiddenHomeFolderPaths.remove(folder.path)
+                    saveHiddenHomeFolders()
+                    applyHomeDisplayTransform(scrollToTop = false)
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .showThemed()
+        }
+        .setNegativeButton(R.string.cancel, null)
+        .showThemed()
+}
+
     private fun showHomeSortDialog() {
         val sortOptions = arrayOf(
             getString(R.string.sort_by_date_desc),
@@ -679,10 +751,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildHomeDisplayFolders(
-        sourceFolders: List<MediaFolder> = currentHomeFolders,
-        sortOrder: String = currentHomeSortOrder
-    ): List<MediaFolder> {
-        return HomeFolderSorter.sort(sourceFolders, sortOrder)
+    sourceFolders: List<MediaFolder> = currentHomeFolders,
+    sortOrder: String = currentHomeSortOrder
+): List<MediaFolder> {
+    return HomeFolderSorter.sort(
+        sourceFolders.filterNot { it.path in hiddenHomeFolderPaths },
+        sortOrder
+    )
+
     }
 
     private fun renderHomeFolders(folders: List<MediaFolder>, scrollToTop: Boolean = false) {
@@ -718,7 +794,9 @@ class MainActivity : AppCompatActivity() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         currentHomeSortOrder = HomeFolderSorter.parseSortOrder(
             prefs.getString(PREF_HOME_FOLDER_SORT_ORDER, HomeFolderSorter.DEFAULT_SORT_ORDER)
-        )
+        )    
+            private const val PREF_HIDDEN_HOME_FOLDERS = "hidden_home_folder_paths"
+        
         return currentHomeSortOrder != previousSortOrder
     }
 
