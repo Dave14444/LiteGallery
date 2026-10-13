@@ -21,6 +21,10 @@ object SmbThumbnailCache {
 
     @Synchronized
     fun openThumbnailStream(context: Context, imageUrl: String): InputStream {
+        android.util.Log.i(
+    "SmbThumbDiag",
+    "OPEN: $imageUrl"
+)
         val path = SmbPath.parse(imageUrl)
             ?: return RemoteClients.forUrl(imageUrl)!!.openInputStream(context, imageUrl)
 
@@ -34,8 +38,15 @@ object SmbThumbnailCache {
             path.share,
             "$CACHE_DIR/$cacheKey.jpg"
         )
+android.util.Log.i(
+    "SmbThumbDiag",
+    "CHECK: size=$fileSize cache=$cachePath"
+)
+
+    android.util.Log.i("SmbThumbDiag", "Checking cache: $cachePath")
 
         if (client.fileExists(context, cachePath)) {
+            android.util.Log.i("SmbThumbDiag", "CACHE HIT: $cachePath")
             try {
                 return client.openInputStream(context, cachePath)
             } catch (_: Exception) {
@@ -43,8 +54,14 @@ object SmbThumbnailCache {
             }
         }
 
+        android.util.Log.i("SmbThumbDiag", "GENERATING: $imageUrl")
+        
         val thumbnailBytes = createThumbnail(context, imageUrl)
                try {
+                   android.util.Log.i(
+    "SmbThumbDiag",
+    "WRITE START: $cachePath bytes=${thumbnailBytes.size}"
+)
             SmbClient.writeBytes(
                 context,
                 path.host,
@@ -52,6 +69,11 @@ object SmbThumbnailCache {
                 "$CACHE_DIR/$cacheKey.jpg",
                 thumbnailBytes
             )
+
+            android.util.Log.i(
+    "SmbThumbDiag",
+    "WRITE RETURNED: $cachePath"
+)
 
             if (client.fileExists(context, cachePath)) {
                 try {
