@@ -171,10 +171,10 @@ object SmbClient {
             if (parent.isNotBlank() && !share.folderExists(parent)) {
                 try {
                     share.mkdir(parent)
-                } catch (_: Exception) {
-                    // Another thumbnail request may have created it.
-                    if (!share.folderExists(parent)) throw
-                }
+                } catch (e: Exception) {
+    // Another thumbnail request may have created it.
+    if (!share.folderExists(parent)) throw e
+}
             }
 
             val file = share.openFile(
