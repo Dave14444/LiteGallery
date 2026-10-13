@@ -172,7 +172,13 @@ class MediaViewerAdapter(
                 val context = binding.root.context
                 if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
                     Glide.with(context)
-                        .load(mediaItem.path)
+                        .load(
+    if (mediaItem.path.startsWith("smb://")) {
+        "smbthumb://${mediaItem.path}"
+    } else {
+        mediaItem.path
+    }
+)
                         .signature(ObjectKey("${mediaItem.path}_${mediaItem.dateModified}_${mediaItem.size}"))
                         .fitCenter()
                         .into(binding.photoImageView)
