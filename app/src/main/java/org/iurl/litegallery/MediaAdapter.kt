@@ -6,6 +6,8 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.signature.ObjectKey
 import com.google.android.material.imageview.ShapeableImageView
 import org.iurl.litegallery.databinding.ItemMediaBinding
 import org.iurl.litegallery.databinding.ItemMediaListBinding
@@ -182,7 +184,17 @@ class MediaAdapter(
             } else {
                 Glide.with(binding.root.context)
                     .load(skeleton.thumbnailModel())
-                    .centerCrop()
+.signature(
+    ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
+)
+.diskCacheStrategy(
+    if (skeleton.isRemote) {
+        DiskCacheStrategy.RESOURCE
+    } else {
+        DiskCacheStrategy.AUTOMATIC
+    }
+)
+.centerCrop()
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .into(binding.thumbnailImageView)
@@ -240,7 +252,17 @@ class MediaAdapter(
             } else {
                 Glide.with(binding.root.context)
                     .load(skeleton.thumbnailModel())
-                    .centerCrop()
+.signature(
+    ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
+)
+.diskCacheStrategy(
+    if (skeleton.isRemote) {
+        DiskCacheStrategy.RESOURCE
+    } else {
+        DiskCacheStrategy.AUTOMATIC
+    }
+)
+.centerCrop()
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .into(binding.thumbnailImageView)
@@ -289,7 +311,17 @@ class MediaAdapter(
             } else {
                 Glide.with(binding.root.context)
                     .load(skeleton.thumbnailModel())
-                    .centerCrop()
+.signature(
+    ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
+)
+.diskCacheStrategy(
+    if (skeleton.isRemote) {
+        DiskCacheStrategy.RESOURCE
+    } else {
+        DiskCacheStrategy.AUTOMATIC
+    }
+)
+.centerCrop()
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .into(binding.thumbnailImageView)
