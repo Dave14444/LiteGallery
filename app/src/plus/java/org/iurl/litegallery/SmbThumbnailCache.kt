@@ -7,6 +7,8 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.security.MessageDigest
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
 
 /**
  * Persistent thumbnail cache stored on the SMB share itself.
@@ -25,7 +27,7 @@ object SmbThumbnailCache {
             ?: throw IllegalArgumentException("No remote client for $imageUrl")
 
         val fileSize = client.getFileSize(context, imageUrl)
-        val cacheKey = sha256("$imageUrl|$fileSize")
+        val cacheKey = sha256("$imageUrl|$fileSize|thumb-v2")
         val cachePath = SmbPath.toUrl(
             path.host,
             path.share,
@@ -82,12 +84,23 @@ object SmbThumbnailCache {
             inPreferredConfig = Bitmap.Config.RGB_565
         }
 
+        val orientation = client.openInputStream(context, imageUrl).use {
+    ExifInterface(it).getAttributeInt(
+        ExifInterface.TAG_ORIENTATION,
+        ExifInterface.ORIENTATION_NORMAL
+    )
+}
+        
         val decoded = client.openInputStream(context, imageUrl).use {
             BitmapFactory.decodeStream(it, null, options)
         } ?: throw IllegalStateException("Could not decode $imageUrl")
 
-        val thumbnail = centerCrop(decoded, THUMB_SIZE)
-        if (thumbnail !== decoded) decoded.recycle()
+        val oriented = applyExifOrientation(decoded, orientation)
+if (oriented !== decoded) decoded.recycle()
+
+val thumbnail = centerCrop(oriented, THUMB_SIZE)
+if (thumbnail !== oriented) oriented.recycle()
+
 
         return try {
             ByteArrayOutputStream().use { output ->
@@ -131,4 +144,52 @@ object SmbThumbnailCache {
             .digest(value.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }
+
+    private fun applyExifOrientation(
+    source: Bitmap,
+    orientation: Int
+): Bitmap {
+    val matrix = Matrix()
+
+    when (orientation) {
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL ->
+            matrix.setScale(-1f, 1f)
+
+        ExifInterface.ORIENTATION_ROTATE_180 ->
+            matrix.setRotate(180f)
+
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> {
+            matrix.setRotate(180f)
+            matrix.postScale(-1f, 1f)
+        }
+
+        ExifInterface.ORIENTATION_TRANSPOSE -> {
+            matrix.setRotate(90f)
+            matrix.postScale(-1f, 1f)
+        }
+
+        ExifInterface.ORIENTATION_ROTATE_90 ->
+            matrix.setRotate(90f)
+
+        ExifInterface.ORIENTATION_TRANSVERSE -> {
+            matrix.setRotate(-90f)
+            matrix.postScale(-1f, 1f)
+        }
+
+        ExifInterface.ORIENTATION_ROTATE_270 ->
+            matrix.setRotate(-90f)
+
+        else -> return source
+    }
+
+    return Bitmap.createBitmap(
+        source,
+        0,
+        0,
+        source.width,
+        source.height,
+        matrix,
+        true
+    )
+}
 }
