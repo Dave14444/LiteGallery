@@ -22,14 +22,10 @@ object SmbThumbnailCache {
     private const val CACHE_DIR = "LiteGalleryThumbnails"
     private const val USE_LOCAL_CACHE_FOR_TEST = true
     private const val THUMB_SIZE = 256
-    private val imageLocks = mutableMapOf<String, Any>()
+    private val cacheLock = Any()
 
-    fun openThumbnailStream(context: Context, imageUrl: String): InputStream {
-    val lock = synchronized(imageLocks) {
-        imageLocks.getOrPut(imageUrl) { Any() }
-    }
-
-    return synchronized(lock) {
+fun openThumbnailStream(context: Context, imageUrl: String): InputStream {
+    return synchronized(cacheLock) {
         openThumbnailStreamLocked(context, imageUrl)
     }
 }
