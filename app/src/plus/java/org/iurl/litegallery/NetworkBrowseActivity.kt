@@ -1,5 +1,6 @@
 package org.iurl.litegallery
 
+import androidx.activity.OnBackPressedCallback
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -67,6 +68,20 @@ class NetworkBrowseActivity : AppCompatActivity() {
         currentPackKey = ThemeHelper.getCurrentPack(this).key
         remoteMediaScanner = RemoteMediaScanner(this)
 
+// Unterstützt die Zurück-Geste einschließlich Predictive Back.
+onBackPressedDispatcher.addCallback(
+    this,
+    object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            if (currentPath.isNotBlank()) {
+                navigateUp()
+            } else {
+                finish()
+            }
+        }
+    }
+)
+
         setupToolbar()
         setupAddressBar()
         setupRecyclerView()
@@ -108,13 +123,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
         }
     }
 
-    override fun onBackPressed() {
-        if (currentPath.isNotBlank()) {
-            navigateUp()
-        } else {
-            super.onBackPressed()
-        }
-    }
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
