@@ -1573,7 +1573,7 @@ private fun shareCurrent() {
         folderPath?.let { path ->
     binding.viewPager.layoutDirection =
         if (MediaSourceRegistry.forPath(path) != null) {
-            View.LAYOUT_DIRECTION_LTR
+            View.LAYOUT_DIRECTION_RTL
         } else {
             View.LAYOUT_DIRECTION_LTR
         }
