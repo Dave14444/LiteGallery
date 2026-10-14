@@ -102,12 +102,23 @@ if (client == null) {
     return
 }
 
+
 val stream = if (isThumbnail && SmbPath.isSmb(imageUrl)) {
     android.util.Log.i("SmbThumbDiag", "CACHE_ROUTE: $imageUrl")
-    SmbThumbnailCache.openThumbnailStream(context, imageUrl)
+    try {
+        SmbThumbnailCache.openThumbnailStream(context, imageUrl)
+    } catch (e: Exception) {
+        android.util.Log.e(
+            "SmbThumbDiag",
+            "CACHE_FAILED, falling back to original image: $imageUrl",
+            e
+        )
+        client.openInputStream(context, imageUrl)
+    }
 } else {
     client.openInputStream(context, imageUrl)
 }
+
 
 inputStream = stream
 callback.onDataReady(stream)
