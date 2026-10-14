@@ -85,7 +85,7 @@ if (!cacheDir.isDirectory) {
         "Local cache directory unavailable: ${cacheDir.absolutePath}"
     )
 }
-) 
+ 
             val cacheFile = File(
                 cacheDir,
                 "$cacheKey.jpg"
