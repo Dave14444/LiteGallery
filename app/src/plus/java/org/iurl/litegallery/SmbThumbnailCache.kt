@@ -9,6 +9,9 @@ import java.io.InputStream
 import java.security.MessageDigest
 import android.graphics.Matrix
 import androidx.exifinterface.media.ExifInterface
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
 /**
  * Persistent thumbnail cache stored on the SMB share itself.
@@ -17,6 +20,7 @@ import androidx.exifinterface.media.ExifInterface
 object SmbThumbnailCache {
 
     private const val CACHE_DIR = "LiteGalleryThumbnails"
+    private const val USE_LOCAL_CACHE_FOR_TEST = true
     private const val THUMB_SIZE = 256
     private val imageLocks = mutableMapOf<String, Any>()
 
@@ -53,7 +57,73 @@ private fun openThumbnailStreamLocked(
             path.path
         )
         val cacheKey = sha256("$imageUrl|$fileSize|$lastModified|thumb-v4")
-val cachePath = SmbPath.toUrl(
+
+        if (USE_LOCAL_CACHE_FOR_TEST) {
+            val cacheDir = File(context.filesDir, "thumbnail_cache_test")
+            val cacheFile = File(
+                cacheDir,
+                "$cacheKey.jpg"
+            )
+
+            android.util.Log.i(
+                "SmbThumbDiag",
+                "LOCAL_CACHE_CHECK: ${cacheFile.absolutePath}"
+            )
+
+            if (cacheFile.isFile && cacheFile.length() > 0L) {
+                try {
+                    android.util.Log.i(
+                        "SmbThumbDiag",
+                        "LOCAL_CACHE_HIT: ${cacheFile.name}"
+                    )
+                    return FileInputStream(cacheFile)
+                } catch (e: Exception) {
+                    android.util.Log.w(
+                        "SmbThumbDiag",
+                        "LOCAL_CACHE_READ_FAILED",
+                        e
+                    )
+                }
+            }
+
+            android.util.Log.i(
+                "SmbThumbDiag",
+                "LOCAL_CACHE_GENERATING: $imageUrl"
+            )
+
+            val thumbnailBytes = createThumbnail(context, imageUrl)
+
+            try {
+                if (!cacheDir.exists() && !cacheDir.mkdirs()) {
+                    throw IllegalStateException(
+                        "Could not create local cache directory"
+                    )
+                }
+
+                FileOutputStream(cacheFile).use { output ->
+                    output.write(thumbnailBytes)
+                    output.flush()
+                }
+
+                android.util.Log.i(
+                    "SmbThumbDiag",
+                    "LOCAL_CACHE_WRITE_OK: ${cacheFile.name}, " +
+                        "bytes=${thumbnailBytes.size}"
+                )
+
+                return FileInputStream(cacheFile)
+            } catch (e: Exception) {
+                android.util.Log.e(
+                    "SmbThumbDiag",
+                    "LOCAL_CACHE_WRITE_FAILED",
+                    e
+                )
+
+                return ByteArrayInputStream(thumbnailBytes)
+            }
+        }
+
+    val cachePath = SmbPath.toUrl(
             path.host,
             path.share,
             "$CACHE_DIR/$cacheKey.jpg"
