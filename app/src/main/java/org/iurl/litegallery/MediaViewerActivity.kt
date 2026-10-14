@@ -1584,17 +1584,22 @@ private fun shareCurrent() {
                    
 // Die vollständige Skeleton-Liste aus der Ordneransicht
 // enthält die für die Vorschaubilder verwendete Reihenfolge.
-val skeletonSnapshot =
-    FolderMediaRepository.getCompleteSkeleton(path, targetPath)
 
-mediaItems = skeletonSnapshot?.items?.map { it.toMediaItem() }
-    ?: FolderMediaRepository.get(path, targetPath)?.items
-    ?: scanFolderMediaForViewer(path, targetPath).also { scannedItems ->
-        FolderMediaRepository.put(
-            folderPath = path,
-            items = scannedItems
-        )
-    }
+val cachedSnapshot = FolderMediaRepository.get(path, targetPath)
+
+mediaItems = cachedSnapshot?.items ?: run {
+    val skeletonSnapshot =
+        FolderMediaRepository.getCompleteSkeleton(path, targetPath)
+
+    skeletonSnapshot?.items?.map { it.toMediaItem() }
+        ?: scanFolderMediaForViewer(path, targetPath).also { scannedItems ->
+            FolderMediaRepository.put(
+                folderPath = path,
+                items = scannedItems
+            )
+        }
+}
+
 
 
                     mediaViewerAdapter.submitList(mediaItems) {
