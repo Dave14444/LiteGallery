@@ -317,7 +317,7 @@ class FolderViewActivity : AppCompatActivity() {
         binding.recyclerView.apply {
             setHasFixedSize(true)
             setItemViewCacheSize(20)
-            addOnScrollListener(createThumbnailPreloader())
+         //   addOnScrollListener(createThumbnailPreloader())
             
             adapter = if (currentGroupBy == FolderGroupBy.NONE) {
                 mediaAdapter
