@@ -1581,12 +1581,9 @@ private fun shareCurrent() {
         previousPosition = currentPosition // Initialize previousPosition
         
         folderPath?.let { path ->
-    binding.viewPager.layoutDirection =
-        if (MediaSourceRegistry.forPath(path) != null) {
-            View.LAYOUT_DIRECTION_RTL
-        } else {
-            View.LAYOUT_DIRECTION_LTR
-        }
+    
+binding.viewPager.layoutDirection = View.LAYOUT_DIRECTION_RTL
+
 
     lifecycleScope.launch {
                 try {
