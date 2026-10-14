@@ -209,6 +209,16 @@ class GroupedMediaAdapter(
         if (skeleton.isRemote && skeleton.isVideo) {
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
+            android.util.Log.i(
+    "SmbThumbDiag",
+    "GROUPED_MODEL: path=${skeleton.path} model=${
+        if (skeleton.path.startsWith("smb://")) {
+            "smbthumb://${skeleton.path}"
+        } else {
+            skeleton.thumbnailModel()
+        }
+    }"
+)
             Glide.with(binding.root.context)
                 
 .load(
@@ -237,6 +247,16 @@ class GroupedMediaAdapter(
         if (skeleton.isRemote && skeleton.isVideo) {
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
+            android.util.Log.i(
+    "SmbThumbDiag",
+    "GROUPED_MODEL: path=${skeleton.path} model=${
+        if (skeleton.path.startsWith("smb://")) {
+            "smbthumb://${skeleton.path}"
+        } else {
+            skeleton.thumbnailModel()
+        }
+    }"
+)
             Glide.with(binding.root.context)
                 
 .load(
@@ -265,6 +285,16 @@ class GroupedMediaAdapter(
         if (skeleton.isRemote && skeleton.isVideo) {
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
+            android.util.Log.i(
+    "SmbThumbDiag",
+    "GROUPED_MODEL: path=${skeleton.path} model=${
+        if (skeleton.path.startsWith("smb://")) {
+            "smbthumb://${skeleton.path}"
+        } else {
+            skeleton.thumbnailModel()
+        }
+    }"
+)
             Glide.with(binding.root.context)
                 
 .load(
