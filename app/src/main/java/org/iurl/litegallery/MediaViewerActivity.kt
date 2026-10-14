@@ -1592,31 +1592,43 @@ private fun shareCurrent() {
                 try {
                     val targetPath = mediaPath
                    
-// Die vollständige Skeleton-Liste aus der Ordneransicht
-// enthält die für die Vorschaubilder verwendete Reihenfolge.
 
-val cachedSnapshot = FolderMediaRepository.get(path, targetPath)
+                    // Zuerst die maßgebliche Reihenfolge aus der Ordneransicht verwenden.
+                    val skeletonSnapshot =
+                        FolderMediaRepository.getCompleteSkeleton(path, targetPath)
 
-mediaItems = cachedSnapshot?.items ?: run {
-    val skeletonSnapshot =
-        FolderMediaRepository.getCompleteSkeleton(path, targetPath)
+                    val cachedSnapshot =
+                        if (skeletonSnapshot == null) {
+                            FolderMediaRepository.get(path, targetPath)
+                        } else {
+                            null
+                        }
 
-    skeletonSnapshot?.items?.map { it.toMediaItem() }
-        ?: scanFolderMediaForViewer(path, targetPath).also { scannedItems ->
-            FolderMediaRepository.put(
-                folderPath = path,
-                items = scannedItems
-            )
-        }
-}
+                    mediaItems = when {
+                        skeletonSnapshot != null ->
+                            skeletonSnapshot.items.map { it.toMediaItem() }
+
+                        cachedSnapshot != null ->
+                            cachedSnapshot.items
+
+                        else ->
+                            scanFolderMediaForViewer(path, targetPath).also { scannedItems ->
+                                FolderMediaRepository.put(
+                                    folderPath = path,
+                                    items = scannedItems
+                                )
+                            }
+                    }
+
 
 // DIAGNOSTIK: Quelle und Reihenfolge der Viewer-Liste.
+                   
                     val listSource = when {
+                        skeletonSnapshot != null -> "skeleton_snapshot"
                         cachedSnapshot != null -> "media_snapshot"
-                        FolderMediaRepository.getCompleteSkeleton(path, targetPath) != null ->
-                            "skeleton_snapshot"
                         else -> "scanner"
                     }
+
 
                     android.util.Log.i(
                         "MediaOrderDebug",
