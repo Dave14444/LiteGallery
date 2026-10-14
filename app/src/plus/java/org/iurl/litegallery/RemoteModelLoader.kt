@@ -53,12 +53,22 @@ fun isRemoteImage(path: String): Boolean {
 
     val result = isRemoteImage(model)
 
+    
     if (isRemote) {
         android.util.Log.i(
             "SmbThumbDiag",
             "HANDLES: model=$model result=$result"
         )
+
+        if (model.startsWith("smb://")) {
+            android.util.Log.w(
+                "SmbThumbDiag",
+                "UNPREFIXED_SMB_MODEL: $model",
+                Throwable("Call stack for normal smb:// model")
+            )
+        }
     }
+
 
     return result
 }
