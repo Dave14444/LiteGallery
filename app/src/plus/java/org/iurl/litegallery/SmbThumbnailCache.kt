@@ -16,7 +16,7 @@ import androidx.exifinterface.media.ExifInterface
  */
 object SmbThumbnailCache {
 
-    private const val CACHE_DIR = ".LiteGalleryThumbnails"
+    private const val CACHE_DIR = "LiteGalleryThumbnails"
     private const val THUMB_SIZE = 256
     private val imageLocks = mutableMapOf<String, Any>()
 
