@@ -388,6 +388,14 @@ return mutableListOf(thumbnailModel)
         )
     }
 
+    
+    // Die aktuell sichtbare, bereits sortierte Liste für den Viewer sichern.
+    // Sie ist die maßgebliche Reihenfolge der Ordneransicht.
+    cacheCurrentFolderMedia(
+        items = mediaItems,
+        isComplete = true
+    )
+
 
     val intent = Intent(this, MediaViewerActivity::class.java).apply {
         putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, skeleton.path)
