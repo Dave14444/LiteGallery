@@ -1625,6 +1625,13 @@ mediaItems = cachedSnapshot?.items ?: run {
                     mediaViewerAdapter.submitList(mediaItems) {
                         if (!targetPath.isNullOrBlank()) {
                             val resolvedIndex = findMediaItemIndexByPath(mediaItems, targetPath)
+                           android.util.Log.i(
+    "MediaOrderDebug",
+    "VIEWER_POSITION target=$targetPath " +
+        "resolvedIndex=$resolvedIndex " +
+        "currentPositionBefore=$currentPosition " +
+        "itemAtResolvedIndex=${mediaItems.getOrNull(resolvedIndex)?.name}"
+)
                             if (resolvedIndex >= 0) {
                                 currentPosition = resolvedIndex
                             }
