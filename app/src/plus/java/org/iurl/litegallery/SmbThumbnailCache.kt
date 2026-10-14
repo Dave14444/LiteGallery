@@ -52,7 +52,7 @@ private fun openThumbnailStreamLocked(
             path.share,
             path.path
         )
-        val cacheKey = sha256("$imageUrl|$fileSize|$lastModified|thumb-v3")
+        val cacheKey = sha256("$imageUrl|$fileSize|$lastModified|thumb-v4")
 val cachePath = SmbPath.toUrl(
             path.host,
             path.share,
