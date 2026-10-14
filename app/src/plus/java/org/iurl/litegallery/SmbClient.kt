@@ -153,6 +153,8 @@ object SmbClient {
     }
 
 
+    
+    
     /**
      * Write bytes to a file on the SMB share, creating the parent
      * directory when necessary.
@@ -167,39 +169,70 @@ object SmbClient {
         val smbPath = filePath.replace('/', '\\')
         val parent = smbPath.substringBeforeLast('\\', "")
 
-        executeWithRetry(context, host, shareName) { share ->
-            if (parent.isNotBlank() && !share.folderExists(parent)) {
-                try {
-                    share.mkdir(parent)
-                } catch (e: Exception) {
-    // Another thumbnail request may have created it.
-    if (!share.folderExists(parent)) throw e
-}
-            }
+        android.util.Log.i(
+            "SmbThumbDiag",
+            "SMB_WRITE_BEGIN: path=$smbPath bytes=${bytes.size}"
+        )
 
-            val file = share.openFile(
-                smbPath,
-                EnumSet.of(AccessMask.GENERIC_WRITE),
-                null,
-                EnumSet.of(
-                    SMB2ShareAccess.FILE_SHARE_READ,
-                    SMB2ShareAccess.FILE_SHARE_WRITE,
-                    SMB2ShareAccess.FILE_SHARE_DELETE
-                ),
-                SMB2CreateDisposition.FILE_OVERWRITE_IF,
-                null
-            )
+        try {
+            executeWithRetry(context, host, shareName) { share ->
+                if (parent.isNotBlank() && !share.folderExists(parent)) {
+                    android.util.Log.i(
+                        "SmbThumbDiag",
+                        "SMB_MKDIR_BEGIN: $parent"
+                    )
 
-            try {
-                file.outputStream.use { output ->
-                    output.write(bytes)
-                    output.flush()
+                    try {
+                        share.mkdir(parent)
+                    } catch (e: Exception) {
+                        if (!share.folderExists(parent)) {
+                            throw e
+                        }
+                    }
                 }
-            } finally {
-                file.close()
+
+                android.util.Log.i(
+                    "SmbThumbDiag",
+                    "SMB_FOLDER_READY: $parent"
+                )
+
+                val file = share.openFile(
+                    smbPath,
+                    EnumSet.of(AccessMask.GENERIC_WRITE),
+                    null,
+                    EnumSet.of(
+                        SMB2ShareAccess.FILE_SHARE_READ,
+                        SMB2ShareAccess.FILE_SHARE_WRITE,
+                        SMB2ShareAccess.FILE_SHARE_DELETE
+                    ),
+                    SMB2CreateDisposition.FILE_OVERWRITE_IF,
+                    null
+                )
+
+                try {
+                    file.outputStream.use { output ->
+                        output.write(bytes)
+                        output.flush()
+                    }
+                } finally {
+                    file.close()
+                }
+
+                android.util.Log.i(
+                    "SmbThumbDiag",
+                    "SMB_WRITE_COMPLETE: path=$smbPath bytes=${bytes.size}"
+                )
             }
+        } catch (e: Exception) {
+            android.util.Log.e(
+                "SmbThumbDiag",
+                "SMB_WRITE_FAILED: path=$smbPath",
+                e
+            )
+            throw e
         }
     }
+
 
     
     /**
