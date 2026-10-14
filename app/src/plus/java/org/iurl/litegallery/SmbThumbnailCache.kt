@@ -20,7 +20,7 @@ import java.io.FileOutputStream
 object SmbThumbnailCache {
 
     private const val CACHE_DIR = "LiteGalleryThumbnails"
-    private const val USE_LOCAL_CACHE_FOR_TEST = true
+    private const val USE_LOCAL_CACHE_FOR_TEST = false
     private const val THUMB_SIZE = 256
     private val cacheLock = Any()
 
