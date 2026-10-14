@@ -59,9 +59,32 @@ private fun openThumbnailStreamLocked(
         val cacheKey = sha256("$imageUrl|$fileSize|$lastModified|thumb-v4")
 
         if (USE_LOCAL_CACHE_FOR_TEST) {
-            val cacheDir = File(
-    context.getExternalFilesDir(null)?.parentFile?.parentFile,
-    "media/org.iurl.litegallery/thumbnail_cache_test"
+            val mediaRoot = context.externalMediaDirs.firstOrNull()
+    ?: throw IllegalStateException(
+        "Android returned no external media directory"
+    )
+
+val cacheDir = File(mediaRoot, "thumbnail_cache_test")
+
+android.util.Log.i(
+    "SmbThumbDiag",
+    "LOCAL_CACHE_DIR: ${cacheDir.absolutePath}"
+)
+
+if (!cacheDir.exists()) {
+    val created = cacheDir.mkdirs()
+
+    android.util.Log.i(
+        "SmbThumbDiag",
+        "LOCAL_CACHE_MKDIRS: success=$created exists=${cacheDir.exists()}"
+    )
+}
+
+if (!cacheDir.isDirectory) {
+    throw IllegalStateException(
+        "Local cache directory unavailable: ${cacheDir.absolutePath}"
+    )
+}
 ) 
             val cacheFile = File(
                 cacheDir,
