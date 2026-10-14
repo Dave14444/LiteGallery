@@ -373,14 +373,21 @@ return mutableListOf(thumbnailModel)
             }
         }
 
-    private fun openMediaViewer(skeleton: MediaItemSkeleton, position: Int) {
-    // Übergibt dem Viewer exakt die aktuelle Reihenfolge der Ordneransicht.
-    FolderMediaRepository.put(
-        folderPath = folderPath,
-        items = mediaItems.map { it.toMediaItem() },
-        sortOrder = currentSortOrder,
-        groupBy = currentGroupBy
+   private fun openMediaViewer(skeleton: MediaItemSkeleton, position: Int) {
+    // DIAGNOSTIK: Reihenfolge direkt vor dem Öffnen protokollieren.
+    android.util.Log.i(
+        "MediaOrderDebug",
+        "FOLDER_OPEN folder=$folderPath clickedPosition=$position " +
+            "clickedPath=${skeleton.path} count=${mediaItems.size}"
     )
+    mediaItems.take(15).forEachIndexed { index, item ->
+        android.util.Log.i(
+            "MediaOrderDebug",
+            "FOLDER_ITEM index=$index name=${item.name} " +
+                "dateModified=${item.dateModified} path=${item.path}"
+        )
+    }
+
 
     val intent = Intent(this, MediaViewerActivity::class.java).apply {
         putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, skeleton.path)
