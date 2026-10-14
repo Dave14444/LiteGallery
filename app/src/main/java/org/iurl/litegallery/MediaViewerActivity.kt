@@ -1600,7 +1600,27 @@ mediaItems = cachedSnapshot?.items ?: run {
         }
 }
 
+// DIAGNOSTIK: Quelle und Reihenfolge der Viewer-Liste.
+                    val listSource = when {
+                        cachedSnapshot != null -> "media_snapshot"
+                        FolderMediaRepository.getCompleteSkeleton(path, targetPath) != null ->
+                            "skeleton_snapshot"
+                        else -> "scanner"
+                    }
 
+                    android.util.Log.i(
+                        "MediaOrderDebug",
+                        "VIEWER_LOAD folder=$path target=$targetPath " +
+                            "source=$listSource count=${mediaItems.size} " +
+                            "initialPosition=$currentPosition"
+                    )
+                    mediaItems.take(15).forEachIndexed { index, item ->
+                        android.util.Log.i(
+                            "MediaOrderDebug",
+                            "VIEWER_ITEM index=$index name=${item.name} " +
+                                "dateModified=${item.dateModified} path=${item.path}"
+                        )
+                    }
 
                     mediaViewerAdapter.submitList(mediaItems) {
                         if (!targetPath.isNullOrBlank()) {
