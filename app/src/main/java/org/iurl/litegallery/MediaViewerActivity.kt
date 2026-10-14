@@ -410,6 +410,16 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.viewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
+                
+android.util.Log.i(
+    "MediaOrderDebug",
+    "PAGE_SELECTED position=$position " +
+        "previousPosition=$currentPosition " +
+        "layoutDirection=${binding.viewPager.layoutDirection} " +
+        "item=${mediaItems.getOrNull(position)?.name} " +
+        "path=${mediaItems.getOrNull(position)?.path}"
+)
+
                 // Track navigation direction based on actual page transition
                 val oldPosition = currentPosition
                 if (position > oldPosition) {
