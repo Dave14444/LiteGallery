@@ -578,6 +578,31 @@ onBackPressedDispatcher.addCallback(
         // folder through MediaSourceRegistry/NetworkMediaSource for swipe context and positions
         // itself to the target path, so tapping a file lands on that exact photo/video.
         val targetUrl = item.url
+
+        // Hand the order shown in the browse list over to the viewer. Without this, the viewer
+        // rescans the folder itself and sorts by date (newest first), while this list is sorted
+        // by name, so swiping would jump between unrelated photos.
+        val shownMedia = browseAdapter.currentList
+            .filter { !it.isDirectory && it.isMedia }
+            .map {
+                MediaItemSkeleton(
+                    id = MediaItem.NO_MEDIASTORE_ID,
+                    path = it.url,
+                    name = it.name,
+                    dateModified = it.lastModified,
+                    size = it.size,
+                    isVideo = it.isVideo
+                )
+            }
+        if (shownMedia.any { it.path == targetUrl }) {
+            FolderMediaRepository.invalidate(currentPath)
+            FolderMediaRepository.putSkeleton(
+                folderPath = currentPath,
+                items = shownMedia,
+                isComplete = true
+            )
+        }
+
         val intent = Intent(this, MediaViewerActivity::class.java).apply {
             putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, currentPath)
             putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, targetUrl)
