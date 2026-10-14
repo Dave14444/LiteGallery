@@ -1273,6 +1273,12 @@ return mutableListOf(thumbnailModel)
                     .collect { event ->
                         when (event) {
                             is LoadEvent.FirstScreen -> {
+                               android.util.Log.i(
+    "SmbThumbDiag",
+    "SMB_LOAD_ITEMS: folder=$folderPath count=${event.items.size} paths=${
+        event.items.take(5).joinToString { it.path }
+    }"
+)
                                 ++displayGeneration
                                 loadedSkeletons.clear()
                                 loadedSkeletons.addAll(event.items)
