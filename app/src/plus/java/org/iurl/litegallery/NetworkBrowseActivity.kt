@@ -952,8 +952,17 @@ class NetworkBrowseAdapter(
                 if (item.isMedia) {
                     // Show thumbnail for media files
                     thumbnailView.visibility = View.VISIBLE
-                    val model = item.url
-                    val context = itemView.context
+                    
+val model = if (
+    item.url.startsWith("smb://") &&
+    RemoteModelLoader.isRemoteImage(item.url)
+) {
+    "smbthumb://${item.url}"
+} else {
+    item.url
+}
+val context = itemView.context
+
                     if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
                         Glide.with(context)
                             .load(model)
