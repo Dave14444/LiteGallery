@@ -1582,7 +1582,7 @@ private fun shareCurrent() {
         
         folderPath?.let { path ->
     
-binding.viewPager.layoutDirection = View.LAYOUT_DIRECTION_RTL
+binding.viewPager.layoutDirection = View.LAYOUT_DIRECTION_LTR
 
 
     lifecycleScope.launch {
