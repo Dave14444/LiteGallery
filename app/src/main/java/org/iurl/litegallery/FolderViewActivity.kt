@@ -374,13 +374,21 @@ return mutableListOf(thumbnailModel)
         }
 
     private fun openMediaViewer(skeleton: MediaItemSkeleton, position: Int) {
-        val intent = Intent(this, MediaViewerActivity::class.java).apply {
-            putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, skeleton.path)
-            putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, folderPath)
-            putExtra(MediaViewerActivity.EXTRA_CURRENT_POSITION, position)
-        }
-        mediaViewerLauncher.launch(intent)
+    // Übergibt dem Viewer exakt die aktuelle Reihenfolge der Ordneransicht.
+    FolderMediaRepository.put(
+        folderPath = folderPath,
+        items = mediaItems.map { it.toMediaItem() },
+        sortOrder = currentSortOrder,
+        groupBy = currentGroupBy
+    )
+
+    val intent = Intent(this, MediaViewerActivity::class.java).apply {
+        putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, skeleton.path)
+        putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, folderPath)
+        putExtra(MediaViewerActivity.EXTRA_CURRENT_POSITION, position)
     }
+    mediaViewerLauncher.launch(intent)
+}
 
     private fun cacheCurrentFolderMedia(
         items: List<MediaItemSkeleton> = mediaItems,
