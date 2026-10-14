@@ -59,7 +59,10 @@ private fun openThumbnailStreamLocked(
         val cacheKey = sha256("$imageUrl|$fileSize|$lastModified|thumb-v4")
 
         if (USE_LOCAL_CACHE_FOR_TEST) {
-            val cacheDir = File(context.filesDir, "thumbnail_cache_test")
+            val cacheDir = File(
+    context.getExternalFilesDir(null)?.parentFile?.parentFile,
+    "media/org.iurl.litegallery/thumbnail_cache_test"
+) 
             val cacheFile = File(
                 cacheDir,
                 "$cacheKey.jpg"
