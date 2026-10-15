@@ -45,8 +45,7 @@ private fun openThumbnailStreamLocked(
             ?: throw IllegalArgumentException("No remote client for $imageUrl")
 
         
-        val fileSize = client.getFileSize(context, imageUrl)
-        val lastModified = SmbClient.getLastModified(
+                val (fileSize, lastModified) = SmbClient.getFileSizeAndLastModified(
             context,
             path.host,
             path.share,
@@ -157,14 +156,13 @@ android.util.Log.i(
 
     android.util.Log.i("SmbThumbDiag", "Checking cache: $cachePath")
 
-        if (client.fileExists(context, cachePath)) {
+                try {
+            val cached = client.openInputStream(context, cachePath)
             android.util.Log.i("SmbThumbDiag", "CACHE HIT: $cachePath")
-            try {
-                return client.openInputStream(context, cachePath)
-            } catch (_: Exception) {
-                // Invalid or unreadable cache entry: regenerate it.
-            }
-        }
+            return cached
+        } catch (_: Exception) {
+            // Not cached yet (or unreadable cache entry): generate it below.
+                }
 
         android.util.Log.i("SmbThumbDiag", "GENERATING: $imageUrl")
         
