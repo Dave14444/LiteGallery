@@ -301,6 +301,30 @@ object SmbClient {
         }
     }
 
+        /**
+     * Get file size and last-modified timestamp with a single query.
+     * Returns (-1, -1) on failure, like the two separate functions do.
+     */
+    fun getFileSizeAndLastModified(
+        context: Context,
+        host: String,
+        shareName: String,
+        filePath: String
+    ): Pair<Long, Long> {
+        val smbPath = filePath.replace('/', '\\')
+        return try {
+            executeWithRetry(context, host, shareName) { share ->
+                val info = share.getFileInformation(smbPath)
+                Pair(
+                    info.standardInformation.endOfFile,
+                    info.basicInformation.lastWriteTime.toEpochMillis()
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SmbClient", "Failed to get file info: $smbPath", e)
+            Pair(-1L, -1L)
+        }
+    }
     
     /**
      * Rename a file on the SMB share.
