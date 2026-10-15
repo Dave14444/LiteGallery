@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/network_action_copy"
+        android:title="@string/smb_copy_to"
+        app:showAsAction="ifRoom|withText" />
+
+    <item
+        android:id="@+id/network_action_move"
+        android:title="@string/smb_move_to"
+        app:showAsAction="ifRoom|withText" />
+
+    <item
+        android:id="@+id/network_action_delete"
+        android:title="@string/delete"
+        app:showAsAction="ifRoom|withText" />
+
+    <item
+        android:id="@+id/network_action_select_all"
+        android:title="@string/smb_select_all"
+        app:showAsAction="never" />
+</menu>

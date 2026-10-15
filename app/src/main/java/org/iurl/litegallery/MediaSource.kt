@@ -66,6 +66,23 @@ suspend fun copyToCache(
     destination: java.io.File
 ): Boolean = false
     
+    /** True if local files can be copied or moved into this source (e.g. onto a network share). */
+    val supportsUpload: Boolean get() = false
+
+    /**
+     * Lets the user pick a destination inside this source, then copies the local [items] there.
+     * [onFinished] runs on the main thread with the paths that were copied successfully and the
+     * number of failures. It is not called if the user cancels the destination picker.
+     * Removing the originals after a move is up to the caller.
+     */
+    fun startUpload(
+        activity: androidx.appcompat.app.AppCompatActivity,
+        items: List<MediaItemSkeleton>,
+        move: Boolean,
+        onFinished: (copiedPaths: List<String>, failedCount: Int) -> Unit
+    ) {
+    }
+
     /** Release any held resources (connections, caches) on app shutdown. */
     fun shutdown()
 }

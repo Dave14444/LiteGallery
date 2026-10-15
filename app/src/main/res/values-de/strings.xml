@@ -535,6 +535,9 @@
 <string name="no_hidden_folders">Keine ausgeblendeten Ordner vorhanden</string>
 <string name="unhide_folder">Ordner wieder einblenden</string>
 <string name="unhide_folder_confirmation">Diesen Ordner wieder auf der Startseite anzeigen?</string>
-    
+    <string name="selection_count">%d ausgewählt</string>
+    <string name="action_copy_to_network">Auf Netzlaufwerk kopieren…</string>
+    <string name="action_move_to_network">Auf Netzlaufwerk verschieben…</string>
+    <string name="originals_not_deleted">%d Original(e) konnten nicht gelöscht werden</string>
 </resources>
 

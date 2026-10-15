@@ -534,5 +534,9 @@
 <string name="no_hidden_folders">No hidden folders</string>
 <string name="unhide_folder">Unhide folder</string>
 <string name="unhide_folder_confirmation">Show this folder on the home screen again?</string>
+    <string name="selection_count">%d selected</string>
+    <string name="action_copy_to_network">Copy to network share…</string>
+    <string name="action_move_to_network">Move to network share…</string>
+    <string name="originals_not_deleted">%d original(s) could not be deleted</string>
 
 </resources>

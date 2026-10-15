@@ -362,6 +362,86 @@ object SmbClient {
         }
     }
 
+    /** Delete a file on the SMB share. Returns true on success. */
+    fun deleteFile(context: Context, host: String, shareName: String, filePath: String): Boolean {
+        val smbPath = filePath.replace('/', '\\')
+        return try {
+            executeWithRetry(context, host, shareName) { share ->
+                share.rm(smbPath)
+                true
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SmbClient", "Failed to delete: $smbPath", e)
+            false
+        }
+    }
+
+    /**
+     * Copy a file between SMB locations (also across hosts/shares) by streaming it.
+     * The destination must not exist yet; a partial destination file is removed on failure.
+     */
+    fun copyFile(
+        context: Context,
+        srcHost: String,
+        srcShare: String,
+        srcPath: String,
+        dstHost: String,
+        dstShare: String,
+        dstPath: String
+    ): Boolean {
+        return try {
+            openInputStream(context, srcHost, srcShare, srcPath).use { input ->
+                writeStream(context, dstHost, dstShare, dstPath, input)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SmbClient", "Failed to open source: $srcPath", e)
+            false
+        }
+    }
+
+    /**
+     * Stream [input] into a NEW file on the share (fails if it already exists). A partial
+     * file is removed on failure. The caller closes [input]. Returns true on success.
+     */
+    fun writeStream(
+        context: Context,
+        host: String,
+        shareName: String,
+        filePath: String,
+        input: InputStream
+    ): Boolean {
+        val smbPath = filePath.replace('/', '\\')
+        var created = false
+        return try {
+            executeWithRetry(context, host, shareName) { share ->
+                val file = share.openFile(
+                    smbPath,
+                    EnumSet.of(AccessMask.GENERIC_WRITE),
+                    null,
+                    EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ),
+                    SMB2CreateDisposition.FILE_CREATE,
+                    null
+                )
+                created = true
+                try {
+                    file.outputStream.use { output ->
+                        input.copyTo(output, 256 * 1024)
+                        output.flush()
+                    }
+                } finally {
+                    file.close()
+                }
+            }
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SmbClient", "Failed to write: $smbPath", e)
+            if (created) {
+                deleteFile(context, host, shareName, filePath)
+            }
+            false
+        }
+    }
+
     /**
      * Check if a file exists on the SMB share.
      */

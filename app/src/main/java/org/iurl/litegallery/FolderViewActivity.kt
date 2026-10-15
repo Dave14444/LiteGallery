@@ -14,6 +14,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
@@ -105,6 +106,34 @@ class FolderViewActivity : AppCompatActivity() {
         val filters: SearchFilterState
     )
 
+    private val selectedPaths = LinkedHashSet<String>()
+    private var copyToNetworkMenuItem: MenuItem? = null
+    private var moveToNetworkMenuItem: MenuItem? = null
+    private var selectAllMenuItem: MenuItem? = null
+    private var itemsAwaitingDeleteConsent: List<MediaItemSkeleton> = emptyList()
+
+    private val selectionBackCallback = object : androidx.activity.OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            clearSelection()
+        }
+    }
+
+    private val deleteConsentLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val items = itemsAwaitingDeleteConsent
+        itemsAwaitingDeleteConsent = emptyList()
+        if (result.resultCode == RESULT_OK) {
+            onOriginalsRemoved(items)
+        } else if (items.isNotEmpty()) {
+            Toast.makeText(
+                this,
+                getString(R.string.originals_not_deleted, items.size),
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
     private val mediaViewerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -151,6 +180,8 @@ class FolderViewActivity : AppCompatActivity() {
             view.setPadding(0, statusInsets.top, 0, navigationInsets.bottom)
             insets
         }
+
+        onBackPressedDispatcher.addCallback(this, selectionBackCallback)
 
         folderPath = intent.getStringExtra(EXTRA_FOLDER_PATH) ?: ""
         folderName = intent.getStringExtra(EXTRA_FOLDER_NAME) ?: ""
@@ -204,15 +235,31 @@ class FolderViewActivity : AppCompatActivity() {
         menuInflater.inflate(R.menu.folder_view_menu, menu)
         sortMenuItem = menu.findItem(R.id.action_sort)
         searchMenuItem = menu.findItem(R.id.action_search)
+        copyToNetworkMenuItem = menu.findItem(R.id.action_copy_to_network)
+        moveToNetworkMenuItem = menu.findItem(R.id.action_move_to_network)
+        selectAllMenuItem = menu.findItem(R.id.action_select_all)
         setupSearchMenuItem(searchMenuItem)
         updateSortIndicator()
+        updateSelectionUi()
         return true
     }
     
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
-                finish()
+                if (selectedPaths.isNotEmpty()) clearSelection() else finish()
+                true
+            }
+            R.id.action_copy_to_network -> {
+                startUploadOfSelection(move = false)
+                true
+            }
+            R.id.action_move_to_network -> {
+                startUploadOfSelection(move = true)
+                true
+            }
+            R.id.action_select_all -> {
+                selectAllVisible()
                 true
             }
             R.id.action_view_mode -> {
@@ -227,6 +274,131 @@ class FolderViewActivity : AppCompatActivity() {
         }
     }
     
+    // ---- Selection and copy/move to a network share (only with a network source) ----
+
+    private val uploadSource: MediaSource?
+        get() = MediaSourceRegistry.all().firstOrNull { it.supportsUpload }
+
+    private fun canSelect(skeleton: MediaItemSkeleton): Boolean =
+        uploadSource != null && !skeleton.isRemote
+
+    private fun toggleSelection(skeleton: MediaItemSkeleton) {
+        if (!canSelect(skeleton)) return
+        if (!selectedPaths.remove(skeleton.path)) selectedPaths.add(skeleton.path)
+        notifySelectionChanged(listOf(skeleton.path))
+        updateSelectionUi()
+    }
+
+    private fun selectAllVisible() {
+        val added = mediaItems.filter { canSelect(it) }.map { it.path }
+        selectedPaths.addAll(added)
+        notifySelectionChanged(added)
+        updateSelectionUi()
+    }
+
+    private fun clearSelection() {
+        if (selectedPaths.isEmpty()) return
+        val previous = selectedPaths.toList()
+        selectedPaths.clear()
+        notifySelectionChanged(previous)
+        updateSelectionUi()
+    }
+
+    private fun notifySelectionChanged(paths: Collection<String>) {
+        if (::mediaAdapter.isInitialized) mediaAdapter.notifySelectionChanged(paths)
+        if (::groupedMediaAdapter.isInitialized) groupedMediaAdapter.notifySelectionChanged(paths)
+    }
+
+    private fun updateSelectionUi() {
+        val selecting = selectedPaths.isNotEmpty()
+        supportActionBar?.title = if (selecting) {
+            getString(R.string.selection_count, selectedPaths.size)
+        } else {
+            ""
+        }
+        copyToNetworkMenuItem?.isVisible = selecting
+        moveToNetworkMenuItem?.isVisible = selecting
+        selectAllMenuItem?.isVisible = selecting
+        selectionBackCallback.isEnabled = selecting
+    }
+
+    private fun startUploadOfSelection(move: Boolean) {
+        val source = uploadSource ?: return
+        val items = unfilteredMediaItems.filter { it.path in selectedPaths && !it.isRemote }
+        if (items.isEmpty()) return
+
+        source.startUpload(this, items, move) { copiedPaths, _ ->
+            val copiedSet = copiedPaths.toSet()
+            val copied = items.filter { it.path in copiedSet }
+            clearSelection()
+            if (move && copied.isNotEmpty()) {
+                removeMovedOriginals(copied)
+            }
+        }
+    }
+
+    /** After a move: delete the local originals that were copied successfully. */
+    private fun removeMovedOriginals(copied: List<MediaItemSkeleton>) {
+        lifecycleScope.launch {
+            val deleted = mutableListOf<MediaItemSkeleton>()
+            val needsConsent = mutableListOf<MediaItemSkeleton>()
+            withContext(Dispatchers.IO) {
+                copied.forEach { item ->
+                    if (deleteLocalOriginal(item)) deleted.add(item) else needsConsent.add(item)
+                }
+            }
+            onOriginalsRemoved(deleted)
+            if (needsConsent.isNotEmpty()) requestDeleteConsent(needsConsent)
+        }
+    }
+
+    private fun deleteLocalOriginal(item: MediaItemSkeleton): Boolean = try {
+        if (item.path.startsWith("content://")) {
+            contentResolver.delete(android.net.Uri.parse(item.path), null, null) > 0
+        } else {
+            val file = java.io.File(item.path)
+            file.delete() || !file.exists()
+        }
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Without all-files access Android asks once for all remaining originals (Android 11+). */
+    private fun requestDeleteConsent(items: List<MediaItemSkeleton>) {
+        val uris = items.mapNotNull { it.thumbnailModel() as? android.net.Uri }
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R || uris.isEmpty()) {
+            Toast.makeText(this, getString(R.string.originals_not_deleted, items.size), Toast.LENGTH_LONG).show()
+            return
+        }
+        try {
+            val sender = android.provider.MediaStore.createDeleteRequest(contentResolver, uris).intentSender
+            itemsAwaitingDeleteConsent = items
+            deleteConsentLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
+        } catch (e: Exception) {
+            Toast.makeText(this, getString(R.string.originals_not_deleted, items.size), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun onOriginalsRemoved(removed: List<MediaItemSkeleton>) {
+        if (removed.isEmpty()) return
+        removed.forEach { item ->
+            MediaMetadataCache.remove(item.id)
+            if (!item.path.startsWith("content://")) {
+                android.media.MediaScannerConnection.scanFile(this, arrayOf(item.path), null, null)
+            }
+            lifecycleScope.launch { mediaScanner.removeIndexedMediaPath(item.path) }
+        }
+        FolderMediaRepository.invalidate(folderPath)
+        setResult(
+            RESULT_OK,
+            Intent().apply {
+                putExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, true)
+                putExtra(MediaViewerActivity.RESULT_FOLDER_PATH, folderPath)
+            }
+        )
+        loadMediaItems(showBlockingLoading = false)
+    }
+
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.apply {
@@ -306,12 +478,28 @@ class FolderViewActivity : AppCompatActivity() {
     
     private fun setupRecyclerView() {
         mediaAdapter = MediaAdapter(
-            onMediaClick = { mediaItem, position -> openMediaViewer(mediaItem, position) },
+            onMediaClick = { mediaItem, position ->
+                if (selectedPaths.isNotEmpty()) {
+                    toggleSelection(mediaItem)
+                } else {
+                    openMediaViewer(mediaItem, position)
+                }
+            },
+            onMediaLongClick = { mediaItem, _ -> toggleSelection(mediaItem) },
+            isItemSelected = { mediaItem -> mediaItem.path in selectedPaths },
             onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem
         )
         groupedMediaAdapter = GroupedMediaAdapter(
-            onMediaClick = { mediaItem, mediaIndex -> openMediaViewer(mediaItem, mediaIndex) },
-            onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem
+            onMediaClick = { mediaItem, mediaIndex ->
+                if (selectedPaths.isNotEmpty()) {
+                    toggleSelection(mediaItem)
+                } else {
+                    openMediaViewer(mediaItem, mediaIndex)
+                }
+            },
+            onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem,
+            onMediaLongClick = { mediaItem, _ -> toggleSelection(mediaItem) },
+            isItemSelected = { mediaItem -> mediaItem.path in selectedPaths }
         )
 
         binding.recyclerView.apply {

@@ -21,4 +21,23 @@
         android:title="@string/sort"
         app:showAsAction="ifRoom" />
 
+    <!-- Shown only while images are selected and a network source is available (plus flavor). -->
+    <item
+        android:id="@+id/action_copy_to_network"
+        android:title="@string/action_copy_to_network"
+        android:visible="false"
+        app:showAsAction="ifRoom|withText" />
+
+    <item
+        android:id="@+id/action_move_to_network"
+        android:title="@string/action_move_to_network"
+        android:visible="false"
+        app:showAsAction="ifRoom|withText" />
+
+    <item
+        android:id="@+id/action_select_all"
+        android:title="@string/select_all"
+        android:visible="false"
+        app:showAsAction="never" />
+
 </menu>

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
@@ -44,6 +45,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
     private var currentPath: String = ""
     private var isLoading = false
     private var currentPackKey: String? = null
+    private val selectedUrls = LinkedHashSet<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         ThemeHelper.applyTheme(this)
@@ -73,7 +75,9 @@ onBackPressedDispatcher.addCallback(
     this,
     object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            if (currentPath.isNotBlank()) {
+            if (selectedUrls.isNotEmpty()) {
+                clearSelection()
+            } else if (currentPath.isNotBlank()) {
                 navigateUp()
             } else {
                 finish()
@@ -112,15 +116,40 @@ onBackPressedDispatcher.addCallback(
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
-                if (currentPath.isNotBlank()) {
+                if (selectedUrls.isNotEmpty()) {
+                    clearSelection()
+                } else if (currentPath.isNotBlank()) {
                     navigateUp()
                 } else {
                     finish()
                 }
                 true
             }
+            R.id.network_action_select_all -> {
+                selectAll()
+                true
+            }
+            R.id.network_action_copy -> {
+                chooseDestinationAndTransfer(SmbFileOperations.Mode.COPY)
+                true
+            }
+            R.id.network_action_move -> {
+                chooseDestinationAndTransfer(SmbFileOperations.Mode.MOVE)
+                true
+            }
+            R.id.network_action_delete -> {
+                confirmDeleteSelected()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        if (selectedUrls.isNotEmpty()) {
+            menuInflater.inflate(R.menu.network_selection_menu, menu)
+        }
+        return true
     }
 
 
@@ -366,10 +395,20 @@ onBackPressedDispatcher.addCallback(
                 if (item.isDirectory) {
                     navigateTo(item.url)
                 } else if (item.isMedia) {
-                    // Open media viewer with full folder context for swipe support
-                    openMediaViewer(item)
+                    if (selectedUrls.isNotEmpty()) {
+                        toggleSelection(item)
+                    } else {
+                        // Open media viewer with full folder context for swipe support
+                        openMediaViewer(item)
+                    }
                 }
-            }
+            },
+            onItemLongClick = { item ->
+                if (!item.isDirectory && item.isMedia && SmbPath.isSmb(item.url)) {
+                    toggleSelection(item)
+                }
+            },
+            isItemSelected = { item -> selectedUrls.contains(item.url) }
         )
 
         binding.recyclerView.apply {
@@ -496,6 +535,7 @@ onBackPressedDispatcher.addCallback(
 
     private fun navigateTo(address: String) {
         if (isLoading) return
+        clearSelection()
 
         currentPath = address
         binding.addressEditText.setText(address)
@@ -543,6 +583,178 @@ onBackPressedDispatcher.addCallback(
                 isLoading = false
             }
         }
+    }
+
+    // ---- Selection and file operations (SMB only) ----
+
+    private fun toggleSelection(item: RemoteFileInfo) {
+        if (!selectedUrls.remove(item.url)) selectedUrls.add(item.url)
+        val index = browseAdapter.currentList.indexOfFirst { it.url == item.url }
+        if (index >= 0) browseAdapter.notifyItemChanged(index)
+        updateSelectionUi()
+    }
+
+    private fun selectAll() {
+        browseAdapter.currentList
+            .filter { !it.isDirectory && it.isMedia }
+            .forEach { selectedUrls.add(it.url) }
+        browseAdapter.notifyDataSetChanged()
+        updateSelectionUi()
+    }
+
+    private fun clearSelection() {
+        if (selectedUrls.isEmpty()) return
+        selectedUrls.clear()
+        browseAdapter.notifyDataSetChanged()
+        updateSelectionUi()
+    }
+
+    private fun updateSelectionUi() {
+        supportActionBar?.title = if (selectedUrls.isNotEmpty()) {
+            getString(R.string.smb_selected_count, selectedUrls.size)
+        } else {
+            currentPath.trimEnd('/').substringAfterLast('/')
+                .ifBlank { getString(R.string.network_browse_title) }
+        }
+        invalidateOptionsMenu()
+    }
+
+    private fun chooseDestinationAndTransfer(mode: SmbFileOperations.Mode) {
+        if (selectedUrls.isEmpty()) return
+        val isCopy = mode == SmbFileOperations.Mode.COPY
+        showFolderPicker(if (isCopy) R.string.smb_copy_here else R.string.smb_move_here) { destFolderUrl ->
+            val urls = selectedUrls.toList()
+            runFileOperation(
+                if (isCopy) R.string.smb_copying else R.string.smb_moving,
+                urls.size,
+                listOf(currentPath, destFolderUrl)
+            ) { onProgress ->
+                SmbFileOperations.transfer(applicationContext, urls, destFolderUrl, mode, onProgress)
+            }
+        }
+    }
+
+    private fun confirmDeleteSelected() {
+        if (selectedUrls.isEmpty()) return
+        val urls = selectedUrls.toList()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.delete)
+            .setMessage(getString(R.string.smb_delete_files_confirm, urls.size))
+            .setPositiveButton(R.string.delete_permanently) { _, _ ->
+                runFileOperation(R.string.smb_deleting, urls.size, listOf(currentPath)) { onProgress ->
+                    SmbFileOperations.delete(applicationContext, urls, onProgress)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** Runs [work] off the main thread with a progress dialog, then reloads the current folder. */
+    private fun runFileOperation(
+        titleRes: Int,
+        total: Int,
+        foldersToRefresh: List<String>,
+        work: (onProgress: (Int, Int) -> Unit) -> SmbFileOperations.Result
+    ) {
+        val progressDialog = AlertDialog.Builder(this)
+            .setTitle(titleRes)
+            .setMessage("0 / $total")
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
+
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                work { done, all -> runOnUiThread { progressDialog.setMessage("$done / $all") } }
+            }
+            progressDialog.dismiss()
+            foldersToRefresh.forEach { FolderMediaRepository.invalidate(it) }
+            clearSelection()
+            val message = if (result.failed == 0) {
+                getString(R.string.smb_operation_done, result.done)
+            } else {
+                getString(R.string.smb_operation_partial, result.done, result.failed)
+            }
+            Toast.makeText(this@NetworkBrowseActivity, message, Toast.LENGTH_LONG).show()
+            navigateTo(currentPath)
+        }
+    }
+
+    private data class PickerRow(val label: String, val target: String?)
+
+    /**
+     * Simple folder browser for choosing a destination on any saved SMB share.
+     * Starts in the current folder; ".." at a share root leads to the list of saved shares.
+     */
+    private fun showFolderPicker(positiveLabelRes: Int, onPicked: (String) -> Unit) {
+        val listView = android.widget.ListView(this)
+        val rowAdapter = android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1)
+        listView.adapter = rowAdapter
+        var rows: List<PickerRow> = emptyList()
+        var pickerUrl: String? = null
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.smb_choose_destination)
+            .setView(listView)
+            .setPositiveButton(positiveLabelRes, null)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+        dialog.show()
+
+        // null = list of saved shares
+        fun load(url: String?) {
+            pickerUrl = url
+            dialog.setTitle(url?.removePrefix("smb://") ?: getString(R.string.smb_choose_server))
+            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).isEnabled =
+                url != null && SmbPath.parse(url) != null
+            lifecycleScope.launch {
+                try {
+                    val loaded = withContext(Dispatchers.IO) {
+                        if (url == null) {
+                            NetworkConfigStore.getAllServers(applicationContext)
+                                .filter { server -> !server.isNfs && server.share.isNotBlank() }
+                                .map { server ->
+                                    PickerRow(
+                                        server.displayName.ifBlank { server.host },
+                                        server.rootUrl()
+                                    )
+                                }
+                        } else {
+                            val smb = SmbPath.parse(url)
+                            val parent = smb?.let { if (it.path.isBlank()) null else it.parentFolderPath }
+                            val folders = SmbFileClient.listFiles(applicationContext, url)
+                                .filter { it.isDirectory }
+                                .sortedBy { it.name.lowercase() }
+                                .map { PickerRow(it.name + "/", it.url) }
+                            listOf(PickerRow("..", parent)) + folders
+                        }
+                    }
+                    rows = loaded
+                    rowAdapter.clear()
+                    rowAdapter.addAll(loaded.map { it.label })
+                    rowAdapter.notifyDataSetChanged()
+                } catch (e: Exception) {
+                    android.util.Log.e("NetworkBrowseActivity", "Folder picker failed for $url", e)
+                    Toast.makeText(
+                        this@NetworkBrowseActivity,
+                        getString(R.string.smb_connection_failed, e.message ?: "Unknown error"),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+
+        dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).setOnClickListener {
+            val url = pickerUrl
+            if (url != null && SmbPath.parse(url) != null) {
+                dialog.dismiss()
+                onPicked(url)
+            }
+        }
+        listView.setOnItemClickListener { _, _, position, _ ->
+            rows.getOrNull(position)?.let { load(it.target) }
+        }
+        load(if (SmbPath.isSmb(currentPath)) currentPath else null)
     }
 
     private fun navigateUp() {
@@ -948,7 +1160,9 @@ onBackPressedDispatcher.addCallback(
  * RecyclerView adapter for network (SMB/NFS) browse file listing.
  */
 class NetworkBrowseAdapter(
-    private val onItemClick: (RemoteFileInfo) -> Unit
+    private val onItemClick: (RemoteFileInfo) -> Unit,
+    private val onItemLongClick: (RemoteFileInfo) -> Unit = {},
+    private val isItemSelected: (RemoteFileInfo) -> Boolean = { false }
 ) : ListAdapter<RemoteFileInfo, NetworkBrowseAdapter.RemoteFileViewHolder>(RemoteFileDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RemoteFileViewHolder {
@@ -968,6 +1182,10 @@ class NetworkBrowseAdapter(
         private val thumbnailView: android.widget.ImageView = itemView.findViewById(R.id.thumbnailView)
         private val neutralIconTint = ColorStateList.valueOf(
             ThemeColorResolver.resolveColor(itemView.context, com.google.android.material.R.attr.colorOnSurfaceVariant),
+        )
+        private val defaultBackground = itemView.background
+        private val selectedBackground = android.graphics.drawable.ColorDrawable(
+            ThemeColorResolver.resolveColor(itemView.context, com.google.android.material.R.attr.colorPrimaryContainer)
         )
 
         fun bind(item: RemoteFileInfo) {
@@ -1015,8 +1233,16 @@ val context = itemView.context
                 sizeText.text = formatSize(item.size)
             }
 
+            val selected = isItemSelected(item)
+            itemView.background = if (selected) selectedBackground else defaultBackground
+            if (selected) nameText.text = "\u2713 ${item.name}"
+
             itemView.setOnClickListener {
                 onItemClick(item)
+            }
+            itemView.setOnLongClickListener {
+                onItemLongClick(item)
+                true
             }
         }
 

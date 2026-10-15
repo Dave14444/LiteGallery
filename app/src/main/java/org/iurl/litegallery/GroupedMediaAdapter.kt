@@ -1,8 +1,11 @@
 package org.iurl.litegallery
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.google.android.material.imageview.ShapeableImageView
+import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.databinding.ItemGroupHeaderBinding
 import org.iurl.litegallery.databinding.ItemMediaBinding
 import org.iurl.litegallery.databinding.ItemMediaDetailedBinding
@@ -13,7 +16,9 @@ import java.util.Locale
 
 class GroupedMediaAdapter(
     private val onMediaClick: (MediaItemSkeleton, Int) -> Unit,
-    private val onDetailedMetadataNeeded: ((MediaItemSkeleton) -> Unit)? = null
+    private val onDetailedMetadataNeeded: ((MediaItemSkeleton) -> Unit)? = null,
+    private val onMediaLongClick: ((MediaItemSkeleton, Int) -> Unit)? = null,
+    private val isItemSelected: ((MediaItemSkeleton) -> Boolean)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val differ = androidx.recyclerview.widget.AsyncListDiffer(
@@ -121,6 +126,32 @@ class GroupedMediaAdapter(
         super.onBindViewHolder(holder, position, payloads)
     }
 
+    fun notifySelectionChanged(changedPaths: Collection<String>) {
+        if (changedPaths.isEmpty()) return
+        val changed = changedPaths.toSet()
+        differ.currentList.forEachIndexed { index, item ->
+            if (item is FolderDisplayItem.Media && item.skeleton.path in changed) {
+                notifyItemChanged(index)
+            }
+        }
+    }
+
+    private fun applySelectionState(root: android.view.View, skeleton: MediaItemSkeleton) {
+        val selected = isItemSelected?.invoke(skeleton) == true
+        val thumbnail = root.findViewById<ShapeableImageView>(R.id.thumbnailImageView)
+
+        root.isSelected = selected
+        if (selected) {
+            val color = ThemeColorResolver
+                .resolveColor(root.context, com.google.android.material.R.attr.colorPrimary)
+            thumbnail?.strokeColor = ColorStateList.valueOf(color)
+            thumbnail?.strokeWidth = 2f * root.resources.displayMetrics.density
+        } else {
+            thumbnail?.strokeColor = null
+            thumbnail?.strokeWidth = 0f
+        }
+    }
+
     fun isHeaderPosition(position: Int): Boolean {
         return differ.currentList.getOrNull(position) is FolderDisplayItem.Header
     }
@@ -150,6 +181,11 @@ class GroupedMediaAdapter(
             binding.root.setOnClickListener {
                 onMediaClick(skeleton, displayItem.mediaIndex)
             }
+            binding.root.setOnLongClickListener {
+                onMediaLongClick?.invoke(skeleton, displayItem.mediaIndex)
+                onMediaLongClick != null
+            }
+            applySelectionState(binding.root, skeleton)
         }
     }
 
@@ -163,6 +199,11 @@ class GroupedMediaAdapter(
             binding.root.setOnClickListener {
                 onMediaClick(skeleton, displayItem.mediaIndex)
             }
+            binding.root.setOnLongClickListener {
+                onMediaLongClick?.invoke(skeleton, displayItem.mediaIndex)
+                onMediaLongClick != null
+            }
+            applySelectionState(binding.root, skeleton)
         }
     }
 
@@ -202,6 +243,11 @@ class GroupedMediaAdapter(
             binding.root.setOnClickListener {
                 onMediaClick(skeleton, displayItem.mediaIndex)
             }
+            binding.root.setOnLongClickListener {
+                onMediaLongClick?.invoke(skeleton, displayItem.mediaIndex)
+                onMediaLongClick != null
+            }
+            applySelectionState(binding.root, skeleton)
         }
     }
 

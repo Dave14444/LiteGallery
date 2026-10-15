@@ -125,6 +125,15 @@ override suspend fun copyToCache(
         false
     }
 }
+    override val supportsUpload: Boolean = true
+
+    override fun startUpload(
+        activity: androidx.appcompat.app.AppCompatActivity,
+        items: List<MediaItemSkeleton>,
+        move: Boolean,
+        onFinished: (copiedPaths: List<String>, failedCount: Int) -> Unit
+    ) = SmbUploadFlow.start(activity, items, move, onFinished)
+
     override fun shutdown() {
         RemoteClients.all().forEach { it.disconnectAll() }
     }
