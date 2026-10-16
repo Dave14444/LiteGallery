@@ -1,18 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Auswahl, Kopieren, Verschieben und Löschen auf Netzlaufwerken -->
-    <string name="smb_selected_count">%d ausgewählt</string>
-    <string name="smb_select_all">Alle auswählen</string>
-    <string name="smb_copy_to">Kopieren nach…</string>
-    <string name="smb_move_to">Verschieben nach…</string>
-    <string name="smb_choose_destination">Zielordner wählen</string>
-    <string name="smb_choose_server">Netzlaufwerk wählen</string>
-    <string name="smb_copy_here">Hierher kopieren</string>
-    <string name="smb_move_here">Hierher verschieben</string>
-    <string name="smb_copying">Kopiere…</string>
-    <string name="smb_moving">Verschiebe…</string>
-    <string name="smb_deleting">Lösche…</string>
-    <string name="smb_delete_files_confirm">%d ausgewählte Datei(en) endgültig vom Netzlaufwerk löschen? Das kann nicht rückgängig gemacht werden.</string>
-    <string name="smb_operation_done">%d Datei(en) erledigt</string>
-    <string name="smb_operation_partial">%1$d erledigt, %2$d fehlgeschlagen</string>
+
+    <!-- Netzwerk-Ordneransicht und Anzeigebilder -->
+    <string name="network_images_in_folder">Bilder in diesem Ordner</string>
+    <string name="smb_cover_choose">Anzeigebild wählen</string>
+    <string name="smb_cover_reset">Anzeigebild zurücksetzen</string>
+    <string name="smb_cover_failed">Dieses Bild konnte nicht verwendet werden</string>
 </resources>

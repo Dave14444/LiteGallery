@@ -66,26 +66,77 @@ suspend fun copyToCache(
     destination: java.io.File
 ): Boolean = false
     
-    /** True if local files can be copied or moved into this source (e.g. onto a network share). */
-    val supportsUpload: Boolean get() = false
+    // ---- File operations (copy / move / delete / new folder) ----
+    // All functions below do blocking I/O: call them from a background thread.
+
+    /** True if files at [path] can be copied, moved, deleted and written by this source. */
+    fun supportsFileOperations(path: String): Boolean = false
+
+    /** Top-level destinations offered in the destination picker (e.g. the saved network shares). */
+    fun destinationRoots(context: Context): List<FolderEntry> = emptyList()
+
+    /** Sub folders of [folderPath]. */
+    fun listSubFolders(context: Context, folderPath: String): List<FolderEntry> = emptyList()
+
+    /** Parent of [path] inside this source, or null if [path] is a top-level destination. */
+    fun parentFolder(path: String): String? = null
+
+    /** Creates folder [name] inside [parentPath]. Returns the new folder's path, or null. */
+    fun createFolder(context: Context, parentPath: String, name: String): String? = null
+
+    /** Opens the file at [path] for reading. The caller closes the stream. */
+    fun openInput(context: Context, path: String): java.io.InputStream =
+        throw UnsupportedOperationException()
+
+    /** Modification time of [path] in epoch milliseconds, or 0 if unknown. */
+    fun lastModified(context: Context, path: String): Long = 0L
 
     /**
-     * Lets the user pick a destination inside this source, then copies the local [items] there.
-     * [onFinished] runs on the main thread with the paths that were copied successfully and the
-     * number of failures. It is not called if the user cancels the destination picker.
-     * Removing the originals after a move is up to the caller.
+     * Creates a new file in [folderPath] from [input]. A name that is already taken is made
+     * unique ("name (1).jpg"). The new file gets [lastModified] as modification time (if > 0).
+     * Returns the new file's path, or null on failure.
      */
-    fun startUpload(
+    fun writeNew(
+        context: Context,
+        folderPath: String,
+        desiredName: String,
+        input: java.io.InputStream,
+        lastModified: Long
+    ): String? = null
+
+    /** Deletes the file at [path]. Returns true once it is gone. */
+    fun deleteFile(context: Context, path: String): Boolean = false
+
+    /**
+     * Moves [path] into [destFolderPath] without transferring data (e.g. a rename on the same
+     * share). Returns the new path, or null if that is not possible and the caller should
+     * copy and delete instead.
+     */
+    fun moveWithin(
+        context: Context,
+        path: String,
+        destFolderPath: String,
+        desiredName: String
+    ): String? = null
+
+    /**
+     * Lets this source offer its own actions for a home-screen entry (e.g. choosing a cover
+     * image). Returns true if it showed something; false means the default (hide folder) applies.
+     * [onHide] performs the default hide action, [onChanged] asks the home screen to refresh.
+     */
+    fun showHomeEntryOptions(
         activity: androidx.appcompat.app.AppCompatActivity,
-        items: List<MediaItemSkeleton>,
-        move: Boolean,
-        onFinished: (copiedPaths: List<String>, failedCount: Int) -> Unit
-    ) {
-    }
+        folder: MediaFolder,
+        onHide: () -> Unit,
+        onChanged: () -> Unit
+    ): Boolean = false
 
     /** Release any held resources (connections, caches) on app shutdown. */
     fun shutdown()
 }
+
+/** A folder offered by [MediaSource.destinationRoots] / [MediaSource.listSubFolders]. */
+data class FolderEntry(val name: String, val path: String)
 
 /** Result of a [MediaSource.rename] attempt. */
 sealed class RenameOutcome {

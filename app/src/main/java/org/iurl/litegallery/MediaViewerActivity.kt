@@ -410,15 +410,6 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.viewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                
-android.util.Log.i(
-    "MediaOrderDebug",
-    "PAGE_SELECTED position=$position " +
-        "previousPosition=$currentPosition " +
-        "layoutDirection=${binding.viewPager.layoutDirection} " +
-        "item=${mediaItems.getOrNull(position)?.name} " +
-        "path=${mediaItems.getOrNull(position)?.path}"
-)
 
                 // Track navigation direction based on actual page transition
                 val oldPosition = currentPosition
@@ -814,7 +805,11 @@ val visible = (
         lifecycleScope.launch {
             val deleteResult = withContext(Dispatchers.IO) {
                 try {
-                    if (item.path.startsWith("content://")) {
+                    if (item.isRemote) {
+                        val deleted = MediaSourceRegistry.forPath(item.path)
+                            ?.deleteFile(applicationContext, item.path) == true
+                        DeleteOperationResult(success = deleted)
+                    } else if (item.path.startsWith("content://")) {
                         val contentUri = android.net.Uri.parse(item.path)
                         if (moveToTrash) {
                             val mediaStoreUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -997,6 +992,7 @@ val visible = (
     }
 
     private fun supportsTrashOption(item: MediaItem): Boolean {
+        if (item.isRemote) return false
         if (!item.path.startsWith("content://")) return true
         val uri = runCatching { android.net.Uri.parse(item.path) }.getOrNull() ?: return false
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&
@@ -1023,7 +1019,7 @@ val visible = (
         hasMediaCollectionChanged = true
         resultDeletedPaths.add(item.path)
         android.widget.Toast.makeText(this@MediaViewerActivity, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
-        if (!item.path.startsWith("content://")) {
+        if (!item.path.startsWith("content://") && !item.isRemote) {
             notifyMediaScanner(item.path, null)
         }
         lifecycleScope.launch {
@@ -1618,39 +1614,9 @@ binding.viewPager.layoutDirection = View.LAYOUT_DIRECTION_LTR
                     }
 
 
-// DIAGNOSTIK: Quelle und Reihenfolge der Viewer-Liste.
-                   
-                    val listSource = when {
-                        skeletonSnapshot != null -> "skeleton_snapshot"
-                        cachedSnapshot != null -> "media_snapshot"
-                        else -> "scanner"
-                    }
-
-
-                    android.util.Log.i(
-                        "MediaOrderDebug",
-                        "VIEWER_LOAD folder=$path target=$targetPath " +
-                            "source=$listSource count=${mediaItems.size} " +
-                            "initialPosition=$currentPosition"
-                    )
-                    mediaItems.take(15).forEachIndexed { index, item ->
-                        android.util.Log.i(
-                            "MediaOrderDebug",
-                            "VIEWER_ITEM index=$index name=${item.name} " +
-                                "dateModified=${item.dateModified} path=${item.path}"
-                        )
-                    }
-
                     mediaViewerAdapter.submitList(mediaItems) {
                         if (!targetPath.isNullOrBlank()) {
                             val resolvedIndex = findMediaItemIndexByPath(mediaItems, targetPath)
-                           android.util.Log.i(
-    "MediaOrderDebug",
-    "VIEWER_POSITION target=$targetPath " +
-        "resolvedIndex=$resolvedIndex " +
-        "currentPositionBefore=$currentPosition " +
-        "itemAtResolvedIndex=${mediaItems.getOrNull(resolvedIndex)?.name}"
-)
                             if (resolvedIndex >= 0) {
                                 currentPosition = resolvedIndex
                             }

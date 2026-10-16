@@ -34,6 +34,8 @@ class FolderAdapter(
 
             binding.folderNameTextView.text = folder.name
             binding.countChip.text = formatCount(folder.itemCount)
+            // A negative count means "not known (yet)".
+            binding.countChip.visibility = if (folder.itemCount < 0) View.GONE else View.VISIBLE
             TonalCountChipStyler.apply(binding.countChip)
             binding.folderMetaTextView.text = formatMeta(folder)
             binding.folderMetaTextView.visibility =
@@ -51,7 +53,11 @@ class FolderAdapter(
                     .error(R.drawable.ic_folder)
                     .into(binding.thumbnailImageView)
             } else {
-                val iconRes = MediaSourceRegistry.forPath(folder.path)?.folderIconRes ?: R.drawable.ic_folder
+                val iconRes = if (folder.isSubFolder) {
+                    R.drawable.ic_folder
+                } else {
+                    MediaSourceRegistry.forPath(folder.path)?.folderIconRes ?: R.drawable.ic_folder
+                }
                 binding.thumbnailImageView.setImageResource(iconRes)
             }
 
@@ -75,8 +81,13 @@ binding.root.setOnLongClickListener {
         }
 
         private fun formatMeta(folder: MediaFolder): String {
-            // Remote virtual folders (e.g. SMB) have no meaningful date/size info — leave meta empty.
-            if (MediaSourceRegistry.isManaged(folder.path)) return ""
+            // Remote entries without date/size info (e.g. a network share) leave the meta empty.
+            if (MediaSourceRegistry.isManaged(folder.path) &&
+                folder.latestDateModifiedMs <= 0L &&
+                folder.totalSizeBytes <= 0L
+            ) {
+                return ""
+            }
 
             val context = binding.root.context
             val datePart = if (folder.latestDateModifiedMs > 0L) {

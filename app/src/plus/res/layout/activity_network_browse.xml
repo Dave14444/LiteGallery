@@ -14,8 +14,7 @@
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:popupTheme="@style/ThemeOverlay.AppCompat.Light">
+            android:layout_height="?attr/actionBarSize">
 
             <ImageButton
                 android:id="@+id/homeButton"
@@ -156,6 +155,9 @@
             android:id="@+id/recyclerView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="20dp"
             android:visibility="gone" />
 
         <!-- Empty View -->

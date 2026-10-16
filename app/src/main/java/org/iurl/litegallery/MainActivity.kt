@@ -244,7 +244,16 @@ class MainActivity : AppCompatActivity() {
                 }
             },
             onFolderLongClick = { folder ->
-                showHideFolderDialog(folder)
+                // A source (e.g. a network connection) may offer its own actions first.
+                val handledBySource = MediaSourceRegistry.forPath(folder.path)?.showHomeEntryOptions(
+                    activity = this,
+                    folder = folder,
+                    onHide = { showHideFolderDialog(folder) },
+                    onChanged = { loadMediaFolders(showBlockingLoading = false) }
+                ) == true
+                if (!handledBySource) {
+                    showHideFolderDialog(folder)
+                }
             }
         )
 

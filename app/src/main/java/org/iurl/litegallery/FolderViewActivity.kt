@@ -14,7 +14,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
@@ -59,6 +58,9 @@ class FolderViewActivity : AppCompatActivity() {
         private const val SEARCH_PROMPT_TOP_MARGIN_DP = 32
         private const val SEARCH_PROMPT_HORIZONTAL_PADDING_DP = 24
         private const val SEARCH_PROMPT_VERTICAL_PADDING_DP = 16
+        // Same preference as the viewer's delete dialog.
+        private const val DELETE_PREFS = "delete_prefs"
+        private const val DELETE_MOVE_TO_TRASH_KEY = "delete_move_to_trash"
     }
     
     private lateinit var binding: ActivityFolderViewBinding
@@ -107,30 +109,14 @@ class FolderViewActivity : AppCompatActivity() {
     )
 
     private val selectedPaths = LinkedHashSet<String>()
-    private var copyToNetworkMenuItem: MenuItem? = null
-    private var moveToNetworkMenuItem: MenuItem? = null
+    private var copyMenuItem: MenuItem? = null
+    private var moveMenuItem: MenuItem? = null
+    private var deleteMenuItem: MenuItem? = null
     private var selectAllMenuItem: MenuItem? = null
-    private var itemsAwaitingDeleteConsent: List<MediaItemSkeleton> = emptyList()
 
     private val selectionBackCallback = object : androidx.activity.OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             clearSelection()
-        }
-    }
-
-    private val deleteConsentLauncher = registerForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        val items = itemsAwaitingDeleteConsent
-        itemsAwaitingDeleteConsent = emptyList()
-        if (result.resultCode == RESULT_OK) {
-            onOriginalsRemoved(items)
-        } else if (items.isNotEmpty()) {
-            Toast.makeText(
-                this,
-                getString(R.string.originals_not_deleted, items.size),
-                Toast.LENGTH_LONG
-            ).show()
         }
     }
 
@@ -235,8 +221,9 @@ class FolderViewActivity : AppCompatActivity() {
         menuInflater.inflate(R.menu.folder_view_menu, menu)
         sortMenuItem = menu.findItem(R.id.action_sort)
         searchMenuItem = menu.findItem(R.id.action_search)
-        copyToNetworkMenuItem = menu.findItem(R.id.action_copy_to_network)
-        moveToNetworkMenuItem = menu.findItem(R.id.action_move_to_network)
+        copyMenuItem = menu.findItem(R.id.action_copy_selection)
+        moveMenuItem = menu.findItem(R.id.action_move_selection)
+        deleteMenuItem = menu.findItem(R.id.action_delete_selection)
         selectAllMenuItem = menu.findItem(R.id.action_select_all)
         setupSearchMenuItem(searchMenuItem)
         updateSortIndicator()
@@ -250,12 +237,16 @@ class FolderViewActivity : AppCompatActivity() {
                 if (selectedPaths.isNotEmpty()) clearSelection() else finish()
                 true
             }
-            R.id.action_copy_to_network -> {
-                startUploadOfSelection(move = false)
+            R.id.action_copy_selection -> {
+                startTransferOfSelection(FileTransfer.Mode.COPY)
                 true
             }
-            R.id.action_move_to_network -> {
-                startUploadOfSelection(move = true)
+            R.id.action_move_selection -> {
+                startTransferOfSelection(FileTransfer.Mode.MOVE)
+                true
+            }
+            R.id.action_delete_selection -> {
+                confirmDeleteSelected()
                 true
             }
             R.id.action_select_all -> {
@@ -274,13 +265,16 @@ class FolderViewActivity : AppCompatActivity() {
         }
     }
     
-    // ---- Selection and copy/move to a network share (only with a network source) ----
+    // ---- Selection, copy / move / delete (local files and sources that support it) ----
 
-    private val uploadSource: MediaSource?
-        get() = MediaSourceRegistry.all().firstOrNull { it.supportsUpload }
-
-    private fun canSelect(skeleton: MediaItemSkeleton): Boolean =
-        uploadSource != null && !skeleton.isRemote
+    private fun canSelect(skeleton: MediaItemSkeleton): Boolean {
+        val source = MediaSourceRegistry.forPath(skeleton.path)
+        return if (source != null) {
+            source.supportsFileOperations(skeleton.path)
+        } else {
+            skeleton.path.startsWith("/")
+        }
+    }
 
     private fun toggleSelection(skeleton: MediaItemSkeleton) {
         if (!canSelect(skeleton)) return
@@ -316,87 +310,157 @@ class FolderViewActivity : AppCompatActivity() {
         } else {
             ""
         }
-        copyToNetworkMenuItem?.isVisible = selecting
-        moveToNetworkMenuItem?.isVisible = selecting
+        copyMenuItem?.isVisible = selecting
+        moveMenuItem?.isVisible = selecting
+        deleteMenuItem?.isVisible = selecting
         selectAllMenuItem?.isVisible = selecting
         selectionBackCallback.isEnabled = selecting
     }
 
-    private fun startUploadOfSelection(move: Boolean) {
-        val source = uploadSource ?: return
-        val items = unfilteredMediaItems.filter { it.path in selectedPaths && !it.isRemote }
+    private fun selectedItems(): List<MediaItemSkeleton> =
+        unfilteredMediaItems.filter { it.path in selectedPaths }
+
+    private fun startTransferOfSelection(mode: FileTransfer.Mode) {
+        val items = selectedItems()
         if (items.isEmpty()) return
 
-        source.startUpload(this, items, move) { copiedPaths, _ ->
-            val copiedSet = copiedPaths.toSet()
-            val copied = items.filter { it.path in copiedSet }
-            clearSelection()
-            if (move && copied.isNotEmpty()) {
-                removeMovedOriginals(copied)
-            }
-        }
-    }
-
-    /** After a move: delete the local originals that were copied successfully. */
-    private fun removeMovedOriginals(copied: List<MediaItemSkeleton>) {
-        lifecycleScope.launch {
-            val deleted = mutableListOf<MediaItemSkeleton>()
-            val needsConsent = mutableListOf<MediaItemSkeleton>()
-            withContext(Dispatchers.IO) {
-                copied.forEach { item ->
-                    if (deleteLocalOriginal(item)) deleted.add(item) else needsConsent.add(item)
-                }
-            }
-            onOriginalsRemoved(deleted)
-            if (needsConsent.isNotEmpty()) requestDeleteConsent(needsConsent)
-        }
-    }
-
-    private fun deleteLocalOriginal(item: MediaItemSkeleton): Boolean = try {
-        if (item.path.startsWith("content://")) {
-            contentResolver.delete(android.net.Uri.parse(item.path), null, null) > 0
-        } else {
-            val file = java.io.File(item.path)
-            file.delete() || !file.exists()
-        }
-    } catch (e: Exception) {
-        false
-    }
-
-    /** Without all-files access Android asks once for all remaining originals (Android 11+). */
-    private fun requestDeleteConsent(items: List<MediaItemSkeleton>) {
-        val uris = items.mapNotNull { it.thumbnailModel() as? android.net.Uri }
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R || uris.isEmpty()) {
-            Toast.makeText(this, getString(R.string.originals_not_deleted, items.size), Toast.LENGTH_LONG).show()
+        // Moving files on the phone needs all-files access (copying only reads them).
+        if (mode == FileTransfer.Mode.MOVE &&
+            items.any { FileTransfer.isLocalPath(it.path) } &&
+            !StorageAccess.ensure(this)
+        ) {
             return
         }
-        try {
-            val sender = android.provider.MediaStore.createDeleteRequest(contentResolver, uris).intentSender
-            itemsAwaitingDeleteConsent = items
-            deleteConsentLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
-        } catch (e: Exception) {
-            Toast.makeText(this, getString(R.string.originals_not_deleted, items.size), Toast.LENGTH_LONG).show()
+
+        DestinationPicker.show(this, mode) { destFolder ->
+            if (FileTransfer.isLocalPath(destFolder) && !StorageAccess.ensure(this)) {
+                return@show
+            }
+            val paths = items.map { it.path }
+            FileOperationDialogs.runWithProgress(
+                activity = this,
+                titleRes = if (mode == FileTransfer.Mode.COPY) {
+                    R.string.file_op_copying
+                } else {
+                    R.string.file_op_moving
+                },
+                total = paths.size,
+                work = { onProgress ->
+                    FileTransfer.transfer(applicationContext, paths, destFolder, mode, onProgress)
+                },
+                onDone = { result -> onFileOperationDone(result, destFolder) }
+            )
         }
     }
 
-    private fun onOriginalsRemoved(removed: List<MediaItemSkeleton>) {
-        if (removed.isEmpty()) return
-        removed.forEach { item ->
-            MediaMetadataCache.remove(item.id)
-            if (!item.path.startsWith("content://")) {
-                android.media.MediaScannerConnection.scanFile(this, arrayOf(item.path), null, null)
+    private fun confirmDeleteSelected() {
+        val items = selectedItems()
+        if (items.isEmpty()) return
+
+        // Same dialog as in the viewer. Only files on the phone can go to the trash.
+        val hasLocal = items.any { FileTransfer.isLocalPath(it.path) }
+        if (hasLocal && !StorageAccess.ensure(this)) return
+
+        val prefs = getSharedPreferences(DELETE_PREFS, MODE_PRIVATE)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_delete_media, null)
+        val messageTextView = dialogView.findViewById<android.widget.TextView>(R.id.deleteMessageTextView)
+        val moveToTrashCheckbox = dialogView.findViewById<android.widget.CheckBox>(R.id.moveToTrashCheckBox)
+        messageTextView.text = getString(R.string.file_op_delete_selected_confirmation, items.size)
+        moveToTrashCheckbox.isChecked = hasLocal && prefs.getBoolean(DELETE_MOVE_TO_TRASH_KEY, true)
+        moveToTrashCheckbox.visibility = if (hasLocal) View.VISIBLE else View.GONE
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.delete)
+            .setView(dialogView)
+            .setPositiveButton(R.string.delete, null)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE)
+            val updatePositiveButtonText = {
+                val textRes = if (hasLocal && moveToTrashCheckbox.isChecked) {
+                    R.string.move_to_trash
+                } else {
+                    R.string.delete_permanently
+                }
+                positiveButton.text = getString(textRes)
             }
-            lifecycleScope.launch { mediaScanner.removeIndexedMediaPath(item.path) }
+            updatePositiveButtonText()
+            moveToTrashCheckbox.setOnCheckedChangeListener { _, _ -> updatePositiveButtonText() }
+
+            positiveButton.setOnClickListener {
+                val moveToTrash = hasLocal && moveToTrashCheckbox.isChecked
+                if (hasLocal) {
+                    prefs.edit().putBoolean(DELETE_MOVE_TO_TRASH_KEY, moveToTrash).apply()
+                }
+                dialog.dismiss()
+                FileOperationDialogs.runWithProgress(
+                    activity = this,
+                    titleRes = R.string.file_op_deleting,
+                    total = items.size,
+                    work = { onProgress ->
+                        FileTransfer.delete(applicationContext, items, moveToTrash, onProgress)
+                    },
+                    onDone = { result -> onFileOperationDone(result, null) }
+                )
+            }
         }
+        dialog.show()
+        ThemeHelper.applyRuntimeCustomColors(dialog)
+    }
+
+    /** Brings the screen up to date after files were copied, moved or deleted. */
+    private fun onFileOperationDone(result: FileTransfer.Result, destFolder: String?) {
+        clearSelection()
+
         FolderMediaRepository.invalidate(folderPath)
-        setResult(
-            RESULT_OK,
-            Intent().apply {
-                putExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, true)
-                putExtra(MediaViewerActivity.RESULT_FOLDER_PATH, folderPath)
+        if (destFolder != null) FolderMediaRepository.invalidate(destFolder)
+
+        if (result.removedPaths.isNotEmpty()) {
+            result.removedPaths.filter { FileTransfer.isLocalPath(it) }.forEach { path ->
+                lifecycleScope.launch { mediaScanner.removeIndexedMediaPath(path) }
             }
-        )
-        loadMediaItems(showBlockingLoading = false)
+            val removedIntent = Intent().putStringArrayListExtra(
+                MediaViewerActivity.RESULT_DELETED_PATHS,
+                ArrayList(result.removedPaths)
+            )
+            if (!applyViewerResultDeltas(removedIntent)) {
+                loadMediaItems(showBlockingLoading = false)
+            }
+        }
+
+        if (result.done > 0) {
+            setResult(
+                RESULT_OK,
+                Intent().apply {
+                    putExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, true)
+                    putExtra(MediaViewerActivity.RESULT_FOLDER_PATH, folderPath)
+                }
+            )
+        }
+
+        // New files in the folder that is shown right now.
+        if (destFolder != null &&
+            destFolder.trimEnd('/') == folderPath.trimEnd('/') &&
+            result.createdPaths.isNotEmpty()
+        ) {
+            reloadAfterScan(result.createdPaths)
+        }
+    }
+
+    private fun reloadAfterScan(createdPaths: List<String>) {
+        val local = createdPaths.filter { FileTransfer.isLocalPath(it) }
+        if (local.isEmpty()) {
+            loadMediaItems(showBlockingLoading = false)
+            return
+        }
+        val remaining = java.util.concurrent.atomic.AtomicInteger(local.size)
+        android.media.MediaScannerConnection.scanFile(this, local.toTypedArray(), null) { _, _ ->
+            if (remaining.decrementAndGet() == 0) {
+                runOnUiThread { loadMediaItems(showBlockingLoading = false) }
+            }
+        }
     }
 
     private fun setupToolbar() {
@@ -562,21 +626,6 @@ return mutableListOf(thumbnailModel)
         }
 
    private fun openMediaViewer(skeleton: MediaItemSkeleton, position: Int) {
-    // DIAGNOSTIK: Reihenfolge direkt vor dem Öffnen protokollieren.
-    android.util.Log.i(
-        "MediaOrderDebug",
-        "FOLDER_OPEN folder=$folderPath clickedPosition=$position " +
-            "clickedPath=${skeleton.path} count=${mediaItems.size}"
-    )
-    mediaItems.take(15).forEachIndexed { index, item ->
-        android.util.Log.i(
-            "MediaOrderDebug",
-            "FOLDER_ITEM index=$index name=${item.name} " +
-                "dateModified=${item.dateModified} path=${item.path}"
-        )
-    }
-
-    
     // Die aktuell sichtbare, bereits sortierte Liste für den Viewer sichern.
     // Sie ist die maßgebliche Reihenfolge der Ordneransicht.
     cacheCurrentFolderMedia(
@@ -1484,12 +1533,6 @@ return mutableListOf(thumbnailModel)
                     .collect { event ->
                         when (event) {
                             is LoadEvent.FirstScreen -> {
-                               android.util.Log.i(
-    "SmbThumbDiag",
-    "SMB_LOAD_ITEMS: folder=$folderPath count=${event.items.size} paths=${
-        event.items.take(5).joinToString { it.path }
-    }"
-)
                                 ++displayGeneration
                                 loadedSkeletons.clear()
                                 loadedSkeletons.addAll(event.items)

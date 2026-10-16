@@ -1,18 +1,14 @@
 package org.iurl.litegallery
 
-import android.content.Context
-import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.signature.ObjectKey
-import com.google.android.material.imageview.ShapeableImageView
 import org.iurl.litegallery.databinding.ItemMediaBinding
 import org.iurl.litegallery.databinding.ItemMediaListBinding
 import org.iurl.litegallery.databinding.ItemMediaDetailedBinding
-import org.iurl.litegallery.theme.ThemeColorResolver
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -46,7 +42,6 @@ class MediaAdapter(
         private const val PAYLOAD_SELECTION_STATE = "payload_selection_state"
         private const val PAYLOAD_NAME_CHANGED = "payload_name_changed"
         const val PAYLOAD_META_LOADED = "payload_meta_loaded"
-        private const val SELECTION_STROKE_DP = 2f
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -182,16 +177,6 @@ class MediaAdapter(
             if (skeleton.isRemote && skeleton.isVideo) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
-                android.util.Log.i(
-    "SmbThumbDiag",
-    "GRID_MODEL: path=${skeleton.path} model=${
-        if (skeleton.path.startsWith("smb://")) {
-            "smbthumb://${skeleton.path}"
-        } else {
-            skeleton.thumbnailModel()
-        }
-    }"
-)
                 Glide.with(binding.root.context)
                     .load(
     if (skeleton.path.startsWith("smb://")) {
@@ -269,16 +254,6 @@ class MediaAdapter(
             if (skeleton.isRemote && skeleton.isVideo) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
-                android.util.Log.i(
-    "SmbThumbDiag",
-    "GRID_MODEL: path=${skeleton.path} model=${
-        if (skeleton.path.startsWith("smb://")) {
-            "smbthumb://${skeleton.path}"
-        } else {
-            skeleton.thumbnailModel()
-        }
-    }"
-)
                 Glide.with(binding.root.context)
                     .load(
     if (skeleton.path.startsWith("smb://")) {
@@ -347,16 +322,6 @@ class MediaAdapter(
             if (skeleton.isRemote && skeleton.isVideo) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
-                android.util.Log.i(
-    "SmbThumbDiag",
-    "GRID_MODEL: path=${skeleton.path} model=${
-        if (skeleton.path.startsWith("smb://")) {
-            "smbthumb://${skeleton.path}"
-        } else {
-            skeleton.thumbnailModel()
-        }
-    }"
-)
                 Glide.with(binding.root.context)
                     .load(
     if (skeleton.path.startsWith("smb://")) {
@@ -443,26 +408,8 @@ class MediaAdapter(
     }
 
     private fun applySelectionState(root: android.view.View, skeleton: MediaItemSkeleton) {
-        val selected = isItemSelected?.invoke(skeleton) == true
-        val thumbnail = root.findViewById<ShapeableImageView>(R.id.thumbnailImageView)
-
-        root.isSelected = selected
-        root.alpha = 1f
-        if (selected) {
-            thumbnail?.strokeColor = ColorStateList.valueOf(selectionStrokeColor(root.context))
-            thumbnail?.strokeWidth = SELECTION_STROKE_DP * root.resources.displayMetrics.density
-        } else {
-            thumbnail?.strokeColor = null
-            thumbnail?.strokeWidth = 0f
-        }
+        SelectionRenderer.apply(root, isItemSelected?.invoke(skeleton) == true)
     }
-
-    private var cachedSelectionStrokeColor: Int? = null
-
-    private fun selectionStrokeColor(context: Context): Int =
-        cachedSelectionStrokeColor ?: ThemeColorResolver
-            .resolveColor(context, com.google.android.material.R.attr.colorPrimary)
-            .also { cachedSelectionStrokeColor = it }
 
     private fun formatFileSize(bytes: Long): String {
         if (bytes <= 0) return ""

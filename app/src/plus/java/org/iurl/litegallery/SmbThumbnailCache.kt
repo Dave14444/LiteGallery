@@ -3,255 +3,114 @@ package org.iurl.litegallery
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.exifinterface.media.ExifInterface
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.security.MessageDigest
-import android.graphics.Matrix
-import androidx.exifinterface.media.ExifInterface
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 
 /**
  * Persistent thumbnail cache stored on the SMB share itself.
- * Thumbnails are JPEG files capped at 256 x 256 pixels.
+ * Thumbnails are square JPEG files of [THUMB_SIZE] x [THUMB_SIZE] pixels.
  */
 object SmbThumbnailCache {
 
     private const val CACHE_DIR = ".LiteGalleryThumbnails"
-    private const val USE_LOCAL_CACHE_FOR_TEST = false
-    private const val THUMB_SIZE = 256
+    private const val CACHE_VERSION = "thumb-v5"
+    private const val THUMB_SIZE = 384
+
+    /** Images up to this size are downloaded once and decoded from memory. */
+    private const val MAX_IN_MEMORY_SOURCE_BYTES = 48L * 1024 * 1024
+
     private val cacheLock = Any()
 
-fun openThumbnailStream(context: Context, imageUrl: String): InputStream {
-    return synchronized(cacheLock) {
-        openThumbnailStreamLocked(context, imageUrl)
+    fun openThumbnailStream(context: Context, imageUrl: String): InputStream {
+        return synchronized(cacheLock) {
+            openThumbnailStreamLocked(context, imageUrl)
+        }
     }
-}
 
-private fun openThumbnailStreamLocked(
-    context: Context,
-    imageUrl: String
-): InputStream {
-        android.util.Log.i(
-    "SmbThumbDiag",
-    "OPEN: $imageUrl"
-)
+    private fun openThumbnailStreamLocked(context: Context, imageUrl: String): InputStream {
         val path = SmbPath.parse(imageUrl)
             ?: return RemoteClients.forUrl(imageUrl)!!.openInputStream(context, imageUrl)
 
         val client = RemoteClients.forUrl(imageUrl)
             ?: throw IllegalArgumentException("No remote client for $imageUrl")
 
-        
-                val (fileSize, lastModified) = SmbClient.getFileSizeAndLastModified(
-            context,
-            path.host,
-            path.share,
-            path.path
-        )
-        val cacheKey = sha256("$imageUrl|$fileSize|$lastModified|thumb-v4")
-
-        if (USE_LOCAL_CACHE_FOR_TEST) {
-            val mediaRoot = context.externalMediaDirs.firstOrNull()
-    ?: throw IllegalStateException(
-        "Android returned no external media directory"
-    )
-
-val cacheDir = File(mediaRoot, "thumbnail_cache_test")
-
-android.util.Log.i(
-    "SmbThumbDiag",
-    "LOCAL_CACHE_DIR: ${cacheDir.absolutePath}"
-)
-
-if (!cacheDir.exists()) {
-    val created = cacheDir.mkdirs()
-
-    android.util.Log.i(
-        "SmbThumbDiag",
-        "LOCAL_CACHE_MKDIRS: success=$created exists=${cacheDir.exists()}"
-    )
-}
-
-if (!cacheDir.isDirectory) {
-    throw IllegalStateException(
-        "Local cache directory unavailable: ${cacheDir.absolutePath}"
-    )
-}
- 
-            val cacheFile = File(
-                cacheDir,
-                "$cacheKey.jpg"
-            )
-
-            android.util.Log.i(
-                "SmbThumbDiag",
-                "LOCAL_CACHE_CHECK: ${cacheFile.absolutePath}"
-            )
-
-            if (cacheFile.isFile && cacheFile.length() > 0L) {
-                try {
-                    android.util.Log.i(
-                        "SmbThumbDiag",
-                        "LOCAL_CACHE_HIT: ${cacheFile.name}"
-                    )
-                    return FileInputStream(cacheFile)
-                } catch (e: Exception) {
-                    android.util.Log.w(
-                        "SmbThumbDiag",
-                        "LOCAL_CACHE_READ_FAILED",
-                        e
-                    )
-                }
-            }
-
-            android.util.Log.i(
-                "SmbThumbDiag",
-                "LOCAL_CACHE_GENERATING: $imageUrl"
-            )
-
-            val thumbnailBytes = createThumbnail(context, imageUrl)
-
-            try {
-                if (!cacheDir.exists() && !cacheDir.mkdirs()) {
-                    throw IllegalStateException(
-                        "Could not create local cache directory"
-                    )
-                }
-
-                FileOutputStream(cacheFile).use { output ->
-                    output.write(thumbnailBytes)
-                    output.flush()
-                }
-
-                android.util.Log.i(
-                    "SmbThumbDiag",
-                    "LOCAL_CACHE_WRITE_OK: ${cacheFile.name}, " +
-                        "bytes=${thumbnailBytes.size}"
-                )
-
-                return FileInputStream(cacheFile)
-            } catch (e: Exception) {
-                android.util.Log.e(
-                    "SmbThumbDiag",
-                    "LOCAL_CACHE_WRITE_FAILED",
-                    e
-                )
-
-                return ByteArrayInputStream(thumbnailBytes)
-            }
+        // Size and date normally come from the folder listing. Only ask the server if the
+        // image was not listed before.
+        val meta = SmbFileMetaCache.get(imageUrl)
+        val (fileSize, lastModified) = if (meta != null) {
+            Pair(meta.size, meta.lastModified)
+        } else {
+            SmbClient.getFileSizeAndLastModified(context, path.host, path.share, path.path)
+        }
+        if (fileSize < 0L) {
+            throw IOException("Could not read file information for $imageUrl")
         }
 
-    val cachePath = SmbPath.toUrl(
-            path.host,
-            path.share,
-            "$CACHE_DIR/$cacheKey.jpg"
-        )
-android.util.Log.i(
-    "SmbThumbDiag",
-    "CHECK: size=$fileSize cache=$cachePath"
-)
+        val cacheKey = sha256("$imageUrl|$fileSize|$lastModified|$CACHE_VERSION")
+        val cacheFile = "$CACHE_DIR/$cacheKey.jpg"
+        val cachePath = SmbPath.toUrl(path.host, path.share, cacheFile)
 
-    android.util.Log.i("SmbThumbDiag", "Checking cache: $cachePath")
-
-                try {
-            val cached = client.openInputStream(context, cachePath)
-            android.util.Log.i("SmbThumbDiag", "CACHE HIT: $cachePath")
-            return cached
+        try {
+            return client.openInputStream(context, cachePath)
         } catch (_: Exception) {
             // Not cached yet (or unreadable cache entry): generate it below.
-                }
-
-        android.util.Log.i("SmbThumbDiag", "GENERATING: $imageUrl")
-        
-        val thumbnailBytes = createThumbnail(context, imageUrl)
-               try {
-                   android.util.Log.i(
-    "SmbThumbDiag",
-    "WRITE START: $cachePath bytes=${thumbnailBytes.size}"
-)
-            SmbClient.writeBytes(
-                context,
-                path.host,
-                path.share,
-                "$CACHE_DIR/$cacheKey.jpg",
-                thumbnailBytes
-            )
-
-            android.util.Log.i(
-    "SmbThumbDiag",
-    "WRITE RETURNED: $cachePath"
-)
-
-            if (client.fileExists(context, cachePath)) {
-                try {
-                    return client.openInputStream(context, cachePath)
-                } catch (e: Exception) {
-                    android.util.Log.w(
-                        "SmbThumbnailCache",
-                        "Thumbnail was saved but could not be reopened: $cachePath",
-                        e
-                    )
-                }
-            } else {
-                android.util.Log.e(
-                    "SmbThumbnailCache",
-                    "Thumbnail write returned without a verifiable cache file: $cachePath"
-                )
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(
-                "SmbThumbnailCache",
-                "Could not save thumbnail to SMB cache: $cachePath",
-                e
-            )
         }
 
-        // Display the generated thumbnail even if persistent caching failed.
-
+        val thumbnailBytes = createThumbnail(context, imageUrl, fileSize)
+        try {
+            SmbClient.writeBytes(context, path.host, path.share, cacheFile, thumbnailBytes)
+        } catch (e: Exception) {
+            // Still display the generated thumbnail even if saving it failed.
+            android.util.Log.e("SmbThumbnailCache", "Could not save thumbnail to SMB cache: $cachePath", e)
+        }
         return ByteArrayInputStream(thumbnailBytes)
     }
 
-    private fun createThumbnail(context: Context, imageUrl: String): ByteArray {
+    private fun createThumbnail(context: Context, imageUrl: String, fileSize: Long): ByteArray {
         val client = RemoteClients.forUrl(imageUrl)
             ?: throw IllegalArgumentException("No remote client for $imageUrl")
+
+        // Bounds, EXIF orientation and pixels each need the image data: download it only once.
+        val data: ByteArray? = if (fileSize in 1..MAX_IN_MEMORY_SOURCE_BYTES) {
+            client.openInputStream(context, imageUrl).use { it.readBytes() }
+        } else {
+            null
+        }
+        fun open(): InputStream =
+            if (data != null) ByteArrayInputStream(data) else client.openInputStream(context, imageUrl)
 
         val bounds = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
-        client.openInputStream(context, imageUrl).use {
+        open().use {
             BitmapFactory.decodeStream(it, null, bounds)
         }
 
-        val sampleSize = calculateSampleSize(
-            bounds.outWidth,
-            bounds.outHeight,
-            THUMB_SIZE
-        )
         val options = BitmapFactory.Options().apply {
-            inSampleSize = sampleSize
+            inSampleSize = calculateSampleSize(bounds.outWidth, bounds.outHeight, THUMB_SIZE)
             inPreferredConfig = Bitmap.Config.RGB_565
         }
 
-        val orientation = client.openInputStream(context, imageUrl).use {
-    ExifInterface(it).getAttributeInt(
-        ExifInterface.TAG_ORIENTATION,
-        ExifInterface.ORIENTATION_NORMAL
-    )
-}
-        
-        val decoded = client.openInputStream(context, imageUrl).use {
+        val orientation = open().use {
+            ExifInterface(it).getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
+            )
+        }
+
+        val decoded = open().use {
             BitmapFactory.decodeStream(it, null, options)
         } ?: throw IllegalStateException("Could not decode $imageUrl")
 
-        val oriented = applyExifOrientation(decoded, orientation)
-if (oriented !== decoded) decoded.recycle()
+        val oriented = ImageOrientation.apply(decoded, orientation)
+        if (oriented !== decoded) decoded.recycle()
 
-val thumbnail = centerCrop(oriented, THUMB_SIZE)
-if (thumbnail !== oriented) oriented.recycle()
-
+        val thumbnail = centerCrop(oriented, THUMB_SIZE)
+        if (thumbnail !== oriented) oriented.recycle()
 
         return try {
             ByteArrayOutputStream().use { output ->
@@ -280,14 +139,13 @@ if (thumbnail !== oriented) oriented.recycle()
         val top = (source.height - side) / 2
         val cropped = Bitmap.createBitmap(source, left, top, side, side)
 
-        val result = if (cropped.width == size && cropped.height == size) {
+        return if (cropped.width == size && cropped.height == size) {
             cropped
         } else {
             Bitmap.createScaledBitmap(cropped, size, size, true).also {
                 if (cropped !== source) cropped.recycle()
             }
         }
-        return result
     }
 
     private fun sha256(value: String): String {
@@ -295,52 +153,4 @@ if (thumbnail !== oriented) oriented.recycle()
             .digest(value.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }
-
-    private fun applyExifOrientation(
-    source: Bitmap,
-    orientation: Int
-): Bitmap {
-    val matrix = Matrix()
-
-    when (orientation) {
-        ExifInterface.ORIENTATION_FLIP_HORIZONTAL ->
-            matrix.setScale(-1f, 1f)
-
-        ExifInterface.ORIENTATION_ROTATE_180 ->
-            matrix.setRotate(180f)
-
-        ExifInterface.ORIENTATION_FLIP_VERTICAL -> {
-            matrix.setRotate(180f)
-            matrix.postScale(-1f, 1f)
-        }
-
-        ExifInterface.ORIENTATION_TRANSPOSE -> {
-            matrix.setRotate(90f)
-            matrix.postScale(-1f, 1f)
-        }
-
-        ExifInterface.ORIENTATION_ROTATE_90 ->
-            matrix.setRotate(90f)
-
-        ExifInterface.ORIENTATION_TRANSVERSE -> {
-            matrix.setRotate(-90f)
-            matrix.postScale(-1f, 1f)
-        }
-
-        ExifInterface.ORIENTATION_ROTATE_270 ->
-            matrix.setRotate(-90f)
-
-        else -> return source
-    }
-
-    return Bitmap.createBitmap(
-        source,
-        0,
-        0,
-        source.width,
-        source.height,
-        matrix,
-        true
-    )
-}
 }

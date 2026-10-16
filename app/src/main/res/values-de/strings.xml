@@ -536,8 +536,25 @@
 <string name="unhide_folder">Ordner wieder einblenden</string>
 <string name="unhide_folder_confirmation">Diesen Ordner wieder auf der Startseite anzeigen?</string>
     <string name="selection_count">%d ausgewählt</string>
-    <string name="action_copy_to_network">Auf Netzlaufwerk kopieren…</string>
-    <string name="action_move_to_network">Auf Netzlaufwerk verschieben…</string>
-    <string name="originals_not_deleted">%d Original(e) konnten nicht gelöscht werden</string>
+    <string name="action_copy_selection">Kopieren nach…</string>
+    <string name="action_move_selection">Verschieben nach…</string>
+    <string name="file_op_choose_destination">Zielordner wählen</string>
+    <string name="file_op_copy_here">Hierher kopieren</string>
+    <string name="file_op_move_here">Hierher verschieben</string>
+    <string name="file_op_new_folder">Neuer Ordner</string>
+    <string name="file_op_new_folder_hint">Ordnername</string>
+    <string name="file_op_create">Erstellen</string>
+    <string name="file_op_phone_storage">Handy-Speicher</string>
+    <string name="file_op_copying">Kopiere…</string>
+    <string name="file_op_moving">Verschiebe…</string>
+    <string name="file_op_deleting">Lösche…</string>
+    <string name="file_op_done">%d Datei(en) erledigt</string>
+    <string name="file_op_partial">%1$d erledigt, %2$d fehlgeschlagen</string>
+    <string name="file_op_folder_failed">Ordner konnte nicht geöffnet werden</string>
+    <string name="file_op_folder_create_failed">Ordner konnte nicht angelegt werden</string>
+    <string name="file_op_delete_selected_confirmation">%d ausgewählte Datei(en) löschen?</string>
+    <string name="all_files_access_title">Zugriff auf alle Dateien nötig</string>
+    <string name="all_files_access_message">Für diese Aktion braucht LiteGallery Zugriff auf alle Dateien auf dem Handy. Einstellungen öffnen und erlauben?</string>
+    <string name="all_files_access_open_settings">Einstellungen öffnen</string>
 </resources>
 

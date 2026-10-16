@@ -13,9 +13,13 @@ object SmbFileClient : RemoteFileClient {
     override fun listFiles(context: Context, folderUrl: String): List<RemoteFileInfo> {
         val smbPath = SmbPath.parse(folderUrl) ?: return emptyList()
         return SmbClient.listFiles(context, smbPath.host, smbPath.share, smbPath.path).map { info ->
+            val url = SmbPath.toUrl(smbPath.host, smbPath.share, info.path)
+            if (!info.isDirectory) {
+                SmbFileMetaCache.put(url, info.size, info.lastModified)
+            }
             RemoteFileInfo(
                 name = info.name,
-                url = SmbPath.toUrl(smbPath.host, smbPath.share, info.path),
+                url = url,
                 isDirectory = info.isDirectory,
                 size = info.size,
                 lastModified = info.lastModified,

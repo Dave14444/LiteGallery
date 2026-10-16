@@ -535,8 +535,24 @@
 <string name="unhide_folder">Unhide folder</string>
 <string name="unhide_folder_confirmation">Show this folder on the home screen again?</string>
     <string name="selection_count">%d selected</string>
-    <string name="action_copy_to_network">Copy to network share…</string>
-    <string name="action_move_to_network">Move to network share…</string>
-    <string name="originals_not_deleted">%d original(s) could not be deleted</string>
-
+    <string name="action_copy_selection">Copy to…</string>
+    <string name="action_move_selection">Move to…</string>
+    <string name="file_op_choose_destination">Choose destination folder</string>
+    <string name="file_op_copy_here">Copy here</string>
+    <string name="file_op_move_here">Move here</string>
+    <string name="file_op_new_folder">New folder</string>
+    <string name="file_op_new_folder_hint">Folder name</string>
+    <string name="file_op_create">Create</string>
+    <string name="file_op_phone_storage">Phone storage</string>
+    <string name="file_op_copying">Copying…</string>
+    <string name="file_op_moving">Moving…</string>
+    <string name="file_op_deleting">Deleting…</string>
+    <string name="file_op_done">%d file(s) done</string>
+    <string name="file_op_partial">%1$d done, %2$d failed</string>
+    <string name="file_op_folder_failed">Could not open the folder</string>
+    <string name="file_op_folder_create_failed">Could not create the folder</string>
+    <string name="file_op_delete_selected_confirmation">Delete %d selected file(s)?</string>
+    <string name="all_files_access_title">All files access needed</string>
+    <string name="all_files_access_message">For this action LiteGallery needs access to all files on the phone. Open the settings and allow it?</string>
+    <string name="all_files_access_open_settings">Open settings</string>
 </resources>

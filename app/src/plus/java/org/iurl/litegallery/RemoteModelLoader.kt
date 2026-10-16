@@ -18,19 +18,20 @@ import java.io.InputStream
 class RemoteModelLoader(private val context: Context) : ModelLoader<String, InputStream> {
 
     companion object {
-        /** Check if a remote URL points to an image (not a video). */
+        /** Prefix for thumbnail requests; they are served from the thumbnail cache on the share. */
         private const val SMB_THUMB_PREFIX = "smbthumb://"
 
-fun isRemoteImage(path: String): Boolean {
-    val imagePath = if (path.startsWith(SMB_THUMB_PREFIX)) {
-        path.removePrefix(SMB_THUMB_PREFIX)
-    } else {
-        path
-    }
+        /** Check if a remote URL points to an image (not a video). */
+        fun isRemoteImage(path: String): Boolean {
+            val imagePath = if (path.startsWith(SMB_THUMB_PREFIX)) {
+                path.removePrefix(SMB_THUMB_PREFIX)
+            } else {
+                path
+            }
 
-    return RemotePath.isRemote(imagePath) &&
-        RemoteFileTypes.isImage(imagePath)
-}
+            return RemotePath.isRemote(imagePath) &&
+                RemoteFileTypes.isImage(imagePath)
+        }
     }
 
     override fun buildLoadData(
@@ -39,39 +40,13 @@ fun isRemoteImage(path: String): Boolean {
         height: Int,
         options: Options
     ): ModelLoader.LoadData<InputStream>? {
-        android.util.Log.i("SmbThumbDiag", "BUILD_LOAD_DATA: model=$model isImage=${isRemoteImage(model)}")
         if (!isRemoteImage(model)) {
             return null // Only handle remote image paths; videos can't be decoded as images
         }
         return ModelLoader.LoadData(ObjectKey(model), RemoteImageFetcher(context, model))
     }
 
-    override fun handles(model: String): Boolean {
-    val isRemote = model.startsWith("smb://") ||
-        model.startsWith("smbthumb://") ||
-        model.startsWith("nfs://")
-
-    val result = isRemoteImage(model)
-
-    
-    if (isRemote) {
-        android.util.Log.i(
-            "SmbThumbDiag",
-            "HANDLES: model=$model result=$result"
-        )
-
-        if (model.startsWith("smb://")) {
-            android.util.Log.w(
-                "SmbThumbDiag",
-                "UNPREFIXED_SMB_MODEL: $model",
-                Throwable("Call stack for normal smb:// model")
-            )
-        }
-    }
-
-
-    return result
-}
+    override fun handles(model: String): Boolean = isRemoteImage(model)
 }
 
 /**
@@ -85,42 +60,29 @@ class RemoteImageFetcher(
     private var inputStream: InputStream? = null
 
     override fun loadData(priority: Priority, callback: DataFetcher.DataCallback<in InputStream>) {
-        android.util.Log.i("SmbThumbDiag", "FETCH: url=$url")
         try {
             val isThumbnail = url.startsWith("smbthumb://")
-val imageUrl = if (isThumbnail) {
-    url.removePrefix("smbthumb://")
-} else {
-    url
-}
+            val imageUrl = if (isThumbnail) url.removePrefix("smbthumb://") else url
 
-val client = RemoteClients.forUrl(imageUrl)
-if (client == null) {
-    callback.onLoadFailed(
-        Exception("No remote client for URL: $imageUrl")
-    )
-    return
-}
+            val client = RemoteClients.forUrl(imageUrl)
+            if (client == null) {
+                callback.onLoadFailed(Exception("No remote client for URL: $imageUrl"))
+                return
+            }
 
+            val stream = if (isThumbnail && SmbPath.isSmb(imageUrl)) {
+                try {
+                    SmbThumbnailCache.openThumbnailStream(context, imageUrl)
+                } catch (e: Exception) {
+                    android.util.Log.w("RemoteModelLoader", "Thumbnail cache failed for $imageUrl", e)
+                    client.openInputStream(context, imageUrl)
+                }
+            } else {
+                client.openInputStream(context, imageUrl)
+            }
 
-val stream = if (isThumbnail && SmbPath.isSmb(imageUrl)) {
-    android.util.Log.i("SmbThumbDiag", "CACHE_ROUTE: $imageUrl")
-    try {
-        SmbThumbnailCache.openThumbnailStream(context, imageUrl)
-    } catch (e: Exception) {
-        android.util.Log.e(
-    "SmbThumbDiag",
-    "CACHE_FAILED: ${e.javaClass.simpleName}: ${e.message} | URL=$imageUrl"
-)
-        client.openInputStream(context, imageUrl)
-    }
-} else {
-    client.openInputStream(context, imageUrl)
-}
-
-
-inputStream = stream
-callback.onDataReady(stream)
+            inputStream = stream
+            callback.onDataReady(stream)
         } catch (e: Exception) {
             callback.onLoadFailed(e)
         }

@@ -39,7 +39,7 @@ object NetworkMediaSource : MediaSource {
                     name = server.displayName.ifBlank { server.host },
                     path = server.rootUrl(),
                     itemCount = 0,
-                    thumbnail = null
+                    thumbnail = SmbCoverImages.coverPath(context, server.id)
                 )
             }
 
@@ -125,14 +125,118 @@ override suspend fun copyToCache(
         false
     }
 }
-    override val supportsUpload: Boolean = true
+    // ---- File operations (SMB only) ----
 
-    override fun startUpload(
+    override fun supportsFileOperations(path: String): Boolean = SmbPath.isSmb(path)
+
+    override fun destinationRoots(context: Context): List<FolderEntry> =
+        NetworkConfigStore.getAllServers(context)
+            .filter { server -> !server.isNfs && server.share.isNotBlank() }
+            .map { server ->
+                FolderEntry(server.displayName.ifBlank { server.host }, server.rootUrl())
+            }
+
+    override fun listSubFolders(context: Context, folderPath: String): List<FolderEntry> =
+        SmbFileClient.listFiles(context, folderPath)
+            .filter { it.isDirectory }
+            .map { FolderEntry(it.name, it.url) }
+
+    override fun parentFolder(path: String): String? {
+        val smb = SmbPath.parse(path) ?: return null
+        return if (smb.path.isEmpty()) null else smb.parentFolderPath
+    }
+
+    override fun createFolder(context: Context, parentPath: String, name: String): String? {
+        val parent = SmbPath.parse(parentPath) ?: return null
+        val relative = if (parent.path.isEmpty()) name else "${parent.path}/$name"
+        return if (SmbClient.createDirectory(context, parent.host, parent.share, relative)) {
+            SmbPath.toUrl(parent.host, parent.share, relative)
+        } else {
+            null
+        }
+    }
+
+    override fun openInput(context: Context, path: String): java.io.InputStream =
+        SmbFileClient.openInputStream(context, path)
+
+    override fun lastModified(context: Context, path: String): Long {
+        val known = SmbFileMetaCache.get(path)
+        if (known != null && known.lastModified > 0L) return known.lastModified
+        val smb = SmbPath.parse(path) ?: return 0L
+        val (_, modified) = SmbClient.getFileSizeAndLastModified(context, smb.host, smb.share, smb.path)
+        return modified.coerceAtLeast(0L)
+    }
+
+    override fun writeNew(
+        context: Context,
+        folderPath: String,
+        desiredName: String,
+        input: java.io.InputStream,
+        lastModified: Long
+    ): String? {
+        val folder = SmbPath.parse(folderPath) ?: return null
+        val relative = uniqueRelativePath(context, folder, desiredName) ?: return null
+        val written = SmbClient.writeStream(
+            context, folder.host, folder.share, relative, input, lastModified
+        )
+        return if (written) SmbPath.toUrl(folder.host, folder.share, relative) else null
+    }
+
+    override fun deleteFile(context: Context, path: String): Boolean {
+        val smb = SmbPath.parse(path) ?: return false
+        val deleted = SmbClient.deleteFile(context, smb.host, smb.share, smb.path)
+        if (deleted) SmbFileMetaCache.remove(path)
+        return deleted
+    }
+
+    override fun moveWithin(
+        context: Context,
+        path: String,
+        destFolderPath: String,
+        desiredName: String
+    ): String? {
+        val source = SmbPath.parse(path) ?: return null
+        val folder = SmbPath.parse(destFolderPath) ?: return null
+        val sameShare = source.host.equals(folder.host, ignoreCase = true) &&
+            source.share.equals(folder.share, ignoreCase = true)
+        if (!sameShare) return null
+
+        val relative = uniqueRelativePath(context, folder, desiredName) ?: return null
+        if (!SmbClient.rename(context, source.host, source.share, source.path, relative)) return null
+        SmbFileMetaCache.remove(path)
+        return SmbPath.toUrl(folder.host, folder.share, relative)
+    }
+
+    /** [fileName] inside [folder], or "name (1).ext", ... if the name is already taken. */
+    private fun uniqueRelativePath(context: Context, folder: SmbPath, fileName: String): String? {
+        fun pathFor(name: String) = if (folder.path.isEmpty()) name else "${folder.path}/$name"
+
+        if (!SmbClient.fileExists(context, folder.host, folder.share, pathFor(fileName))) {
+            return pathFor(fileName)
+        }
+        val base = fileName.substringBeforeLast('.', fileName)
+        val extension = fileName.substringAfterLast('.', "")
+        for (i in 1..999) {
+            val name = if (extension.isEmpty()) "$base ($i)" else "$base ($i).$extension"
+            if (!SmbClient.fileExists(context, folder.host, folder.share, pathFor(name))) {
+                return pathFor(name)
+            }
+        }
+        return null
+    }
+
+    override fun showHomeEntryOptions(
         activity: androidx.appcompat.app.AppCompatActivity,
-        items: List<MediaItemSkeleton>,
-        move: Boolean,
-        onFinished: (copiedPaths: List<String>, failedCount: Int) -> Unit
-    ) = SmbUploadFlow.start(activity, items, move, onFinished)
+        folder: MediaFolder,
+        onHide: () -> Unit,
+        onChanged: () -> Unit
+    ): Boolean {
+        val server = NetworkConfigStore.getAllServers(activity)
+            .firstOrNull { it.rootUrl() == folder.path }
+            ?: return false
+        SmbCoverImages.showOptions(activity, server, onHide, onChanged)
+        return true
+    }
 
     override fun shutdown() {
         RemoteClients.all().forEach { it.disconnectAll() }

@@ -2,7 +2,9 @@ package org.iurl.litegallery
 
 import android.content.Context
 import com.hierynomus.msdtyp.AccessMask
+import com.hierynomus.msdtyp.FileTime
 import com.hierynomus.msfscc.FileAttributes
+import com.hierynomus.msfscc.fileinformation.FileBasicInformation
 import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation
 import com.hierynomus.mssmb2.SMB2CreateDisposition
 import com.hierynomus.mssmb2.SMB2CreateOptions
@@ -144,7 +146,26 @@ object SmbClient {
                     SMB2CreateDisposition.FILE_OPEN,
                     null
                 )
-                file.inputStream
+                // Closing smbj's stream does not close the file handle. A handle that stays open
+                // keeps the file "delete pending" on the server (deleted files stay visible), so the
+                // returned stream closes the handle as well.
+                val stream = file.inputStream
+                object : java.io.FilterInputStream(stream) {
+                    private var closed = false
+
+                    override fun close() {
+                        if (closed) return
+                        closed = true
+                        try {
+                            super.close()
+                        } catch (_: Exception) {
+                        }
+                        try {
+                            file.close()
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
             android.util.Log.e("SmbClient", "Failed to open file: $smbPath", e)
@@ -169,19 +190,9 @@ object SmbClient {
         val smbPath = filePath.replace('/', '\\')
         val parent = smbPath.substringBeforeLast('\\', "")
 
-        android.util.Log.i(
-            "SmbThumbDiag",
-            "SMB_WRITE_BEGIN: path=$smbPath bytes=${bytes.size}"
-        )
-
         try {
             executeWithRetry(context, host, shareName) { share ->
                 if (parent.isNotBlank() && !share.folderExists(parent)) {
-                    android.util.Log.i(
-                        "SmbThumbDiag",
-                        "SMB_MKDIR_BEGIN: $parent"
-                    )
-
                     try {
                         share.mkdir(parent)
                     } catch (e: Exception) {
@@ -190,11 +201,6 @@ object SmbClient {
                         }
                     }
                 }
-
-                android.util.Log.i(
-                    "SmbThumbDiag",
-                    "SMB_FOLDER_READY: $parent"
-                )
 
                 val file = share.openFile(
                     smbPath,
@@ -217,24 +223,13 @@ object SmbClient {
                 } finally {
                     file.close()
                 }
-
-                android.util.Log.i(
-                    "SmbThumbDiag",
-                    "SMB_WRITE_COMPLETE: path=$smbPath bytes=${bytes.size}"
-                )
             }
         } catch (e: Exception) {
-            android.util.Log.e(
-                "SmbThumbDiag",
-                "SMB_WRITE_FAILED: path=$smbPath",
-                e
-            )
+            android.util.Log.e("SmbClient", "Failed to write: $smbPath", e)
             throw e
         }
     }
 
-
-    
     /**
      * Open an SMB file for reading with seek support (for ExoPlayer DataSource).
      * Returns the smbj File object. Caller must close it.
@@ -362,53 +357,56 @@ object SmbClient {
         }
     }
 
-    /** Delete a file on the SMB share. Returns true on success. */
+    /**
+     * Delete a file on the SMB share. Returns true once the file is really gone.
+     */
     fun deleteFile(context: Context, host: String, shareName: String, filePath: String): Boolean {
         val smbPath = filePath.replace('/', '\\')
+        try {
+            val stillThere = executeWithRetry(context, host, shareName) { share ->
+                share.rm(smbPath)
+                share.fileExists(smbPath)
+            }
+            if (!stillThere) return true
+
+            // The server keeps a file that is still open somewhere "delete pending". Dropping our
+            // connection closes every handle we may still hold; then check again.
+            disconnect(host)
+            return !fileExists(context, host, shareName, filePath)
+        } catch (e: Exception) {
+            android.util.Log.e("SmbClient", "Failed to delete: $smbPath", e)
+            return false
+        }
+    }
+
+    /** Create a folder (and nothing else) on the share. An already existing folder counts as success. */
+    fun createDirectory(context: Context, host: String, shareName: String, folderPath: String): Boolean {
+        val smbPath = folderPath.replace('/', '\\')
         return try {
             executeWithRetry(context, host, shareName) { share ->
-                share.rm(smbPath)
+                if (!share.folderExists(smbPath)) {
+                    share.mkdir(smbPath)
+                }
                 true
             }
         } catch (e: Exception) {
-            android.util.Log.e("SmbClient", "Failed to delete: $smbPath", e)
+            android.util.Log.e("SmbClient", "Failed to create folder: $smbPath", e)
             false
         }
     }
 
     /**
-     * Copy a file between SMB locations (also across hosts/shares) by streaming it.
-     * The destination must not exist yet; a partial destination file is removed on failure.
-     */
-    fun copyFile(
-        context: Context,
-        srcHost: String,
-        srcShare: String,
-        srcPath: String,
-        dstHost: String,
-        dstShare: String,
-        dstPath: String
-    ): Boolean {
-        return try {
-            openInputStream(context, srcHost, srcShare, srcPath).use { input ->
-                writeStream(context, dstHost, dstShare, dstPath, input)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("SmbClient", "Failed to open source: $srcPath", e)
-            false
-        }
-    }
-
-    /**
-     * Stream [input] into a NEW file on the share (fails if it already exists). A partial
-     * file is removed on failure. The caller closes [input]. Returns true on success.
+     * Stream [input] into a NEW file on the share (fails if it already exists). A partial file is
+     * removed on failure. When [lastModified] is given, the file keeps that modification time (so
+     * copied photos stay in their original order). The caller closes [input].
      */
     fun writeStream(
         context: Context,
         host: String,
         shareName: String,
         filePath: String,
-        input: InputStream
+        input: InputStream,
+        lastModified: Long = 0L
     ): Boolean {
         val smbPath = filePath.replace('/', '\\')
         var created = false
@@ -428,6 +426,9 @@ object SmbClient {
                         input.copyTo(output, 256 * 1024)
                         output.flush()
                     }
+                    if (lastModified > 0L) {
+                        applyLastModified(file, lastModified)
+                    }
                 } finally {
                     file.close()
                 }
@@ -439,6 +440,24 @@ object SmbClient {
                 deleteFile(context, host, shareName, filePath)
             }
             false
+        }
+    }
+
+    /** Sets the modification time of an open file. Failing to do so never fails the copy. */
+    private fun applyLastModified(file: com.hierynomus.smbj.share.File, epochMillis: Long) {
+        try {
+            val current = file.getFileInformation(FileBasicInformation::class.java)
+            file.setFileInformation(
+                FileBasicInformation(
+                    current.creationTime,
+                    current.lastAccessTime,
+                    FileTime.ofEpochMillis(epochMillis),
+                    current.changeTime,
+                    current.fileAttributes
+                )
+            )
+        } catch (e: Exception) {
+            android.util.Log.w("SmbClient", "Could not keep the modification time", e)
         }
     }
 
