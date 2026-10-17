@@ -591,7 +591,7 @@ class FolderViewActivity : AppCompatActivity() {
                     groupedMediaAdapter -> (groupedMediaAdapter.currentList.getOrNull(position) as? FolderDisplayItem.Media)?.skeleton
                     else -> null
                 }
-                if (skeleton == null || (skeleton.isRemote && skeleton.isVideo)) return mutableListOf()
+                if (skeleton == null || skeleton.usesPlaceholderThumbnail) return mutableListOf()
                 
 val thumbnailModel = if (skeleton.path.startsWith("smb://")) {
     "smbthumb://${skeleton.path}"

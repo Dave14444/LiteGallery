@@ -3,6 +3,8 @@ package org.iurl.litegallery
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaDataSource
+import android.media.MediaMetadataRetriever
 import androidx.exifinterface.media.ExifInterface
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -19,6 +21,12 @@ object SmbThumbnailCache {
     private const val CACHE_DIR = ".LiteGalleryThumbnails"
     private const val CACHE_VERSION = "thumb-v5"
     private const val THUMB_SIZE = 384
+
+    /** Position of the video frame used as thumbnail. */
+    private const val VIDEO_FRAME_TIME_US = 1_000_000L
+
+    /** Read-ahead block when a video is read over the network. */
+    private const val VIDEO_READ_BLOCK_SIZE = 512 * 1024
 
     /** Images up to this size are downloaded once and decoded from memory. */
     private const val MAX_IN_MEMORY_SOURCE_BYTES = 48L * 1024 * 1024
@@ -71,6 +79,27 @@ object SmbThumbnailCache {
     }
 
     private fun createThumbnail(context: Context, imageUrl: String, fileSize: Long): ByteArray {
+        val source = if (RemoteFileTypes.isVideo(imageUrl)) {
+            decodeVideoFrame(context, imageUrl)
+        } else {
+            decodeImage(context, imageUrl, fileSize)
+        }
+
+        val thumbnail = centerCrop(source, THUMB_SIZE)
+        if (thumbnail !== source) source.recycle()
+
+        return try {
+            ByteArrayOutputStream().use { output ->
+                thumbnail.compress(Bitmap.CompressFormat.JPEG, 85, output)
+                output.toByteArray()
+            }
+        } finally {
+            thumbnail.recycle()
+        }
+    }
+
+    /** Decodes an image, scaled down and rotated according to its EXIF orientation. */
+    private fun decodeImage(context: Context, imageUrl: String, fileSize: Long): Bitmap {
         val client = RemoteClients.forUrl(imageUrl)
             ?: throw IllegalArgumentException("No remote client for $imageUrl")
 
@@ -108,17 +137,74 @@ object SmbThumbnailCache {
 
         val oriented = ImageOrientation.apply(decoded, orientation)
         if (oriented !== decoded) decoded.recycle()
+        return oriented
+    }
 
-        val thumbnail = centerCrop(oriented, THUMB_SIZE)
-        if (thumbnail !== oriented) oriented.recycle()
+    /**
+     * Grabs one frame of a video. Only the parts of the file the decoder asks for are read
+     * over the network, not the whole video.
+     */
+    private fun decodeVideoFrame(context: Context, videoUrl: String): Bitmap {
+        val client = RemoteClients.forUrl(videoUrl)
+            ?: throw IllegalArgumentException("No remote client for $videoUrl")
 
-        return try {
-            ByteArrayOutputStream().use { output ->
-                thumbnail.compress(Bitmap.CompressFormat.JPEG, 85, output)
-                output.toByteArray()
-            }
+        val file = client.openRandomAccess(context, videoUrl)
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(BufferedRemoteDataSource(file))
+            return retriever.getFrameAtTime(
+                VIDEO_FRAME_TIME_US,
+                MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+            ) ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: throw IllegalStateException("No video frame available for $videoUrl")
         } finally {
-            thumbnail.recycle()
+            try {
+                retriever.release()
+            } catch (_: Exception) {
+            }
+            try {
+                file.close()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    /** Lets [MediaMetadataRetriever] read a remote file, fetching it in larger blocks. */
+    private class BufferedRemoteDataSource(
+        private val file: RemoteRandomAccessFile
+    ) : MediaDataSource() {
+
+        private val block = ByteArray(VIDEO_READ_BLOCK_SIZE)
+        private var blockStart = -1L
+        private var blockLength = 0
+
+        override fun getSize(): Long = file.size
+
+        override fun readAt(position: Long, buffer: ByteArray, offset: Int, size: Int): Int {
+            if (size == 0) return 0
+
+            var copied = 0
+            var current = position
+            while (copied < size && current < file.size) {
+                val inBlock = blockStart >= 0 &&
+                    current >= blockStart &&
+                    current < blockStart + blockLength
+                if (!inBlock) {
+                    val read = file.readAt(current, block, 0, block.size)
+                    if (read <= 0) break
+                    blockStart = current
+                    blockLength = read
+                }
+                val offsetInBlock = (current - blockStart).toInt()
+                val chunk = minOf(size - copied, blockLength - offsetInBlock)
+                System.arraycopy(block, offsetInBlock, buffer, offset + copied, chunk)
+                copied += chunk
+                current += chunk
+            }
+            return if (copied == 0) -1 else copied
+        }
+
+        override fun close() {
         }
     }
 

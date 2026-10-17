@@ -291,7 +291,7 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
                     groupedMediaAdapter -> (groupedMediaAdapter.currentList.getOrNull(position) as? FolderDisplayItem.Media)?.skeleton
                     else -> null
                 }
-                if (skeleton == null || (skeleton.isRemote && skeleton.isVideo)) return mutableListOf()
+                if (skeleton == null || skeleton.usesPlaceholderThumbnail) return mutableListOf()
                 return mutableListOf(skeleton.thumbnailModel())
             }
 

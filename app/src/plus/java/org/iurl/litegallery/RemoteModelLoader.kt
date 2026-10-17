@@ -29,8 +29,13 @@ class RemoteModelLoader(private val context: Context) : ModelLoader<String, Inpu
                 path
             }
 
-            return RemotePath.isRemote(imagePath) &&
-                RemoteFileTypes.isImage(imagePath)
+            if (!RemotePath.isRemote(imagePath)) return false
+            if (RemoteFileTypes.isImage(imagePath)) return true
+
+            // Thumbnails of SMB videos are made from a video frame (see SmbThumbnailCache).
+            return path.startsWith(SMB_THUMB_PREFIX) &&
+                SmbPath.isSmb(imagePath) &&
+                RemoteFileTypes.isVideo(imagePath)
         }
     }
 
@@ -75,6 +80,8 @@ class RemoteImageFetcher(
                     SmbThumbnailCache.openThumbnailStream(context, imageUrl)
                 } catch (e: Exception) {
                     android.util.Log.w("RemoteModelLoader", "Thumbnail cache failed for $imageUrl", e)
+                    // Never download a whole video just to show a thumbnail.
+                    if (RemoteFileTypes.isVideo(imageUrl)) throw e
                     client.openInputStream(context, imageUrl)
                 }
             } else {

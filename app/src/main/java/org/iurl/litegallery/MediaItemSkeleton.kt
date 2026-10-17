@@ -42,6 +42,13 @@ data class MediaItemSkeleton(
 
 
         
+/**
+ * Remote videos show only a placeholder, except on SMB shares, where a thumbnail is made
+ * from a video frame and stored in the thumbnail cache.
+ */
+val usesPlaceholderThumbnail: Boolean
+    get() = isRemote && isVideo && !path.startsWith("smb://")
+
 fun thumbnailModel(): Any {
     if (isRemote) {
         return if (path.startsWith("smb://")) {
