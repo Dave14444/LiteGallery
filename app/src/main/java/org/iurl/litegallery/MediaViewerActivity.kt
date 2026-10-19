@@ -579,6 +579,30 @@ if (!prefs.getBoolean("share_action_migrated", false)) {
         .apply()
 }
 
+// Migrate existing installations so the Edit (crop) action is visible.
+if (!prefs.getBoolean("edit_action_migrated", false)) {
+    val storedVisible = prefs.getString(
+        ActionBarPreferences.KEY_VISIBLE, null
+    )
+
+    if (storedVisible != null &&
+        storedVisible.split(',').none { it.trim() == "edit" }
+    ) {
+        val migratedVisible = (
+            storedVisible.split(',')
+                .filter { it.isNotBlank() } + "edit"
+        ).distinct().joinToString(",")
+
+        prefs.edit()
+            .putString(ActionBarPreferences.KEY_VISIBLE, migratedVisible)
+            .apply()
+    }
+
+    prefs.edit()
+        .putBoolean("edit_action_migrated", true)
+        .apply()
+}
+
 val visible = (
     prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)
         ?.split(',')

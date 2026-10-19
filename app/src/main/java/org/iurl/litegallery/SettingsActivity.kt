@@ -921,7 +921,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             val labelMap = mapOf(
                 "delete" to getString(R.string.delete),
                 //"share" to getString(R.string.share),
-                //"edit" to getString(R.string.edit),
+                "edit" to getString(R.string.edit),
                 "rename" to getString(R.string.rename),
                 "rotate_screen" to getString(R.string.rotate_screen),
                 "properties" to getString(R.string.properties),
@@ -934,7 +934,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             val iconMap = mapOf(
                 "delete" to R.drawable.ic_delete,
                 //"share" to R.drawable.ic_share,
-                //"edit" to R.drawable.ic_edit,
+                "edit" to R.drawable.ic_edit,
                 "rename" to R.drawable.ic_rename,
                 "rotate_screen" to R.drawable.ic_rotate_right,
                 "properties" to R.drawable.ic_info,
@@ -947,6 +947,8 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             // Load stored preferences and filter out items not in labelMap
             val storedOrder = prefs.getString(ActionBarPreferences.KEY_ORDER, null)?.split(',')?.filter { it.isNotBlank() }
             val order = (storedOrder ?: defaultOrder).filter { labelMap.containsKey(it) }.toMutableList()
+            // Actions added in newer versions (e.g. Edit) are missing from an older stored order.
+            labelMap.keys.forEach { key -> if (key !in order) order.add(key) }
             val visibleSet = prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)
                 ?.split(',')
                 ?.filter { it.isNotBlank() && labelMap.containsKey(it) }
