@@ -109,6 +109,7 @@ class FolderViewActivity : AppCompatActivity() {
     )
 
     private val selectedPaths = LinkedHashSet<String>()
+    private var shareMenuItem: MenuItem? = null
     private var copyMenuItem: MenuItem? = null
     private var moveMenuItem: MenuItem? = null
     private var deleteMenuItem: MenuItem? = null
@@ -221,6 +222,7 @@ class FolderViewActivity : AppCompatActivity() {
         menuInflater.inflate(R.menu.folder_view_menu, menu)
         sortMenuItem = menu.findItem(R.id.action_sort)
         searchMenuItem = menu.findItem(R.id.action_search)
+        shareMenuItem = menu.findItem(R.id.action_share_selection)
         copyMenuItem = menu.findItem(R.id.action_copy_selection)
         moveMenuItem = menu.findItem(R.id.action_move_selection)
         deleteMenuItem = menu.findItem(R.id.action_delete_selection)
@@ -235,6 +237,10 @@ class FolderViewActivity : AppCompatActivity() {
         return when (item.itemId) {
             android.R.id.home -> {
                 if (selectedPaths.isNotEmpty()) clearSelection() else finish()
+                true
+            }
+            R.id.action_share_selection -> {
+                shareSelection()
                 true
             }
             R.id.action_copy_selection -> {
@@ -310,6 +316,7 @@ class FolderViewActivity : AppCompatActivity() {
         } else {
             ""
         }
+        shareMenuItem?.isVisible = selecting
         copyMenuItem?.isVisible = selecting
         moveMenuItem?.isVisible = selecting
         deleteMenuItem?.isVisible = selecting
@@ -319,6 +326,102 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun selectedItems(): List<MediaItemSkeleton> =
         unfilteredMediaItems.filter { it.path in selectedPaths }
+
+    /**
+     * Shares the selected pictures and videos with another app (e.g. WhatsApp). Files on a
+     * network share are copied into the app cache first.
+     */
+    private fun shareSelection() {
+        val items = selectedItems()
+        if (items.isEmpty()) return
+
+        val progressDialog = android.app.AlertDialog.Builder(this)
+            .setMessage("0 / ${items.size}")
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
+
+        lifecycleScope.launch {
+            val uris = ArrayList<android.net.Uri>()
+            try {
+                withContext(Dispatchers.IO) {
+                    val shareDirectory = java.io.File(cacheDir, "share")
+                    shareDirectory.deleteRecursively()
+                    shareDirectory.mkdirs()
+
+                    items.forEachIndexed { index, item ->
+                        try {
+                            shareUriFor(item, shareDirectory)?.let { uris.add(it) }
+                        } catch (e: Exception) {
+                            android.util.Log.e("FolderViewActivity", "Could not prepare ${item.path}", e)
+                        }
+                        runOnUiThread {
+                            if (progressDialog.isShowing) {
+                                progressDialog.setMessage("${index + 1} / ${items.size}")
+                            }
+                        }
+                    }
+                }
+            } finally {
+                if (progressDialog.isShowing) progressDialog.dismiss()
+            }
+
+            if (uris.isEmpty()) {
+                android.widget.Toast.makeText(
+                    this@FolderViewActivity,
+                    R.string.share_prepare_failed,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
+
+            val shareIntent = if (uris.size == 1) {
+                android.content.Intent(android.content.Intent.ACTION_SEND)
+                    .putExtra(android.content.Intent.EXTRA_STREAM, uris[0])
+            } else {
+                android.content.Intent(android.content.Intent.ACTION_SEND_MULTIPLE)
+                    .putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, uris)
+            }
+            shareIntent.type = shareMimeType(items)
+
+            val clip = android.content.ClipData.newUri(contentResolver, "media", uris[0])
+            uris.drop(1).forEach { clip.addItem(android.content.ClipData.Item(it)) }
+            shareIntent.clipData = clip
+            shareIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+            startActivity(android.content.Intent.createChooser(shareIntent, getString(R.string.share)))
+        }
+    }
+
+    /** A URI other apps may read: the MediaStore entry of a local file, or a cached copy of a network file. */
+    private suspend fun shareUriFor(item: MediaItemSkeleton, shareDirectory: java.io.File): android.net.Uri? {
+        val source = MediaSourceRegistry.forPath(item.path)
+        if (source != null) {
+            var target = java.io.File(shareDirectory, item.name)
+            if (target.exists()) target = java.io.File(shareDirectory, "${System.nanoTime()}_${item.name}")
+            if (!source.copyToCache(applicationContext, item.path, target)) {
+                target.delete()
+                return null
+            }
+            return androidx.core.content.FileProvider.getUriForFile(
+                this, "${applicationContext.packageName}.fileprovider", target
+            )
+        }
+
+        (item.thumbnailModel() as? android.net.Uri)?.let { return it }
+
+        val file = java.io.File(item.path)
+        if (!file.isFile) return null
+        return androidx.core.content.FileProvider.getUriForFile(
+            this, "${applicationContext.packageName}.fileprovider", file
+        )
+    }
+
+    /** The common kind (all pictures or all videos), otherwise any kind of file. */
+    private fun shareMimeType(items: List<MediaItemSkeleton>): String {
+        val kinds = items.map { if (it.isVideo) "video" else "image" }.toSet()
+        return if (kinds.size == 1) "${kinds.first()}/*" else "*/*"
+    }
 
     private fun startTransferOfSelection(mode: FileTransfer.Mode) {
         val items = selectedItems()

@@ -23,6 +23,12 @@
 
     <!-- Shown only while files are selected (only for local files and file sources that support it). -->
     <item
+        android:id="@+id/action_share_selection"
+        android:title="@string/share"
+        android:visible="false"
+        app:showAsAction="ifRoom|withText" />
+
+    <item
         android:id="@+id/action_copy_selection"
         android:title="@string/action_copy_selection"
         android:visible="false"

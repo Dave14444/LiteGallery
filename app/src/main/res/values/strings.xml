@@ -571,4 +571,10 @@
     <string name="photo_editor_unsupported">This picture format cannot be edited here</string>
     <string name="photo_editor_crop_here">Crop in LiteGallery</string>
     <string name="photo_editor_other_app">Edit in another app</string>
+    <string name="external_edit_downloading">Loading picture…</string>
+    <string name="external_edit_found_title">Move new pictures into the folder “snapseed”?</string>
+    <string name="external_edit_move">Move</string>
+    <string name="external_edit_skip">Not now</string>
+    <string name="external_edit_failed">The picture could not be opened for editing</string>
+    <string name="share_prepare_failed">The files could not be prepared for sharing</string>
 </resources>

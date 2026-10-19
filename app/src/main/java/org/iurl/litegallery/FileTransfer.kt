@@ -39,7 +39,9 @@ object FileTransfer {
         sourcePaths: List<String>,
         destFolder: String,
         mode: Mode,
-        onProgress: (done: Int, total: Int) -> Unit
+        onProgress: (done: Int, total: Int) -> Unit,
+        /** If > 0, the new files get this modification time instead of the source file's. */
+        overrideLastModified: Long = 0L
     ): Result {
         val destSource = MediaSourceRegistry.forPath(destFolder)
         val created = mutableListOf<String>()
@@ -49,7 +51,10 @@ object FileTransfer {
 
         sourcePaths.forEachIndexed { index, sourcePath ->
             val ok = try {
-                transferOne(context, sourcePath, destFolder, destSource, mode, created, removed)
+                transferOne(
+                    context, sourcePath, destFolder, destSource, mode,
+                    overrideLastModified, created, removed
+                )
             } catch (e: Exception) {
                 android.util.Log.e("FileTransfer", "Transfer failed: $sourcePath", e)
                 false
@@ -68,6 +73,7 @@ object FileTransfer {
         destFolder: String,
         destSource: MediaSource?,
         mode: Mode,
+        overrideLastModified: Long,
         created: MutableList<String>,
         removed: MutableList<String>
     ): Boolean {
@@ -96,10 +102,10 @@ object FileTransfer {
         }
 
         // Copy the data, keeping the original modification time.
-        val lastModified = if (sourceSource == null) {
-            File(sourcePath).lastModified()
-        } else {
-            sourceSource.lastModified(context, sourcePath)
+        val lastModified = when {
+            overrideLastModified > 0L -> overrideLastModified
+            sourceSource == null -> File(sourcePath).lastModified()
+            else -> sourceSource.lastModified(context, sourcePath)
         }
         val input: InputStream = if (sourceSource == null) {
             FileInputStream(sourcePath)

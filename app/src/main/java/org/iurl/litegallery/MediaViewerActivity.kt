@@ -225,6 +225,9 @@ class MediaViewerActivity : AppCompatActivity() {
 
         // Re-apply filename max lines setting in case user changed it
         applyFilenameMaxLinesSetting()
+
+        // Back from an editing app (e.g. Snapseed)? Offer to file the new pictures.
+        checkExternalEditResult()
     }
     
     override fun onPause() {
@@ -1413,26 +1416,175 @@ private fun shareCurrent() {
             val editableRemote = !item.isRemote ||
                 MediaSourceRegistry.forPath(item.path)?.supportsFileOperations(item.path) == true
             if (editableRemote) {
-                if (item.isRemote) {
-                    openPhotoEditor(item)
-                } else {
-                    android.app.AlertDialog.Builder(this)
-                        .setTitle(R.string.edit)
-                        .setItems(
-                            arrayOf(
-                                getString(R.string.photo_editor_crop_here),
-                                getString(R.string.photo_editor_other_app)
-                            )
-                        ) { _, which ->
-                            if (which == 0) openPhotoEditor(item) else editWithOtherApp(item)
-                        }
-                        .setNegativeButton(R.string.cancel, null)
-                        .show()
-                }
+                android.app.AlertDialog.Builder(this)
+                    .setTitle(R.string.edit)
+                    .setItems(
+                        arrayOf(
+                            getString(R.string.photo_editor_crop_here),
+                            getString(R.string.photo_editor_other_app)
+                        )
+                    ) { _, which ->
+                        if (which == 0) openPhotoEditor(item) else editWithOtherApp(item)
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
                 return
             }
         }
         editWithOtherApp(item)
+    }
+
+    /** Downloads a picture from a network share and opens the copy in another editing app. */
+    private fun editRemoteWithOtherApp(item: MediaItem) {
+        val source = MediaSourceRegistry.forPath(item.path) ?: return
+        val progressDialog = android.app.AlertDialog.Builder(this)
+            .setMessage(R.string.external_edit_downloading)
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
+
+        lifecycleScope.launch {
+            val file = try {
+                withContext(Dispatchers.IO) {
+                    val directory = java.io.File(cacheDir, "external_edit")
+                    directory.deleteRecursively()
+                    directory.mkdirs()
+                    val target = java.io.File(directory, item.name)
+                    source.openInput(applicationContext, item.path).use { input ->
+                        target.outputStream().use { output -> input.copyTo(output, 256 * 1024) }
+                    }
+                    val modified = source.lastModified(applicationContext, item.path)
+                    if (modified > 0L) target.setLastModified(modified)
+                    target
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MediaViewerActivity", "Download for editing failed", e)
+                null
+            }
+            progressDialog.dismiss()
+
+            if (file == null) {
+                android.widget.Toast.makeText(
+                    this@MediaViewerActivity,
+                    R.string.external_edit_failed,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
+
+            try {
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    this@MediaViewerActivity,
+                    "${applicationContext.packageName}.fileprovider",
+                    file
+                )
+                val editIntent = android.content.Intent(android.content.Intent.ACTION_EDIT).apply {
+                    setDataAndType(uri, item.mimeType)
+                    clipData = android.content.ClipData.newUri(contentResolver, "media", uri)
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                }
+                // Remember the hand-over: pictures the editor saves meanwhile are offered later.
+                ExternalEditTracker.begin(applicationContext, item.path)
+                startActivity(editIntent)
+            } catch (e: Exception) {
+                android.util.Log.e("MediaViewerActivity", "Edit failed: ${e.message}")
+                ExternalEditTracker.clear(applicationContext)
+                android.widget.Toast.makeText(
+                    this@MediaViewerActivity,
+                    R.string.external_edit_failed,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private var isCheckingExternalEdit = false
+
+    /**
+     * Back from an editing app: looks for pictures it saved to the phone's gallery since the
+     * hand-over (for up to about 8 seconds, as Android may list them a moment later) and offers
+     * to move them into the "snapseed" folder next to the original on the network share.
+     */
+    private fun checkExternalEditResult() {
+        val pending = ExternalEditTracker.pending(this) ?: return
+        if (isCheckingExternalEdit) return
+        isCheckingExternalEdit = true
+
+        lifecycleScope.launch {
+            try {
+                var found = emptyList<ExternalEditTracker.NewImage>()
+                for (attempt in 0 until 4) {
+                    found = withContext(Dispatchers.IO) {
+                        ExternalEditTracker.findNewImages(applicationContext, pending.startedAt)
+                    }
+                    if (found.isNotEmpty()) break
+                    kotlinx.coroutines.delay(2000L)
+                }
+                ExternalEditTracker.clear(applicationContext)
+                if (found.isNotEmpty()) showExternalEditDialog(pending, found)
+            } finally {
+                isCheckingExternalEdit = false
+            }
+        }
+    }
+
+    private fun showExternalEditDialog(
+        pending: ExternalEditTracker.Pending,
+        images: List<ExternalEditTracker.NewImage>
+    ) {
+        val names = images.map { it.name }.toTypedArray()
+        val checked = BooleanArray(images.size) { true }
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.external_edit_found_title)
+            .setMultiChoiceItems(names, checked) { _, which, isChecked -> checked[which] = isChecked }
+            .setPositiveButton(R.string.external_edit_move) { _, _ ->
+                val chosen = images.filterIndexed { index, _ -> checked[index] }.map { it.path }
+                if (chosen.isNotEmpty()) moveEditedPicturesNextToOriginal(pending.originalPath, chosen)
+            }
+            .setNegativeButton(R.string.external_edit_skip, null)
+            .show()
+    }
+
+    /**
+     * Moves [localPaths] from the phone into the folder "snapseed" next to the original on the
+     * network share (created if needed). The original is never touched, files with the same
+     * name are kept side by side, and the new pictures take over the original's date.
+     */
+    private fun moveEditedPicturesNextToOriginal(originalPath: String, localPaths: List<String>) {
+        val source = MediaSourceRegistry.forPath(originalPath) ?: return
+        // The pictures leave the phone (move): that needs all-files access.
+        if (!StorageAccess.ensure(this)) return
+
+        FileOperationDialogs.runWithProgress(
+            activity = this,
+            titleRes = R.string.file_op_moving,
+            total = localPaths.size,
+            work = { onProgress ->
+                val context = applicationContext
+                val parent = source.parentFolder(originalPath)
+                val destFolder = parent?.let { source.createFolder(context, it, "snapseed") }
+                if (destFolder == null) {
+                    FileTransfer.Result(0, localPaths.size, emptyList(), emptyList())
+                } else {
+                    FileTransfer.transfer(
+                        context,
+                        localPaths,
+                        destFolder,
+                        FileTransfer.Mode.MOVE,
+                        onProgress,
+                        source.lastModified(context, originalPath)
+                    )
+                }
+            },
+            onDone = { result ->
+                if (result.done > 0) {
+                    hasMediaCollectionChanged = true
+                    source.parentFolder(originalPath)?.let { FolderMediaRepository.invalidate(it) }
+                }
+            }
+        )
     }
 
     private fun openPhotoEditor(item: MediaItem) {
@@ -1443,6 +1595,10 @@ private fun shareCurrent() {
     }
 
     private fun editWithOtherApp(item: MediaItem) {
+        if (item.isRemote) {
+            editRemoteWithOtherApp(item)
+            return
+        }
         try {
             val uri = buildSecureUriForItem(item) ?: return
             val editIntent = android.content.Intent(android.content.Intent.ACTION_EDIT).apply {
