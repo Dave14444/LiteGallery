@@ -46,6 +46,12 @@
             android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
 
         <activity
+            android:name=".PhotoEditorActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="false"
+            android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
+
+        <activity
             android:name=".GlobalSearchResultsActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity"

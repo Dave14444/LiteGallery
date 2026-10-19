@@ -555,4 +555,20 @@
     <string name="all_files_access_title">All files access needed</string>
     <string name="all_files_access_message">For this action LiteGallery needs access to all files on the phone. Open the settings and allow it?</string>
     <string name="all_files_access_open_settings">Open settings</string>
+    <string name="photo_editor_title">Crop</string>
+    <string name="photo_editor_save">Save</string>
+    <string name="photo_editor_save_copy">Save as copy</string>
+    <string name="photo_editor_replace_original">Replace original (cannot be undone)</string>
+    <string name="photo_editor_edited_suffix">edited</string>
+    <string name="photo_editor_ratio_free">Free</string>
+    <string name="photo_editor_ratio_original">Original</string>
+    <string name="photo_editor_rotate_left">Rotate left</string>
+    <string name="photo_editor_rotate_right">Rotate right</string>
+    <string name="photo_editor_reset">Reset</string>
+    <string name="photo_editor_saving">Saving…</string>
+    <string name="photo_editor_saved">Saved</string>
+    <string name="photo_editor_failed">The picture could not be edited or saved</string>
+    <string name="photo_editor_unsupported">This picture format cannot be edited here</string>
+    <string name="photo_editor_crop_here">Crop in LiteGallery</string>
+    <string name="photo_editor_other_app">Edit in another app</string>
 </resources>

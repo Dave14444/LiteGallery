@@ -1368,8 +1368,57 @@ private fun shareCurrent() {
 }
 
 
+    private val photoEditorLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            // The folder list shows the new or changed picture after returning to it.
+            hasMediaCollectionChanged = true
+            if (result.data?.getBooleanExtra(PhotoEditorActivity.RESULT_REPLACED, false) == true) {
+                // The picture on screen is outdated now: go back to the refreshed list.
+                finish()
+            }
+        }
+    }
+
     private fun editCurrent() {
         val item = getCurrentMediaItem() ?: return
+
+        // Pictures can be cropped in LiteGallery itself (phone and network shares).
+        if (!item.isVideo && PhotoEditorActivity.supports(item.path)) {
+            val editableRemote = !item.isRemote ||
+                MediaSourceRegistry.forPath(item.path)?.supportsFileOperations(item.path) == true
+            if (editableRemote) {
+                if (item.isRemote) {
+                    openPhotoEditor(item)
+                } else {
+                    android.app.AlertDialog.Builder(this)
+                        .setTitle(R.string.edit)
+                        .setItems(
+                            arrayOf(
+                                getString(R.string.photo_editor_crop_here),
+                                getString(R.string.photo_editor_other_app)
+                            )
+                        ) { _, which ->
+                            if (which == 0) openPhotoEditor(item) else editWithOtherApp(item)
+                        }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                }
+                return
+            }
+        }
+        editWithOtherApp(item)
+    }
+
+    private fun openPhotoEditor(item: MediaItem) {
+        photoEditorLauncher.launch(
+            android.content.Intent(this, PhotoEditorActivity::class.java)
+                .putExtra(PhotoEditorActivity.EXTRA_PATH, item.path)
+        )
+    }
+
+    private fun editWithOtherApp(item: MediaItem) {
         try {
             val uri = buildSecureUriForItem(item) ?: return
             val editIntent = android.content.Intent(android.content.Intent.ACTION_EDIT).apply {

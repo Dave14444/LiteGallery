@@ -556,5 +556,21 @@
     <string name="all_files_access_title">Zugriff auf alle Dateien nötig</string>
     <string name="all_files_access_message">Für diese Aktion braucht LiteGallery Zugriff auf alle Dateien auf dem Handy. Einstellungen öffnen und erlauben?</string>
     <string name="all_files_access_open_settings">Einstellungen öffnen</string>
+    <string name="photo_editor_title">Zuschneiden</string>
+    <string name="photo_editor_save">Speichern</string>
+    <string name="photo_editor_save_copy">Als Kopie speichern</string>
+    <string name="photo_editor_replace_original">Original ersetzen (nicht rückgängig zu machen)</string>
+    <string name="photo_editor_edited_suffix">bearbeitet</string>
+    <string name="photo_editor_ratio_free">Frei</string>
+    <string name="photo_editor_ratio_original">Original</string>
+    <string name="photo_editor_rotate_left">Nach links drehen</string>
+    <string name="photo_editor_rotate_right">Nach rechts drehen</string>
+    <string name="photo_editor_reset">Zurücksetzen</string>
+    <string name="photo_editor_saving">Speichere…</string>
+    <string name="photo_editor_saved">Gespeichert</string>
+    <string name="photo_editor_failed">Das Foto konnte nicht bearbeitet oder gespeichert werden</string>
+    <string name="photo_editor_unsupported">Dieses Bildformat kann hier nicht bearbeitet werden</string>
+    <string name="photo_editor_crop_here">In LiteGallery zuschneiden</string>
+    <string name="photo_editor_other_app">In anderer App bearbeiten</string>
 </resources>
 

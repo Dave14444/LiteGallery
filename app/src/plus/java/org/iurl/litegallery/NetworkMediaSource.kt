@@ -182,6 +182,35 @@ override suspend fun copyToCache(
         return if (written) SmbPath.toUrl(folder.host, folder.share, relative) else null
     }
 
+    override fun replaceFile(
+        context: Context,
+        path: String,
+        input: java.io.InputStream,
+        lastModified: Long
+    ): Boolean {
+        val smb = SmbPath.parse(path) ?: return false
+
+        // Write the new content next to the original first, so the original survives a failure.
+        val parent = smb.path.substringBeforeLast('/', "")
+        val fileName = smb.path.substringAfterLast('/')
+        val tempName = ".$fileName.editing-${System.currentTimeMillis()}"
+        val tempPath = if (parent.isEmpty()) tempName else "$parent/$tempName"
+
+        if (!SmbClient.writeStream(context, smb.host, smb.share, tempPath, input, lastModified)) {
+            return false
+        }
+        if (!SmbClient.deleteFile(context, smb.host, smb.share, smb.path)) {
+            SmbClient.deleteFile(context, smb.host, smb.share, tempPath)
+            return false
+        }
+        if (!SmbClient.rename(context, smb.host, smb.share, tempPath, smb.path)) {
+            android.util.Log.e("NetworkMediaSource", "Edited picture kept as $tempPath")
+            return false
+        }
+        SmbFileMetaCache.remove(path)
+        return true
+    }
+
     override fun deleteFile(context: Context, path: String): Boolean {
         val smb = SmbPath.parse(path) ?: return false
         val deleted = SmbClient.deleteFile(context, smb.host, smb.share, smb.path)

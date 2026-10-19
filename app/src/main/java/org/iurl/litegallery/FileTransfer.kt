@@ -242,6 +242,10 @@ object FileTransfer {
         return if (source.renameTo(target)) target.absolutePath else null
     }
 
+    /** Writes [input] into [folder] on the phone under a unique name; returns the new path. */
+    fun writeLocalFile(folder: File, desiredName: String, input: InputStream, lastModified: Long): String? =
+        writeLocal(folder, desiredName, input, lastModified)
+
     private fun writeLocal(dir: File, name: String, input: InputStream, lastModified: Long): String? {
         if (!dir.isDirectory && !dir.mkdirs()) return null
         val target = uniqueFile(dir, name)

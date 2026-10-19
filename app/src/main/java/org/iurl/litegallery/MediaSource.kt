@@ -108,6 +108,17 @@ suspend fun copyToCache(
     fun deleteFile(context: Context, path: String): Boolean = false
 
     /**
+     * Replaces the content of the existing file at [path] with [input] (e.g. an edited picture).
+     * The old content stays untouched if this fails. Returns true on success.
+     */
+    fun replaceFile(
+        context: Context,
+        path: String,
+        input: java.io.InputStream,
+        lastModified: Long
+    ): Boolean = false
+
+    /**
      * Moves [path] into [destFolderPath] without transferring data (e.g. a rename on the same
      * share). Returns the new path, or null if that is not possible and the caller should
      * copy and delete instead.
