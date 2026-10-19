@@ -100,8 +100,10 @@ object SmbCoverImages {
             val resolver = context.contentResolver
 
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-                ?: return false
+            // With inJustDecodeBounds the call returns no bitmap (null), only the size in [bounds].
+            val boundsStream = resolver.openInputStream(uri) ?: return false
+            boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return false
 
             var sampleSize = 1
             while (bounds.outWidth / (sampleSize * 2) >= MAX_SIDE &&
