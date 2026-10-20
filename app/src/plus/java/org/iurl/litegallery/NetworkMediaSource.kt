@@ -187,6 +187,18 @@ override suspend fun copyToCache(
     override fun moveToTrash(context: Context, path: String): Boolean =
         SmbTrash.moveToTrash(context, path)
 
+    override fun trashLocations(context: Context): List<TrashLocation> =
+        NetworkConfigStore.getAllServers(context)
+            .filter { server -> !server.isNfs && server.share.isNotBlank() }
+            .map { server ->
+                TrashLocation(server.displayName.ifBlank { server.host }) { activity ->
+                    activity.startActivity(
+                        android.content.Intent(activity, NetworkTrashActivity::class.java)
+                            .putExtra(NetworkTrashActivity.EXTRA_SHARE_URL, server.rootUrl())
+                    )
+                }
+            }
+
     override fun replaceFile(
         context: Context,
         path: String,

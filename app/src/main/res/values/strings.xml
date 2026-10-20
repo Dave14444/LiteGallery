@@ -577,4 +577,5 @@
     <string name="external_edit_skip">Not now</string>
     <string name="external_edit_failed">The picture could not be opened for editing</string>
     <string name="share_prepare_failed">The files could not be prepared for sharing</string>
+    <string name="trash_location_phone">Phone</string>
 </resources>

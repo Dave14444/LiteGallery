@@ -113,6 +113,9 @@ suspend fun copyToCache(
     /** Moves the file at [path] into the source's trash. Returns true on success. */
     fun moveToTrash(context: Context, path: String): Boolean = false
 
+    /** Trash bins this source offers (e.g. one per network share), shown next to the phone's trash bin. */
+    fun trashLocations(context: Context): List<TrashLocation> = emptyList()
+
     /**
      * Replaces the content of the existing file at [path] with [input] (e.g. an edited picture).
      * The old content stays untouched if this fails. Returns true on success.
@@ -151,6 +154,12 @@ suspend fun copyToCache(
     /** Release any held resources (connections, caches) on app shutdown. */
     fun shutdown()
 }
+
+/** A trash bin of a [MediaSource]: [label] is shown in the list, [open] opens it. */
+class TrashLocation(
+    val label: String,
+    val open: (androidx.appcompat.app.AppCompatActivity) -> Unit
+)
 
 /** A folder offered by [MediaSource.destinationRoots] / [MediaSource.listSubFolders]. */
 data class FolderEntry(val name: String, val path: String)

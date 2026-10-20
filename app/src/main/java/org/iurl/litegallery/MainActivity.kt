@@ -201,6 +201,28 @@ class MainActivity : AppCompatActivity() {
         return true
     }
     
+    /** The phone's trash bin, or a choice if network shares have a trash bin of their own. */
+    private fun openTrashBin() {
+        val others = MediaSourceRegistry.all().flatMap { it.trashLocations(this) }
+        if (others.isEmpty()) {
+            trashBinLauncher.launch(Intent(this, TrashBinActivity::class.java))
+            return
+        }
+
+        val labels = listOf(getString(R.string.trash_location_phone)) + others.map { it.label }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.trash_bin_title)
+            .setItems(labels.toTypedArray()) { _, which ->
+                if (which == 0) {
+                    trashBinLauncher.launch(Intent(this, TrashBinActivity::class.java))
+                } else {
+                    others[which - 1].open(this)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_settings -> {
@@ -208,7 +230,7 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             R.id.action_trash_bin -> {
-                trashBinLauncher.launch(Intent(this, TrashBinActivity::class.java))
+                openTrashBin()
                 true
             }
             R.id.action_refresh -> {

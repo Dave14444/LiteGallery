@@ -578,5 +578,6 @@
     <string name="external_edit_skip">Nicht verschieben</string>
     <string name="external_edit_failed">Das Foto konnte nicht zum Bearbeiten geöffnet werden</string>
     <string name="share_prepare_failed">Die Dateien konnten nicht zum Teilen vorbereitet werden</string>
+    <string name="trash_location_phone">Handy</string>
 </resources>
 
