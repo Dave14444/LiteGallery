@@ -833,8 +833,14 @@ val visible = (
             val deleteResult = withContext(Dispatchers.IO) {
                 try {
                     if (item.isRemote) {
-                        val deleted = MediaSourceRegistry.forPath(item.path)
-                            ?.deleteFile(applicationContext, item.path) == true
+                        val source = MediaSourceRegistry.forPath(item.path)
+                        val deleted = if (source == null) {
+                            false
+                        } else if (moveToTrash && source.supportsTrash(item.path)) {
+                            source.moveToTrash(applicationContext, item.path)
+                        } else {
+                            source.deleteFile(applicationContext, item.path)
+                        }
                         DeleteOperationResult(success = deleted)
                     } else if (item.path.startsWith("content://")) {
                         val contentUri = android.net.Uri.parse(item.path)
@@ -1019,7 +1025,9 @@ val visible = (
     }
 
     private fun supportsTrashOption(item: MediaItem): Boolean {
-        if (item.isRemote) return false
+        if (item.isRemote) {
+            return MediaSourceRegistry.forPath(item.path)?.supportsTrash(item.path) == true
+        }
         if (!item.path.startsWith("content://")) return true
         val uri = runCatching { android.net.Uri.parse(item.path) }.getOrNull() ?: return false
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&

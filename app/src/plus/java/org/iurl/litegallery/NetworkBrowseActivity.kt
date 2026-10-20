@@ -130,8 +130,28 @@ onBackPressedDispatcher.addCallback(
                 }
                 true
             }
+            R.id.action_network_trash -> {
+                SmbTrash.shareRootOf(currentPath)?.let { shareRoot ->
+                    startActivity(
+                        Intent(this, NetworkTrashActivity::class.java)
+                            .putExtra(NetworkTrashActivity.EXTRA_SHARE_URL, shareRoot)
+                    )
+                }
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.network_browse_menu, menu)
+        return true
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        // The trash belongs to a share: offer it while a folder on an SMB share is open.
+        menu.findItem(R.id.action_network_trash)?.isVisible = SmbPath.isSmb(currentPath)
+        return super.onPrepareOptionsMenu(menu)
     }
 
     private fun setupToolbar() {

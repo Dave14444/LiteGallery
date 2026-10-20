@@ -182,6 +182,11 @@ override suspend fun copyToCache(
         return if (written) SmbPath.toUrl(folder.host, folder.share, relative) else null
     }
 
+    override fun supportsTrash(path: String): Boolean = SmbPath.isSmb(path)
+
+    override fun moveToTrash(context: Context, path: String): Boolean =
+        SmbTrash.moveToTrash(context, path)
+
     override fun replaceFile(
         context: Context,
         path: String,

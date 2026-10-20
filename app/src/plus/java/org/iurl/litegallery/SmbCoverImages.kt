@@ -46,24 +46,31 @@ object SmbCoverImages {
         onHide: () -> Unit,
         onChanged: () -> Unit
     ) {
-        val hasCover = coverPath(activity, server.id) != null
-        val labels = mutableListOf(activity.getString(R.string.smb_cover_choose))
-        if (hasCover) labels.add(activity.getString(R.string.smb_cover_reset))
-        labels.add(activity.getString(R.string.hide_folder))
+        val entries = mutableListOf<Pair<String, () -> Unit>>()
+        entries.add(activity.getString(R.string.smb_cover_choose) to { pickImage(activity, server, onChanged) })
+        if (coverPath(activity, server.id) != null) {
+            entries.add(
+                activity.getString(R.string.smb_cover_reset) to {
+                    remove(activity, server.id)
+                    onChanged()
+                }
+            )
+        }
+        SmbTrash.shareRootOf(server.rootUrl())?.let { shareRoot ->
+            entries.add(
+                activity.getString(R.string.trash_bin_title) to {
+                    activity.startActivity(
+                        android.content.Intent(activity, NetworkTrashActivity::class.java)
+                            .putExtra(NetworkTrashActivity.EXTRA_SHARE_URL, shareRoot)
+                    )
+                }
+            )
+        }
+        entries.add(activity.getString(R.string.hide_folder) to { onHide() })
 
-        val resetIndex = if (hasCover) 1 else -1
         AlertDialog.Builder(activity)
             .setTitle(server.displayName.ifBlank { server.host })
-            .setItems(labels.toTypedArray()) { _, which ->
-                when (which) {
-                    0 -> pickImage(activity, server, onChanged)
-                    resetIndex -> {
-                        remove(activity, server.id)
-                        onChanged()
-                    }
-                    else -> onHide()
-                }
-            }
+            .setItems(entries.map { it.first }.toTypedArray()) { _, which -> entries[which].second() }
             .setNegativeButton(R.string.cancel, null)
             .show()
     }

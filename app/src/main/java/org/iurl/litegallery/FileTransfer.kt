@@ -171,7 +171,13 @@ object FileTransfer {
 
     private fun deleteOne(context: Context, item: MediaItemSkeleton, moveToTrash: Boolean): Boolean {
         val source = MediaSourceRegistry.forPath(item.path)
-        if (source != null) return source.deleteFile(context, item.path)
+        if (source != null) {
+            return if (moveToTrash && source.supportsTrash(item.path)) {
+                source.moveToTrash(context, item.path)
+            } else {
+                source.deleteFile(context, item.path)
+            }
+        }
 
         val file = File(item.path)
         if (!file.exists()) return true

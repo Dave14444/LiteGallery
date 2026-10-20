@@ -13,6 +13,13 @@
             android:label="@string/network_browse_title"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
+
+        <activity
+            android:name=".NetworkTrashActivity"
+            android:exported="false"
+            android:label="@string/trash_bin_title"
+            android:parentActivityName=".NetworkBrowseActivity"
+            android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
     </application>
 
 </manifest>

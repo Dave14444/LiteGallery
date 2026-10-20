@@ -463,14 +463,18 @@ class FolderViewActivity : AppCompatActivity() {
         // Same dialog as in the viewer. Only files on the phone can go to the trash.
         val hasLocal = items.any { FileTransfer.isLocalPath(it.path) }
         if (hasLocal && !StorageAccess.ensure(this)) return
+        // The trash is available for files on the phone and for sources that have one (SMB).
+        val canTrash = items.all {
+            MediaSourceRegistry.forPath(it.path)?.supportsTrash(it.path) ?: true
+        }
 
         val prefs = getSharedPreferences(DELETE_PREFS, MODE_PRIVATE)
         val dialogView = layoutInflater.inflate(R.layout.dialog_delete_media, null)
         val messageTextView = dialogView.findViewById<android.widget.TextView>(R.id.deleteMessageTextView)
         val moveToTrashCheckbox = dialogView.findViewById<android.widget.CheckBox>(R.id.moveToTrashCheckBox)
         messageTextView.text = getString(R.string.file_op_delete_selected_confirmation, items.size)
-        moveToTrashCheckbox.isChecked = hasLocal && prefs.getBoolean(DELETE_MOVE_TO_TRASH_KEY, true)
-        moveToTrashCheckbox.visibility = if (hasLocal) View.VISIBLE else View.GONE
+        moveToTrashCheckbox.isChecked = canTrash && prefs.getBoolean(DELETE_MOVE_TO_TRASH_KEY, true)
+        moveToTrashCheckbox.visibility = if (canTrash) View.VISIBLE else View.GONE
 
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.delete)
@@ -482,7 +486,7 @@ class FolderViewActivity : AppCompatActivity() {
         dialog.setOnShowListener {
             val positiveButton = dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE)
             val updatePositiveButtonText = {
-                val textRes = if (hasLocal && moveToTrashCheckbox.isChecked) {
+                val textRes = if (canTrash && moveToTrashCheckbox.isChecked) {
                     R.string.move_to_trash
                 } else {
                     R.string.delete_permanently
@@ -493,8 +497,8 @@ class FolderViewActivity : AppCompatActivity() {
             moveToTrashCheckbox.setOnCheckedChangeListener { _, _ -> updatePositiveButtonText() }
 
             positiveButton.setOnClickListener {
-                val moveToTrash = hasLocal && moveToTrashCheckbox.isChecked
-                if (hasLocal) {
+                val moveToTrash = canTrash && moveToTrashCheckbox.isChecked
+                if (canTrash) {
                     prefs.edit().putBoolean(DELETE_MOVE_TO_TRASH_KEY, moveToTrash).apply()
                 }
                 dialog.dismiss()

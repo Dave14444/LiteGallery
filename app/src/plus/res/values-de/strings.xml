@@ -6,4 +6,6 @@
     <string name="smb_cover_choose">Anzeigebild wählen</string>
     <string name="smb_cover_reset">Anzeigebild zurücksetzen</string>
     <string name="smb_cover_failed">Dieses Bild konnte nicht verwendet werden</string>
+    <string name="network_trash_scope_note">Papierkorb der Freigabe %s. Jedes Gerät, das diese Freigabe nutzt, sieht ihn.</string>
+    <string name="network_trash_restoring">Stelle wieder her…</string>
 </resources>

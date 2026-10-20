@@ -48,4 +48,6 @@
     <string name="smb_cover_choose">Choose cover picture</string>
     <string name="smb_cover_reset">Reset cover picture</string>
     <string name="smb_cover_failed">Could not use this picture</string>
+    <string name="network_trash_scope_note">Trash of the network share %s. Every device that uses this share sees it.</string>
+    <string name="network_trash_restoring">Restoring…</string>
 </resources>

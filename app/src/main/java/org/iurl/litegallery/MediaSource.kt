@@ -107,6 +107,12 @@ suspend fun copyToCache(
     /** Deletes the file at [path]. Returns true once it is gone. */
     fun deleteFile(context: Context, path: String): Boolean = false
 
+    /** True if files at [path] can be moved to a trash that belongs to the source instead of being erased. */
+    fun supportsTrash(path: String): Boolean = false
+
+    /** Moves the file at [path] into the source's trash. Returns true on success. */
+    fun moveToTrash(context: Context, path: String): Boolean = false
+
     /**
      * Replaces the content of the existing file at [path] with [input] (e.g. an edited picture).
      * The old content stays untouched if this fails. Returns true on success.
