@@ -39,6 +39,45 @@ object SmbThumbnailCache {
         }
     }
 
+    enum class PrepareResult { CREATED, ALREADY_THERE }
+
+    /** File names of the thumbnails already stored on the share of [anyUrlOnShare]. */
+    fun listCachedNames(context: Context, anyUrlOnShare: String): Set<String> {
+        val smb = SmbPath.parse(anyUrlOnShare) ?: return emptySet()
+        return try {
+            SmbFileClient.listFiles(context, SmbPath.toUrl(smb.host, smb.share, CACHE_DIR))
+                .map { it.name }
+                .toSet()
+        } catch (e: Exception) {
+            emptySet()
+        }
+    }
+
+    /**
+     * Makes sure the thumbnail of [imageUrl] exists on the share. [knownCachedNames] (from
+     * [listCachedNames]) saves a request per file. The file must have been listed before, so
+     * that its size and date are known.
+     */
+    fun prepare(context: Context, imageUrl: String, knownCachedNames: Set<String>): PrepareResult {
+        val path = SmbPath.parse(imageUrl)
+            ?: throw IllegalArgumentException("Not an SMB file: $imageUrl")
+        val meta = SmbFileMetaCache.get(imageUrl)
+            ?: throw IOException("File was not listed: $imageUrl")
+
+        val cacheFile = "$CACHE_DIR/${sha256("$imageUrl|${meta.size}|${meta.lastModified}|$CACHE_VERSION")}.jpg"
+        if (cacheFile.substringAfterLast('/') in knownCachedNames) return PrepareResult.ALREADY_THERE
+
+        return synchronized(cacheLock) {
+            if (SmbClient.fileExists(context, path.host, path.share, cacheFile)) {
+                PrepareResult.ALREADY_THERE
+            } else {
+                val thumbnailBytes = createThumbnail(context, imageUrl, meta.size)
+                SmbClient.writeBytes(context, path.host, path.share, cacheFile, thumbnailBytes)
+                PrepareResult.CREATED
+            }
+        }
+    }
+
     private fun openThumbnailStreamLocked(context: Context, imageUrl: String): InputStream {
         val path = SmbPath.parse(imageUrl)
             ?: return RemoteClients.forUrl(imageUrl)!!.openInputStream(context, imageUrl)

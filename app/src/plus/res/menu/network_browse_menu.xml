@@ -6,4 +6,9 @@
         android:id="@+id/action_network_trash"
         android:title="@string/trash_bin_title"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_prepare_thumbnails"
+        android:title="@string/thumb_prepare_menu"
+        app:showAsAction="never" />
 </menu>

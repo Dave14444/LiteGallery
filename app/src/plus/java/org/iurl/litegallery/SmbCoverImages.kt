@@ -66,6 +66,17 @@ object SmbCoverImages {
                 }
             )
         }
+        if (SmbPath.isSmb(server.rootUrl())) {
+            entries.add(
+                activity.getString(R.string.thumb_prepare_menu) to {
+                    ThumbnailPreparer.start(
+                        activity,
+                        server.rootUrl(),
+                        server.displayName.ifBlank { server.host }
+                    )
+                }
+            )
+        }
         entries.add(activity.getString(R.string.hide_folder) to { onHide() })
 
         AlertDialog.Builder(activity)

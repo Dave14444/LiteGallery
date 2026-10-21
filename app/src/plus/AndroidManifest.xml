@@ -6,6 +6,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Preparing the thumbnails of a share runs as a foreground service with a notification. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application>
         <activity
             android:name=".NetworkBrowseActivity"
@@ -20,6 +25,11 @@
             android:label="@string/trash_bin_title"
             android:parentActivityName=".NetworkBrowseActivity"
             android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
+
+        <service
+            android:name=".ThumbnailPrepareService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 
 </manifest>

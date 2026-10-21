@@ -139,6 +139,12 @@ onBackPressedDispatcher.addCallback(
                 }
                 true
             }
+            R.id.action_prepare_thumbnails -> {
+                val label = currentPath.trimEnd('/').substringAfterLast('/')
+                    .ifBlank { getString(R.string.network_browse_title) }
+                ThumbnailPreparer.start(this, currentPath, label)
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -151,6 +157,7 @@ onBackPressedDispatcher.addCallback(
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         // The trash belongs to a share: offer it while a folder on an SMB share is open.
         menu.findItem(R.id.action_network_trash)?.isVisible = SmbPath.isSmb(currentPath)
+        menu.findItem(R.id.action_prepare_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
         return super.onPrepareOptionsMenu(menu)
     }
 
