@@ -233,6 +233,10 @@ class MainActivity : AppCompatActivity() {
                 openTrashBin()
                 true
             }
+            R.id.action_backup_now -> {
+                QuickBackup.start(this) { loadMediaFolders(showBlockingLoading = false) }
+                true
+            }
             R.id.action_refresh -> {
                 refreshFromUserAction(fromSwipeRefresh = false)
                 true

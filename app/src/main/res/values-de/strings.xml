@@ -579,5 +579,13 @@
     <string name="external_edit_failed">Das Foto konnte nicht zum Bearbeiten geöffnet werden</string>
     <string name="share_prepare_failed">Die Dateien konnten nicht zum Teilen vorbereitet werden</string>
     <string name="trash_location_phone">Handy</string>
+    <string name="backup_title">Jetzt sichern</string>
+    <string name="backup_choose_source">Quellordner wählen</string>
+    <string name="backup_use_folder">Diesen Ordner verwenden</string>
+    <string name="backup_change_folders">Ordner ändern</string>
+    <string name="backup_same_folder">Quelle und Ziel müssen verschiedene Ordner sein</string>
+    <string name="backup_source_missing">Der Quellordner kann nicht gelesen werden. Bitte wähle ihn neu.</string>
+    <string name="backup_confirm_message">Von: %1$s\nNach: %2$s\n\n%3$d Fotos und Videos werden verschoben. Die neueste Datei bleibt, wo sie ist.</string>
+    <string name="backup_nothing">In %1$s gibt es nichts zu verschieben: Es ist höchstens das neueste Foto oder Video übrig.</string>
 </resources>
 

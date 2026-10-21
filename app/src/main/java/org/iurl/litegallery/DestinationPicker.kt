@@ -33,6 +33,29 @@ object DestinationPicker {
         mode: FileTransfer.Mode,
         onPicked: (String) -> Unit
     ) {
+        pick(
+            activity,
+            R.string.file_op_choose_destination,
+            if (mode == FileTransfer.Mode.COPY) R.string.file_op_copy_here else R.string.file_op_move_here,
+            phoneOnly = false,
+            rememberKey = KEY_LAST_DESTINATION,
+            onPicked = onPicked
+        )
+    }
+
+    /**
+     * Folder browser with a free choice of title and button. [phoneOnly] limits it to the
+     * phone's storage (e.g. to choose a source folder); [rememberKey] keeps the last choice
+     * apart from other uses of the browser.
+     */
+    fun pick(
+        activity: AppCompatActivity,
+        titleRes: Int,
+        positiveRes: Int,
+        phoneOnly: Boolean,
+        rememberKey: String,
+        onPicked: (String) -> Unit
+    ) {
         val prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val phoneRoot = Environment.getExternalStorageDirectory().absolutePath
 
@@ -43,12 +66,9 @@ object DestinationPicker {
         var currentPath: String? = null
 
         val dialog = AlertDialog.Builder(activity)
-            .setTitle(R.string.file_op_choose_destination)
+            .setTitle(titleRes)
             .setView(listView)
-            .setPositiveButton(
-                if (mode == FileTransfer.Mode.COPY) R.string.file_op_copy_here else R.string.file_op_move_here,
-                null
-            )
+            .setPositiveButton(positiveRes, null)
             .setNeutralButton(R.string.file_op_new_folder, null)
             .setNegativeButton(R.string.cancel, null)
             .create()
@@ -62,7 +82,7 @@ object DestinationPicker {
         }
 
         fun titleFor(path: String?): String = when {
-            path == null -> activity.getString(R.string.file_op_choose_destination)
+            path == null -> activity.getString(titleRes)
             path.contains("://") -> path.substringAfter("://")
             path.startsWith(phoneRoot) ->
                 activity.getString(R.string.file_op_phone_storage) + path.removePrefix(phoneRoot)
@@ -79,7 +99,7 @@ object DestinationPicker {
             activity.lifecycleScope.launch {
                 try {
                     val loaded = withContext(Dispatchers.IO) {
-                        buildRows(activity.applicationContext, path, phoneRoot)
+                        buildRows(activity.applicationContext, path, phoneRoot, phoneOnly)
                     }
                     showRows(loaded)
                 } catch (e: Exception) {
@@ -124,7 +144,7 @@ object DestinationPicker {
         dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener {
             val path = currentPath
             if (path != null) {
-                prefs.edit().putString(KEY_LAST_DESTINATION, path).apply()
+                prefs.edit().putString(rememberKey, path).apply()
                 dialog.dismiss()
                 onPicked(path)
             }
@@ -141,19 +161,24 @@ object DestinationPicker {
             load(target)
         }
 
-        val last = prefs.getString(KEY_LAST_DESTINATION, null)
+        val last = prefs.getString(rememberKey, null)
         val usable = last != null && (
-            !FileTransfer.isLocalPath(last) ||
-                (StorageAccess.hasAllFilesAccess() && File(last).isDirectory)
+            if (FileTransfer.isLocalPath(last)) {
+                StorageAccess.hasAllFilesAccess() && File(last).isDirectory
+            } else {
+                !phoneOnly
+            }
             )
         load(if (usable) last else null)
     }
 
-    private fun buildRows(context: Context, path: String?, phoneRoot: String): List<Row> {
+    private fun buildRows(context: Context, path: String?, phoneRoot: String, phoneOnly: Boolean): List<Row> {
         if (path == null) {
             val roots = mutableListOf(Row(context.getString(R.string.file_op_phone_storage), phoneRoot))
-            MediaSourceRegistry.all().forEach { source ->
-                source.destinationRoots(context).forEach { roots.add(Row(it.name, it.path)) }
+            if (!phoneOnly) {
+                MediaSourceRegistry.all().forEach { source ->
+                    source.destinationRoots(context).forEach { roots.add(Row(it.name, it.path)) }
+                }
             }
             return roots
         }

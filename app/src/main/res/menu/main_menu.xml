@@ -28,6 +28,11 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/action_backup_now"
+        android:title="@string/backup_title"
+        app:showAsAction="never" />
+
+    <item
     android:id="@+id/action_hidden_folders"
     android:title="@string/hidden_folders_title"
     app:showAsAction="never" />

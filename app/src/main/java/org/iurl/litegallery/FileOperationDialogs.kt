@@ -34,6 +34,7 @@ object FileOperationDialogs {
             .setCancelable(false)
             .create()
         dialog.show()
+        dialog.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         scope.launch {
             val result = withContext(Dispatchers.IO) {

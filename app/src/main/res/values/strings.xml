@@ -578,4 +578,12 @@
     <string name="external_edit_failed">The picture could not be opened for editing</string>
     <string name="share_prepare_failed">The files could not be prepared for sharing</string>
     <string name="trash_location_phone">Phone</string>
+    <string name="backup_title">Back up now</string>
+    <string name="backup_choose_source">Choose source folder</string>
+    <string name="backup_use_folder">Use this folder</string>
+    <string name="backup_change_folders">Change folders</string>
+    <string name="backup_same_folder">Source and destination must be different folders</string>
+    <string name="backup_source_missing">The source folder cannot be read. Please choose it again.</string>
+    <string name="backup_confirm_message">From: %1$s\nTo: %2$s\n\n%3$d pictures and videos will be moved. The newest one stays where it is.</string>
+    <string name="backup_nothing">There is nothing to move in %1$s: only the newest picture or video (or none) is left.</string>
 </resources>
