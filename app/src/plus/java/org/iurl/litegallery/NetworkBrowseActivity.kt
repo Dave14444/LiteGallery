@@ -48,6 +48,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityNetworkBrowseBinding
     private lateinit var browseAdapter: FolderAdapter
+    private lateinit var fileListAdapter: RemoteListAdapter
     private lateinit var remoteMediaScanner: RemoteMediaScanner
     private var currentPath: String = ""
     private var isLoading = false
@@ -118,6 +119,11 @@ onBackPressedDispatcher.addCallback(
         }
         currentPackKey = newPackKey
         if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
+
+        // Back from another app: pictures it saved may have been moved next to the original.
+        ExternalEditFlow.checkResult(this) {
+            if (currentPath.isNotBlank()) navigateTo(currentPath)
+        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -176,6 +182,7 @@ onBackPressedDispatcher.addCallback(
 
     private fun goHome() {
         currentPath = ""
+        invalidateOptionsMenu()
         refreshSavedServers()
         browseAdapter.submitList(emptyList())
         binding.recyclerView.visibility = View.GONE
@@ -405,10 +412,37 @@ onBackPressedDispatcher.addCallback(
             onFolderLongClick = { }
         )
 
-        binding.recyclerView.apply {
-            layoutManager = GridLayoutManager(this@NetworkBrowseActivity, 2)
-            adapter = browseAdapter
+        fileListAdapter = RemoteListAdapter { item ->
+            if (item.isDirectory) navigateTo(item.url) else openRawFile(item)
         }
+
+        showCardMode()
+    }
+
+    /** Folders as cards, like on the home screen. */
+    private fun showCardMode() {
+        if (binding.recyclerView.adapter === browseAdapter) return
+        binding.recyclerView.layoutManager = GridLayoutManager(this, 2)
+        binding.recyclerView.adapter = browseAdapter
+    }
+
+    /** Folders and files as a plain list of names (for folders with RAW files). */
+    private fun showListMode() {
+        if (binding.recyclerView.adapter === fileListAdapter) return
+        binding.recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        binding.recyclerView.adapter = fileListAdapter
+    }
+
+    /** Camera RAW files cannot be shown here: open a copy in another app (e.g. Snapseed). */
+    private fun openRawFile(file: RemoteFileInfo) {
+        ExternalEditFlow.openRemoteInOtherApp(
+            this,
+            file.url,
+            file.name,
+            RemoteFileTypes.rawMimeType(file.name),
+            Intent.ACTION_VIEW,
+            chooser = true
+        )
     }
 
     private fun setupSavedServers() {
@@ -559,7 +593,19 @@ onBackPressedDispatcher.addCallback(
                     return@launch
                 }
 
+                // Folders with RAW files and no pictures: a plain list of names.
+                val rawFiles = items.filter { !it.isDirectory && RemoteFileTypes.isRaw(it.name) }
+                if (media.isEmpty() && rawFiles.isNotEmpty()) {
+                    showFolder(address)
+                    showListMode()
+                    fileListAdapter.submitList(folders + rawFiles)
+                    binding.recyclerView.visibility = View.VISIBLE
+                    binding.emptyView.visibility = View.GONE
+                    return@launch
+                }
+
                 showFolder(address)
+                showCardMode()
                 val cards = buildCards(address, folders, media)
                 if (cards.isEmpty()) {
                     browseAdapter.submitList(emptyList())
@@ -597,6 +643,8 @@ onBackPressedDispatcher.addCallback(
         binding.addressEditText.setText(address)
         binding.savedServersLayout.visibility = View.GONE
         binding.homeButton.visibility = View.VISIBLE
+        // The menu entries (trash, prepare previews) depend on the open folder.
+        invalidateOptionsMenu()
         supportActionBar?.title = address.trimEnd('/').substringAfterLast('/')
             .ifBlank { getString(R.string.network_browse_title) }
     }
@@ -608,7 +656,7 @@ onBackPressedDispatcher.addCallback(
             binding.recyclerView.visibility = View.GONE
             return
         }
-        val hasCards = browseAdapter.currentList.isNotEmpty()
+        val hasCards = (binding.recyclerView.adapter?.itemCount ?: 0) > 0
         binding.recyclerView.visibility = if (hasCards) View.VISIBLE else View.GONE
         binding.emptyView.visibility = if (hasCards) View.GONE else View.VISIBLE
     }

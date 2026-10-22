@@ -582,10 +582,16 @@
     <string name="backup_title">Jetzt sichern</string>
     <string name="backup_choose_source">Quellordner wählen</string>
     <string name="backup_use_folder">Diesen Ordner verwenden</string>
-    <string name="backup_change_folders">Ordner ändern</string>
     <string name="backup_same_folder">Quelle und Ziel müssen verschiedene Ordner sein</string>
-    <string name="backup_source_missing">Der Quellordner kann nicht gelesen werden. Bitte wähle ihn neu.</string>
-    <string name="backup_confirm_message">Von: %1$s\nNach: %2$s\n\n%3$d Fotos und Videos werden verschoben. Die neueste Datei bleibt, wo sie ist.</string>
-    <string name="backup_nothing">In %1$s gibt es nichts zu verschieben: Es ist höchstens das neueste Foto oder Video übrig.</string>
+    <string name="backup_manage">Ordner verwalten</string>
+    <string name="backup_manage_title">Quell- und Zielordner</string>
+    <string name="backup_add_pair">+ Ordnerpaar hinzufügen</string>
+    <string name="backup_remove_confirm">Dieses Ordnerpaar aus der Liste entfernen? Es wird nichts gelöscht.</string>
+    <string name="backup_pair_label">%1$s → %2$s</string>
+    <string name="backup_pair_count">(%d)</string>
+    <string name="backup_pair_unreadable">(Ordner nicht lesbar)</string>
+    <string name="backup_pair_exists">Dieses Ordnerpaar ist schon in der Liste</string>
+    <string name="backup_nothing_chosen">Bitte hake mindestens ein Ordnerpaar an</string>
+    <string name="backup_nothing_to_move">Nichts zu verschieben: In den gewählten Ordnern ist höchstens das neueste Foto oder Video übrig.</string>
 </resources>
 
