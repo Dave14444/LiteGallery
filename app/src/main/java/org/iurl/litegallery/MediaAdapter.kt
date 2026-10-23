@@ -18,7 +18,8 @@ class MediaAdapter(
     private val isItemSelected: ((MediaItemSkeleton) -> Boolean)? = null,
     private val sourceBadgeLabelProvider: ((MediaItemSkeleton) -> String?)? = null,
     private val sourceBadgeContentDescriptionProvider: ((MediaItemSkeleton) -> String?)? = null,
-    private val onDetailedMetadataNeeded: ((MediaItemSkeleton) -> Unit)? = null
+    private val onDetailedMetadataNeeded: ((MediaItemSkeleton) -> Unit)? = null,
+    private val onVideoDurationNeeded: ((MediaItemSkeleton) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<MediaItemSkeleton>()
@@ -206,7 +207,8 @@ class MediaAdapter(
 
             if (skeleton.isVideo) {
                 binding.playIcon.visibility = android.view.View.VISIBLE
-                val duration = mediaItem.getFormattedDuration()
+                val duration = VideoDurations.text(skeleton, mediaItem)
+                if (duration.isEmpty()) onVideoDurationNeeded?.invoke(skeleton)
                 if (duration.isNotEmpty()) {
                     binding.durationTextView.visibility = android.view.View.VISIBLE
                     binding.durationTextView.text = duration
@@ -283,7 +285,8 @@ class MediaAdapter(
 
             if (skeleton.isVideo) {
                 binding.playIcon.visibility = android.view.View.VISIBLE
-                val duration = mediaItem.getFormattedDuration()
+                val duration = VideoDurations.text(skeleton, mediaItem)
+                if (duration.isEmpty()) onVideoDurationNeeded?.invoke(skeleton)
                 if (duration.isNotEmpty()) {
                     binding.durationTextView.visibility = android.view.View.VISIBLE
                     binding.durationTextView.text = duration
@@ -351,7 +354,8 @@ class MediaAdapter(
 
             if (skeleton.isVideo) {
                 binding.playIcon.visibility = android.view.View.VISIBLE
-                val duration = mediaItem.getFormattedDuration()
+                val duration = VideoDurations.text(skeleton, mediaItem)
+                if (duration.isEmpty()) onVideoDurationNeeded?.invoke(skeleton)
                 if (duration.isNotEmpty()) {
                     binding.durationTextView.visibility = android.view.View.VISIBLE
                     binding.durationTextView.text = duration

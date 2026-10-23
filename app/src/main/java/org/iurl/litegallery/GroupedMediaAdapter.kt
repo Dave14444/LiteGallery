@@ -14,6 +14,7 @@ import java.util.Locale
 class GroupedMediaAdapter(
     private val onMediaClick: (MediaItemSkeleton, Int) -> Unit,
     private val onDetailedMetadataNeeded: ((MediaItemSkeleton) -> Unit)? = null,
+    private val onVideoDurationNeeded: ((MediaItemSkeleton) -> Unit)? = null,
     private val onMediaLongClick: ((MediaItemSkeleton, Int) -> Unit)? = null,
     private val isItemSelected: ((MediaItemSkeleton) -> Boolean)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -258,7 +259,9 @@ class GroupedMediaAdapter(
 
         bindVideoOverlay(
             isVideo = skeleton.isVideo,
-            duration = mediaItem.getFormattedDuration(),
+            duration = VideoDurations.text(skeleton, mediaItem).also {
+                if (it.isEmpty() && skeleton.isVideo) onVideoDurationNeeded?.invoke(skeleton)
+            },
             playIcon = binding.playIcon,
             durationView = binding.durationTextView
         )
@@ -286,7 +289,9 @@ class GroupedMediaAdapter(
 
         bindVideoOverlay(
             isVideo = skeleton.isVideo,
-            duration = mediaItem.getFormattedDuration(),
+            duration = VideoDurations.text(skeleton, mediaItem).also {
+                if (it.isEmpty() && skeleton.isVideo) onVideoDurationNeeded?.invoke(skeleton)
+            },
             playIcon = binding.playIcon,
             durationView = binding.durationTextView
         )
@@ -314,7 +319,9 @@ class GroupedMediaAdapter(
 
         bindVideoOverlay(
             isVideo = skeleton.isVideo,
-            duration = mediaItem.getFormattedDuration(),
+            duration = VideoDurations.text(skeleton, mediaItem).also {
+                if (it.isEmpty() && skeleton.isVideo) onVideoDurationNeeded?.invoke(skeleton)
+            },
             playIcon = binding.playIcon,
             durationView = binding.durationTextView
         )

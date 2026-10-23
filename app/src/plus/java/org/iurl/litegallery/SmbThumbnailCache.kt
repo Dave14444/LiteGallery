@@ -64,16 +64,96 @@ object SmbThumbnailCache {
         val meta = SmbFileMetaCache.get(imageUrl)
             ?: throw IOException("File was not listed: $imageUrl")
 
-        val cacheFile = "$CACHE_DIR/${sha256("$imageUrl|${meta.size}|${meta.lastModified}|$CACHE_VERSION")}.jpg"
-        if (cacheFile.substringAfterLast('/') in knownCachedNames) return PrepareResult.ALREADY_THERE
+        val key = cacheKey(imageUrl, meta.size, meta.lastModified)
+        val thumbnailName = "$key.jpg"
+        val durationName = "$key.dur"
+        val isVideo = RemoteFileTypes.isVideo(imageUrl)
+        val hasThumbnail = thumbnailName in knownCachedNames
+        val hasDuration = !isVideo || durationName in knownCachedNames
+        if (hasThumbnail && hasDuration) return PrepareResult.ALREADY_THERE
 
         return synchronized(cacheLock) {
-            if (SmbClient.fileExists(context, path.host, path.share, cacheFile)) {
+            val thumbnailFile = "$CACHE_DIR/$thumbnailName"
+            val durationFile = "$CACHE_DIR/$durationName"
+            if (hasThumbnail || SmbClient.fileExists(context, path.host, path.share, thumbnailFile)) {
+                // Only the length of the video is missing.
+                if (isVideo && !hasDuration) {
+                    val milliseconds = readVideoDuration(context, imageUrl)
+                    if (milliseconds > 0L) writeDuration(context, path, durationFile, milliseconds)
+                }
                 PrepareResult.ALREADY_THERE
             } else {
-                val thumbnailBytes = createThumbnail(context, imageUrl, meta.size)
-                SmbClient.writeBytes(context, path.host, path.share, cacheFile, thumbnailBytes)
+                val created = createThumbnail(context, imageUrl, meta.size)
+                SmbClient.writeBytes(context, path.host, path.share, thumbnailFile, created.bytes)
+                if (created.durationMs > 0L) writeDuration(context, path, durationFile, created.durationMs)
                 PrepareResult.CREATED
+            }
+        }
+    }
+
+    /**
+     * Length of a video in milliseconds (0 if unknown). It is stored on the share next to the
+     * video's thumbnail, so a video is opened for this only once.
+     */
+    fun videoDuration(context: Context, videoUrl: String): Long {
+        val path = SmbPath.parse(videoUrl) ?: return 0L
+        val meta = SmbFileMetaCache.get(videoUrl) ?: return 0L
+        val durationFile = "$CACHE_DIR/${cacheKey(videoUrl, meta.size, meta.lastModified)}.dur"
+
+        readDuration(context, path, durationFile)?.let { return it }
+
+        return synchronized(cacheLock) {
+            readDuration(context, path, durationFile) ?: run {
+                val milliseconds = readVideoDuration(context, videoUrl)
+                if (milliseconds > 0L) writeDuration(context, path, durationFile, milliseconds)
+                milliseconds
+            }
+        }
+    }
+
+    private fun cacheKey(url: String, fileSize: Long, lastModified: Long): String =
+        sha256("$url|$fileSize|$lastModified|$CACHE_VERSION")
+
+    private fun readDuration(context: Context, path: SmbPath, durationFile: String): Long? {
+        if (!SmbClient.fileExists(context, path.host, path.share, durationFile)) return null
+        return try {
+            SmbClient.openInputStream(context, path.host, path.share, durationFile).use { stream ->
+                stream.readBytes().toString(Charsets.UTF_8).trim().toLongOrNull()
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun writeDuration(context: Context, path: SmbPath, durationFile: String, milliseconds: Long) {
+        try {
+            SmbClient.writeBytes(
+                context, path.host, path.share, durationFile,
+                milliseconds.toString().toByteArray(Charsets.UTF_8)
+            )
+        } catch (e: Exception) {
+            android.util.Log.w("SmbThumbnailCache", "Could not store the video length", e)
+        }
+    }
+
+    /** Reads only the length from the video file (the decoder asks for a few blocks). */
+    private fun readVideoDuration(context: Context, videoUrl: String): Long {
+        val client = RemoteClients.forUrl(videoUrl) ?: return 0L
+        val file = client.openRandomAccess(context, videoUrl)
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(BufferedRemoteDataSource(file))
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        } catch (e: Exception) {
+            0L
+        } finally {
+            try {
+                retriever.release()
+            } catch (_: Exception) {
+            }
+            try {
+                file.close()
+            } catch (_: Exception) {
             }
         }
     }
@@ -107,19 +187,27 @@ object SmbThumbnailCache {
             // Not cached yet (or unreadable cache entry): generate it below.
         }
 
-        val thumbnailBytes = createThumbnail(context, imageUrl, fileSize)
+        val created = createThumbnail(context, imageUrl, fileSize)
         try {
-            SmbClient.writeBytes(context, path.host, path.share, cacheFile, thumbnailBytes)
+            SmbClient.writeBytes(context, path.host, path.share, cacheFile, created.bytes)
+            if (created.durationMs > 0L) {
+                writeDuration(context, path, cacheFile.removeSuffix(".jpg") + ".dur", created.durationMs)
+            }
         } catch (e: Exception) {
             // Still display the generated thumbnail even if saving it failed.
             android.util.Log.e("SmbThumbnailCache", "Could not save thumbnail to SMB cache: $cachePath", e)
         }
-        return ByteArrayInputStream(thumbnailBytes)
+        return ByteArrayInputStream(created.bytes)
     }
 
-    private fun createThumbnail(context: Context, imageUrl: String, fileSize: Long): ByteArray {
+    private class Created(val bytes: ByteArray, val durationMs: Long)
+
+    private fun createThumbnail(context: Context, imageUrl: String, fileSize: Long): Created {
+        var durationMs = 0L
         val source = if (RemoteFileTypes.isVideo(imageUrl)) {
-            decodeVideoFrame(context, imageUrl)
+            val frame = decodeVideoFrame(context, imageUrl)
+            durationMs = frame.durationMs
+            frame.bitmap
         } else {
             decodeImage(context, imageUrl, fileSize)
         }
@@ -127,7 +215,7 @@ object SmbThumbnailCache {
         val thumbnail = centerCrop(source, THUMB_SIZE)
         if (thumbnail !== source) source.recycle()
 
-        return try {
+        val bytes = try {
             ByteArrayOutputStream().use { output ->
                 thumbnail.compress(Bitmap.CompressFormat.JPEG, 85, output)
                 output.toByteArray()
@@ -135,6 +223,7 @@ object SmbThumbnailCache {
         } finally {
             thumbnail.recycle()
         }
+        return Created(bytes, durationMs)
     }
 
     /** Decodes an image, scaled down and rotated according to its EXIF orientation. */
@@ -183,7 +272,9 @@ object SmbThumbnailCache {
      * Grabs one frame of a video. Only the parts of the file the decoder asks for are read
      * over the network, not the whole video.
      */
-    private fun decodeVideoFrame(context: Context, videoUrl: String): Bitmap {
+    private class VideoFrame(val bitmap: Bitmap, val durationMs: Long)
+
+    private fun decodeVideoFrame(context: Context, videoUrl: String): VideoFrame {
         val client = RemoteClients.forUrl(videoUrl)
             ?: throw IllegalArgumentException("No remote client for $videoUrl")
 
@@ -191,11 +282,14 @@ object SmbThumbnailCache {
         val retriever = MediaMetadataRetriever()
         try {
             retriever.setDataSource(BufferedRemoteDataSource(file))
-            return retriever.getFrameAtTime(
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull() ?: 0L
+            val frame = retriever.getFrameAtTime(
                 VIDEO_FRAME_TIME_US,
                 MediaMetadataRetriever.OPTION_CLOSEST_SYNC
             ) ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                 ?: throw IllegalStateException("No video frame available for $videoUrl")
+            return VideoFrame(frame, durationMs)
         } finally {
             try {
                 retriever.release()

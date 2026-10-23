@@ -658,7 +658,8 @@ class FolderViewActivity : AppCompatActivity() {
             },
             onMediaLongClick = { mediaItem, _ -> toggleSelection(mediaItem) },
             isItemSelected = { mediaItem -> mediaItem.path in selectedPaths },
-            onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem
+            onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem,
+            onVideoDurationNeeded = ::requestVideoDuration
         )
         groupedMediaAdapter = GroupedMediaAdapter(
             onMediaClick = { mediaItem, mediaIndex ->
@@ -670,7 +671,8 @@ class FolderViewActivity : AppCompatActivity() {
             },
             onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem,
             onMediaLongClick = { mediaItem, _ -> toggleSelection(mediaItem) },
-            isItemSelected = { mediaItem -> mediaItem.path in selectedPaths }
+            isItemSelected = { mediaItem -> mediaItem.path in selectedPaths },
+            onVideoDurationNeeded = ::requestVideoDuration
         )
 
         binding.recyclerView.apply {
@@ -848,6 +850,31 @@ return mutableListOf(thumbnailModel)
             applyDisplayTransform(scrollToTop = false, bypassDiff = true)
         }
         return true
+    }
+
+    /** Finds the length of a video for the duration label (phone: from the file, share: cached). */
+    private fun requestVideoDuration(skeleton: MediaItemSkeleton) {
+        if (!VideoDurations.beginLoading(skeleton.path)) return
+        lifecycleScope.launch {
+            val milliseconds = VideoDurations.load(applicationContext, skeleton.path)
+            if (milliseconds > 0L) notifyDurationLoaded(skeleton.path)
+        }
+    }
+
+    private fun notifyDurationLoaded(path: String) {
+        if (binding.recyclerView.adapter == groupedMediaAdapter) {
+            val adapterPos = groupedMediaAdapter.currentList.indexOfFirst {
+                it is FolderDisplayItem.Media && it.skeleton.path == path
+            }
+            if (adapterPos >= 0) {
+                groupedMediaAdapter.notifyItemChanged(adapterPos, MediaAdapter.PAYLOAD_META_LOADED)
+            }
+        } else {
+            val adapterPos = mediaAdapter.currentList.indexOfFirst { it.path == path }
+            if (adapterPos >= 0) {
+                mediaAdapter.notifyItemChanged(adapterPos, MediaAdapter.PAYLOAD_META_LOADED)
+            }
+        }
     }
 
     private fun notifyMetadataLoaded(item: MediaItem) {

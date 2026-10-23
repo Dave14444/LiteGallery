@@ -91,6 +91,9 @@ suspend fun copyToCache(
     /** Modification time of [path] in epoch milliseconds, or 0 if unknown. */
     fun lastModified(context: Context, path: String): Long = 0L
 
+    /** Length of the video at [path] in milliseconds, or 0 if it cannot be determined. */
+    fun videoDurationMs(context: Context, path: String): Long = 0L
+
     /**
      * Creates a new file in [folderPath] from [input]. A name that is already taken is made
      * unique ("name (1).jpg"). The new file gets [lastModified] as modification time (if > 0).

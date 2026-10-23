@@ -167,6 +167,9 @@ override suspend fun copyToCache(
         return modified.coerceAtLeast(0L)
     }
 
+    override fun videoDurationMs(context: Context, path: String): Long =
+        SmbThumbnailCache.videoDuration(context, path)
+
     override fun writeNew(
         context: Context,
         folderPath: String,
