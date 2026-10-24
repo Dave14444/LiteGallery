@@ -490,6 +490,11 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.editButton.setOnClickListener {
             editCurrent()
         }
+
+        binding.exifButton.setOnClickListener {
+            val item = getCurrentMediaItem() ?: return@setOnClickListener
+            ExifDialog.show(this, item.path, item.name, item.size, item.dateModified)
+        }
         
         binding.renameButton.setOnClickListener {
             showRenameDialog()
@@ -551,6 +556,35 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun applyActionBarCustomization() {
         val prefs = getSharedPreferences(ActionBarPreferences.PREFS_NAME, MODE_PRIVATE)
         val defaultOrder = ActionBarPreferences.DEFAULT_ACTION_ORDER
+
+        // Migrate existing installations: the EXIF action appears between Edit and Rename.
+        if (!prefs.getBoolean("exif_action_migrated", false)) {
+            val editor = prefs.edit()
+
+            prefs.getString(ActionBarPreferences.KEY_ORDER, null)?.let { stored ->
+                val keys = stored.split(',').filter { it.isNotBlank() }.toMutableList()
+                if (!keys.contains("exif")) {
+                    val editIndex = keys.indexOf("edit")
+                    val renameIndex = keys.indexOf("rename")
+                    val insertAt = when {
+                        editIndex >= 0 -> editIndex + 1
+                        renameIndex >= 0 -> renameIndex
+                        else -> keys.size
+                    }
+                    keys.add(insertAt, "exif")
+                    editor.putString(ActionBarPreferences.KEY_ORDER, keys.joinToString(","))
+                }
+            }
+            prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)?.let { stored ->
+                val keys = stored.split(',').filter { it.isNotBlank() }
+                if (!keys.contains("exif")) {
+                    editor.putString(ActionBarPreferences.KEY_VISIBLE, (keys + "exif").joinToString(","))
+                }
+            }
+
+            editor.putBoolean("exif_action_migrated", true).apply()
+        }
+
         val order = (
     prefs.getString(ActionBarPreferences.KEY_ORDER, null)
         ?.split(',')
@@ -620,6 +654,7 @@ val visible = (
         map["delete"] = binding.deleteButton
         map["share"] = binding.shareButton
         map["edit"] = binding.editButton
+        map["exif"] = binding.exifButton
         map["rename"] = binding.renameButton
         map["rotate_screen"] = binding.rotateButton
         map["properties"] = binding.propertiesButton

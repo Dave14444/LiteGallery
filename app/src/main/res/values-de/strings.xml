@@ -593,5 +593,32 @@
     <string name="backup_pair_exists">Dieses Ordnerpaar ist schon in der Liste</string>
     <string name="backup_nothing_chosen">Bitte hake mindestens ein Ordnerpaar an</string>
     <string name="backup_nothing_to_move">Nichts zu verschieben: In den gewählten Ordnern ist höchstens das neueste Foto oder Video übrig.</string>
+    <string name="exif_title">EXIF-Daten</string>
+    <string name="exif_loading">Lese EXIF-Daten…</string>
+    <string name="exif_none">Diese Datei enthält keine EXIF-Daten.</string>
+    <string name="exif_failed">Die EXIF-Daten konnten nicht gelesen werden</string>
+    <string name="exif_open_map">Auf Karte zeigen</string>
+    <string name="exif_file_name">Datei</string>
+    <string name="exif_file_size">Größe</string>
+    <string name="exif_file_modified">Geändert</string>
+    <string name="exif_dimensions">Abmessungen</string>
+    <string name="exif_date_taken">Aufgenommen</string>
+    <string name="exif_camera">Kamera</string>
+    <string name="exif_lens">Objektiv</string>
+    <string name="exif_software">Software</string>
+    <string name="exif_exposure">Belichtungszeit</string>
+    <string name="exif_aperture">Blende</string>
+    <string name="exif_iso">ISO</string>
+    <string name="exif_focal_length">Brennweite</string>
+    <string name="exif_focal_with_35mm">%1$s (Kleinbild-Äquivalent: %2$d mm)</string>
+    <string name="exif_exposure_bias">Belichtungskorrektur</string>
+    <string name="exif_flash">Blitz</string>
+    <string name="exif_flash_fired">Ausgelöst</string>
+    <string name="exif_flash_off">Nicht ausgelöst</string>
+    <string name="exif_white_balance">Weißabgleich</string>
+    <string name="exif_wb_auto">Automatisch</string>
+    <string name="exif_wb_manual">Manuell</string>
+    <string name="exif_location">Ort</string>
+    <string name="exif_altitude">Höhe</string>
 </resources>
 

@@ -110,6 +110,7 @@ class FolderViewActivity : AppCompatActivity() {
 
     private val selectedPaths = LinkedHashSet<String>()
     private var shareMenuItem: MenuItem? = null
+    private var exifMenuItem: MenuItem? = null
     private var copyMenuItem: MenuItem? = null
     private var moveMenuItem: MenuItem? = null
     private var deleteMenuItem: MenuItem? = null
@@ -223,6 +224,7 @@ class FolderViewActivity : AppCompatActivity() {
         sortMenuItem = menu.findItem(R.id.action_sort)
         searchMenuItem = menu.findItem(R.id.action_search)
         shareMenuItem = menu.findItem(R.id.action_share_selection)
+        exifMenuItem = menu.findItem(R.id.action_exif_selection)
         copyMenuItem = menu.findItem(R.id.action_copy_selection)
         moveMenuItem = menu.findItem(R.id.action_move_selection)
         deleteMenuItem = menu.findItem(R.id.action_delete_selection)
@@ -237,6 +239,12 @@ class FolderViewActivity : AppCompatActivity() {
         return when (item.itemId) {
             android.R.id.home -> {
                 if (selectedPaths.isNotEmpty()) clearSelection() else finish()
+                true
+            }
+            R.id.action_exif_selection -> {
+                selectedItems().firstOrNull()?.let {
+                    ExifDialog.show(this, it.path, it.name, it.size, it.dateModified)
+                }
                 true
             }
             R.id.action_share_selection -> {
@@ -317,6 +325,8 @@ class FolderViewActivity : AppCompatActivity() {
             ""
         }
         shareMenuItem?.isVisible = selecting
+        // EXIF data of exactly one selected picture.
+        exifMenuItem?.isVisible = selectedPaths.size == 1 && selectedItems().firstOrNull()?.isVideo == false
         copyMenuItem?.isVisible = selecting
         moveMenuItem?.isVisible = selecting
         deleteMenuItem?.isVisible = selecting
