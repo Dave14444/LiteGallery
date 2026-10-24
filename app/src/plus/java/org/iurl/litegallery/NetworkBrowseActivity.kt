@@ -54,6 +54,8 @@ class NetworkBrowseActivity : AppCompatActivity() {
     private var isLoading = false
     private var currentPackKey: String? = null
     private var summaryJob: Job? = null
+    /** Scroll position (first visible item, offset) of the folders left behind, by folder URL. */
+    private val scrollPositions = HashMap<String, IntArray>()
     private var launchedWithPath = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -562,10 +564,20 @@ onBackPressedDispatcher.addCallback(
         return null
     }
 
-    private fun navigateTo(address: String) {
+    private fun navigateTo(address: String, restoreScroll: Boolean = false) {
         if (isLoading) return
         val previousPath = currentPath
         summaryJob?.cancel()
+
+        // Remember where the folder we leave was scrolled to. Going back up (or refreshing)
+        // returns to that place; entering a folder anew starts at the top.
+        rememberScrollPosition(previousPath)
+        val scrollTarget = if (restoreScroll || address == previousPath) {
+            scrollPositions[address]
+        } else {
+            scrollPositions.remove(address)
+            null
+        }
 
         if (!binding.swipeRefreshLayout.isRefreshing) {
             binding.progressBar.visibility = View.VISIBLE
@@ -598,7 +610,7 @@ onBackPressedDispatcher.addCallback(
                 if (media.isEmpty() && rawFiles.isNotEmpty()) {
                     showFolder(address)
                     showListMode()
-                    fileListAdapter.submitList(folders + rawFiles)
+                    fileListAdapter.submitList(folders + rawFiles) { applyScrollPosition(scrollTarget) }
                     binding.recyclerView.visibility = View.VISIBLE
                     binding.emptyView.visibility = View.GONE
                     return@launch
@@ -612,7 +624,7 @@ onBackPressedDispatcher.addCallback(
                     binding.emptyView.visibility = View.VISIBLE
                     binding.recyclerView.visibility = View.GONE
                 } else {
-                    browseAdapter.submitList(cards)
+                    browseAdapter.submitList(cards) { applyScrollPosition(scrollTarget) }
                     binding.recyclerView.visibility = View.VISIBLE
                     binding.emptyView.visibility = View.GONE
                     loadSummaries(folders)
@@ -783,7 +795,22 @@ onBackPressedDispatcher.addCallback(
             NfsPath.isNfs(currentPath) -> nfsParentOrNull(currentPath)
             else -> null
         }
-        if (parent == null) goHome() else navigateTo(parent)
+        if (parent == null) goHome() else navigateTo(parent, restoreScroll = true)
+    }
+
+    private fun rememberScrollPosition(path: String) {
+        if (path.isBlank()) return
+        val manager = binding.recyclerView.layoutManager as? LinearLayoutManager ?: return
+        val position = manager.findFirstVisibleItemPosition()
+        if (position < 0) return
+        val offset = manager.findViewByPosition(position)?.top ?: 0
+        scrollPositions[path] = intArrayOf(position, offset)
+    }
+
+    private fun applyScrollPosition(target: IntArray?) {
+        if (target == null) return
+        (binding.recyclerView.layoutManager as? LinearLayoutManager)
+            ?.scrollToPositionWithOffset(target[0], target[1])
     }
 
     /** Parent URL of an NFS folder, or null when at (or above) the saved export root. */
