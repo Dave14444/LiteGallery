@@ -419,11 +419,23 @@ onBackPressedDispatcher.addCallback(
         }
 
         showCardMode()
+
+        // Cards are updated in place when covers and counts arrive: no fade animation.
+        (binding.recyclerView.itemAnimator as? androidx.recyclerview.widget.SimpleItemAnimator)
+            ?.supportsChangeAnimations = false
+    }
+
+    /** A visible list that is about to change its adapter is hidden; the next list shows it again. */
+    private fun hideUntilNextList() {
+        if (binding.recyclerView.visibility == View.VISIBLE) {
+            binding.recyclerView.visibility = View.INVISIBLE
+        }
     }
 
     /** Folders as cards, like on the home screen. */
     private fun showCardMode() {
         if (binding.recyclerView.adapter === browseAdapter) return
+        hideUntilNextList()
         binding.recyclerView.layoutManager = GridLayoutManager(this, 2)
         binding.recyclerView.adapter = browseAdapter
     }
@@ -431,6 +443,7 @@ onBackPressedDispatcher.addCallback(
     /** Folders and files as a plain list of names (for folders with RAW files). */
     private fun showListMode() {
         if (binding.recyclerView.adapter === fileListAdapter) return
+        hideUntilNextList()
         binding.recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
         binding.recyclerView.adapter = fileListAdapter
     }
@@ -580,9 +593,9 @@ onBackPressedDispatcher.addCallback(
         }
 
         if (!binding.swipeRefreshLayout.isRefreshing) {
+            // The list stays as it is until the new one is ready: no blank flash in between.
             binding.progressBar.visibility = View.VISIBLE
             binding.emptyView.visibility = View.GONE
-            binding.recyclerView.visibility = View.GONE
         }
 
         isLoading = true
@@ -610,9 +623,11 @@ onBackPressedDispatcher.addCallback(
                 if (media.isEmpty() && rawFiles.isNotEmpty()) {
                     showFolder(address)
                     showListMode()
-                    fileListAdapter.submitList(folders + rawFiles) { applyScrollPosition(scrollTarget) }
-                    binding.recyclerView.visibility = View.VISIBLE
                     binding.emptyView.visibility = View.GONE
+                    fileListAdapter.submitList(folders + rawFiles) {
+                        applyScrollPosition(scrollTarget)
+                        binding.recyclerView.visibility = View.VISIBLE
+                    }
                     return@launch
                 }
 
@@ -624,9 +639,11 @@ onBackPressedDispatcher.addCallback(
                     binding.emptyView.visibility = View.VISIBLE
                     binding.recyclerView.visibility = View.GONE
                 } else {
-                    browseAdapter.submitList(cards) { applyScrollPosition(scrollTarget) }
-                    binding.recyclerView.visibility = View.VISIBLE
                     binding.emptyView.visibility = View.GONE
+                    browseAdapter.submitList(cards) {
+                        applyScrollPosition(scrollTarget)
+                        binding.recyclerView.visibility = View.VISIBLE
+                    }
                     loadSummaries(folders)
                 }
             } catch (e: Exception) {
