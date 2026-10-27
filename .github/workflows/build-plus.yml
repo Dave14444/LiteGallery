@@ -3,6 +3,14 @@ name: Build LiteGallery Plus
 
 on:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: "Release (smaller, takes longer) or Debug (faster to build)"
+        type: choice
+        options:
+          - Release
+          - Debug
+        default: Release
 
 permissions:
   contents: read
@@ -32,7 +40,7 @@ jobs:
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/litegallery-upload.jks"
           test -s "$RUNNER_TEMP/litegallery-upload.jks"
 
-      - name: Build signed Plus release APK
+      - name: Build signed Plus APK
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/litegallery-upload.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -40,13 +48,13 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
-          ./gradlew assemblePlusRelease
+          ./gradlew assemblePlus${{ inputs.build_type }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
         with:
           name: LiteGallery-Plus-APK
-          path: app/build/outputs/apk/plus/release/*.apk
+          path: app/build/outputs/apk/plus/*/*.apk
           if-no-files-found: error
 
       # Runs after the APK is uploaded: a failing test turns the run red, but the APK is still
