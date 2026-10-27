@@ -30,6 +30,8 @@ object PasswordCipher {
     /** The encrypted form of [plain] (empty stays empty), or null if encrypting failed. */
     fun encrypt(plain: String): String? {
         if (plain.isEmpty()) return ""
+        // Test builds can switch the encryption off (see build.gradle); null means "not encrypted".
+        if (!BuildConfig.ENCRYPT_PASSWORDS) return null
         return try {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.ENCRYPT_MODE, keyProvider())
@@ -47,6 +49,7 @@ object PasswordCipher {
      */
     fun decrypt(encoded: String): String? {
         if (encoded.isEmpty()) return ""
+        if (!BuildConfig.ENCRYPT_PASSWORDS) return null
         return try {
             val bytes = Base64.decode(encoded, Base64.NO_WRAP)
             if (bytes.size <= IV_BYTES) return null
