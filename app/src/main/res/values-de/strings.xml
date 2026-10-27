@@ -385,8 +385,6 @@
     <string name="language_title">Sprache</string>
     <string name="language_summary">Sprache der App auswählen</string>
     <string name="language_english">Englisch</string>
-    <string name="language_traditional_chinese">Traditionelles Chinesisch</string>
-    <string name="language_simplified_chinese">Vereinfachtes Chinesisch</string>
     <string name="language_system_default">Systemsprache verwenden</string>
     <string name="language_german">Deutsch</string>
 

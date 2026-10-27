@@ -26,20 +26,27 @@ object FileOperationDialogs {
      *
      * The dialog has a Cancel button: [work] then stops after the current file, see
      * [OperationCancel].
+     *
+     * [progressTextRes] is an optional string with the placeholders %1$d (done) and %2$d (total)
+     * instead of "done / total". With [reportResult] false the caller reports the outcome.
      */
     fun runWithProgress(
         activity: AppCompatActivity,
         titleRes: Int,
         total: Int,
         work: (onProgress: (done: Int, total: Int) -> Unit) -> FileTransfer.Result,
-        onDone: (FileTransfer.Result) -> Unit
+        onDone: (FileTransfer.Result) -> Unit,
+        progressTextRes: Int = 0,
+        reportResult: Boolean = true
     ) {
         val appContext = activity.applicationContext
         OperationCancel.reset()
+        fun progressText(done: Int, all: Int): String =
+            if (progressTextRes != 0) appContext.getString(progressTextRes, done, all) else "$done / $all"
 
         val dialog = AlertDialog.Builder(activity)
             .setTitle(titleRes)
-            .setMessage("0 / $total")
+            .setMessage(progressText(0, total))
             .setCancelable(false)
             .setNegativeButton(R.string.cancel, null)
             .create()
@@ -58,7 +65,7 @@ object FileOperationDialogs {
                 work { done, all ->
                     activity.runOnUiThread {
                         if (dialog.isShowing && !OperationCancel.isRequested()) {
-                            dialog.setMessage("$done / $all")
+                            dialog.setMessage(progressText(done, all))
                         }
                     }
                 }
@@ -70,7 +77,7 @@ object FileOperationDialogs {
                 } catch (_: Exception) {
                 }
             }
-            showResult(appContext, activity.takeIf { alive }, result)
+            if (reportResult) showResult(appContext, activity.takeIf { alive }, result)
             if (alive) onDone(result)
         }
     }

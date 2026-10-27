@@ -11,4 +11,9 @@
         android:id="@+id/action_prepare_thumbnails"
         android:title="@string/thumb_prepare_menu"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_cleanup_thumbnails"
+        android:title="@string/thumb_cleanup_menu"
+        app:showAsAction="never" />
 </menu>

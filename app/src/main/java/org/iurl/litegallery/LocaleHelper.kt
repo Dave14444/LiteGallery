@@ -11,8 +11,6 @@ object LocaleHelper {
 
     const val LANGUAGE_SYSTEM = "system"
     const val LANGUAGE_ENGLISH = "en"
-    const val LANGUAGE_TRADITIONAL_CHINESE = "zh_TW"
-    const val LANGUAGE_SIMPLIFIED_CHINESE = "zh_CN"
     const val LANGUAGE_GERMAN = "de"
 
     /**
@@ -20,8 +18,7 @@ object LocaleHelper {
      */
     fun applyLocale(context: Context) {
         val preferences = PreferenceManager.getDefaultSharedPreferences(context)
-        val language = preferences.getString(LANGUAGE_PREFERENCE_KEY, LANGUAGE_SYSTEM)
-            ?: LANGUAGE_SYSTEM
+        val language = getCurrentLanguage(context)
 
         if (language == LANGUAGE_SYSTEM) {
             AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
@@ -36,8 +33,10 @@ object LocaleHelper {
      */
     fun getCurrentLanguage(context: Context): String {
         val preferences = PreferenceManager.getDefaultSharedPreferences(context)
-        return preferences.getString(LANGUAGE_PREFERENCE_KEY, LANGUAGE_SYSTEM)
-            ?: LANGUAGE_SYSTEM
+        val saved = preferences.getString(LANGUAGE_PREFERENCE_KEY, LANGUAGE_SYSTEM)
+        // Only English and German are offered. A language chosen in an older version (e.g.
+        // Chinese) falls back to the system language.
+        return if (saved == LANGUAGE_ENGLISH || saved == LANGUAGE_GERMAN) saved else LANGUAGE_SYSTEM
     }
 
     /**
@@ -56,8 +55,6 @@ object LocaleHelper {
     fun getLanguageDisplayName(context: Context, language: String): String {
         return when (language) {
             LANGUAGE_ENGLISH -> context.getString(R.string.language_english)
-            LANGUAGE_TRADITIONAL_CHINESE -> context.getString(R.string.language_traditional_chinese)
-            LANGUAGE_SIMPLIFIED_CHINESE -> context.getString(R.string.language_simplified_chinese)
             LANGUAGE_GERMAN -> context.getString(R.string.language_german)
             else -> context.getString(R.string.language_system_default)
         }
@@ -69,8 +66,6 @@ object LocaleHelper {
     private fun getLocaleFromLanguageCode(language: String): LocaleListCompat {
         return when (language) {
             LANGUAGE_ENGLISH -> LocaleListCompat.forLanguageTags("en")
-            LANGUAGE_TRADITIONAL_CHINESE -> LocaleListCompat.forLanguageTags("zh-TW")
-            LANGUAGE_SIMPLIFIED_CHINESE -> LocaleListCompat.forLanguageTags("zh-CN")
             LANGUAGE_GERMAN -> LocaleListCompat.forLanguageTags("de") 
             else -> LocaleListCompat.getEmptyLocaleList()
         }

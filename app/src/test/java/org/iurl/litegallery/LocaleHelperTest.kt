@@ -35,9 +35,19 @@ class LocaleHelperTest {
 
     @Test
     fun setLanguage_persistsSelectedLanguage() {
-        LocaleHelper.setLanguage(context, LocaleHelper.LANGUAGE_TRADITIONAL_CHINESE)
+        LocaleHelper.setLanguage(context, LocaleHelper.LANGUAGE_GERMAN)
 
-        assertEquals(LocaleHelper.LANGUAGE_TRADITIONAL_CHINESE, LocaleHelper.getCurrentLanguage(context))
+        assertEquals(LocaleHelper.LANGUAGE_GERMAN, LocaleHelper.getCurrentLanguage(context))
+    }
+
+    @Test
+    fun getCurrentLanguage_fallsBackToSystemForLanguagesThatWereRemoved() {
+        // Chinese was offered by older versions.
+        LocaleHelper.setLanguage(context, "zh_TW")
+        assertEquals(LocaleHelper.LANGUAGE_SYSTEM, LocaleHelper.getCurrentLanguage(context))
+
+        LocaleHelper.setLanguage(context, "zh_CN")
+        assertEquals(LocaleHelper.LANGUAGE_SYSTEM, LocaleHelper.getCurrentLanguage(context))
     }
 
     @Test
@@ -47,12 +57,8 @@ class LocaleHelperTest {
             LocaleHelper.getLanguageDisplayName(context, LocaleHelper.LANGUAGE_ENGLISH)
         )
         assertEquals(
-            context.getString(R.string.language_traditional_chinese),
-            LocaleHelper.getLanguageDisplayName(context, LocaleHelper.LANGUAGE_TRADITIONAL_CHINESE)
-        )
-        assertEquals(
-            context.getString(R.string.language_simplified_chinese),
-            LocaleHelper.getLanguageDisplayName(context, LocaleHelper.LANGUAGE_SIMPLIFIED_CHINESE)
+            context.getString(R.string.language_german),
+            LocaleHelper.getLanguageDisplayName(context, LocaleHelper.LANGUAGE_GERMAN)
         )
         assertEquals(
             context.getString(R.string.language_system_default),
@@ -65,8 +71,7 @@ class LocaleHelperTest {
         listOf(
             LocaleHelper.LANGUAGE_SYSTEM,
             LocaleHelper.LANGUAGE_ENGLISH,
-            LocaleHelper.LANGUAGE_TRADITIONAL_CHINESE,
-            LocaleHelper.LANGUAGE_SIMPLIFIED_CHINESE
+            LocaleHelper.LANGUAGE_GERMAN
         ).forEach { language ->
             LocaleHelper.setLanguage(context, language)
 

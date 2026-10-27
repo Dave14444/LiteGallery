@@ -740,4 +740,23 @@ class SettingsExportImportHelperTest {
             .firstOrNull { it.exists() }
             ?: error("Could not locate $relativePath from $userDir")
     }
+
+    @Test
+    fun export_neverContainsSavedNetworkServersOrTheirPasswords() {
+        context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
+            .edit()
+            .putString(
+                "servers_json",
+                """[{"id":"a","host":"nas.local","username":"u","password":"geheim-4711","passwordEnc":"QUJDREVGR0hJSktMTU5PUA=="}]"""
+            )
+            .commit()
+
+        val output = ByteArrayOutputStream()
+        assertTrue(helper.exportSettings(output))
+        val text = output.toString(Charsets.UTF_8.name())
+
+        assertFalse(text.contains("geheim-4711"))
+        assertFalse(text.contains("QUJDREVGR0hJSktMTU5PUA"))
+        assertFalse(text.contains("nas.local"))
+    }
 }

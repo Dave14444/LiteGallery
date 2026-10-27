@@ -8,6 +8,13 @@
     <string name="smb_cover_failed">Dieses Bild konnte nicht verwendet werden</string>
     <string name="network_trash_scope_note">Papierkorb der Freigabe %s. Jedes Gerät, das diese Freigabe nutzt, sieht ihn.</string>
     <string name="network_trash_restoring">Stelle wieder her…</string>
+    <string name="thumb_cleanup_menu">Vorschaubilder aufräumen</string>
+    <string name="thumb_cleanup_confirm">Durchsucht das ganze Netzlaufwerk nach Vorschaubildern, die nicht mehr gebraucht werden (von gelöschten, umbenannten oder geänderten Dateien oder von einer älteren App-Version), und fragt dann, ob sie gelöscht werden sollen. Vorschaubilder vorhandener Dateien bleiben erhalten. Deine Bilder und Videos werden nicht angefasst.</string>
+    <string name="thumb_cleanup_scanning">Suche…</string>
+    <string name="thumb_cleanup_scan_progress">%1$d Ordner durchsucht</string>
+    <string name="thumb_cleanup_failed">Das Netzlaufwerk konnte nicht vollständig gelesen werden. Es wurde nichts gelöscht.</string>
+    <string name="thumb_cleanup_nothing">Keine ungenutzten Vorschaubilder gefunden</string>
+    <string name="thumb_cleanup_found">%1$d ungenutzte Vorschaudatei(en) gefunden (%2$s). Löschen?</string>
     <string name="thumb_prepare_menu">Vorschaubilder vorbereiten</string>
     <string name="thumb_prepare_title">Bereite Vorschaubilder vor</string>
     <string name="thumb_prepare_confirm">Vorschaubilder für alle Fotos und Videos in „%s“ und allen Unterordnern jetzt erzeugen? Das kann dauern und liest jede Datei einmal über das Netzwerk. Danach liegen die Vorschaubilder auf der Freigabe und erscheinen schnell, auch bei langsamer Verbindung.</string>

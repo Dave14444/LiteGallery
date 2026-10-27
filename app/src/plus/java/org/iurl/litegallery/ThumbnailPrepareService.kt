@@ -28,7 +28,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -45,6 +48,9 @@ class ThumbnailPrepareService : Service() {
         private const val ACTION_STOP = "org.iurl.litegallery.action.STOP_PREPARE_THUMBNAILS"
         private const val EXTRA_FOLDER_URL = "folder_url"
         private const val EXTRA_LABEL = "label"
+
+        /** Pictures processed at the same time (see also SmbThumbnailCache.MAX_PARALLEL_CREATIONS). */
+        private const val PARALLEL_FILES = 3
 
         /** Android stops data-sync services after 6 hours; stop a little earlier ourselves. */
         private const val MAX_RUN_MS = 5L * 60L * 60L * 1000L + 30L * 60L * 1000L
@@ -122,53 +128,66 @@ class ThumbnailPrepareService : Service() {
 
     /** Returns (created, alreadyThere, failed). */
     private suspend fun prepareAll(folderUrl: String): Triple<Int, Int, Int> {
-        var created = 0
-        var alreadyThere = 0
-        var failed = 0
-        var checked = 0
+        val created = AtomicInteger()
+        val alreadyThere = AtomicInteger()
+        val failed = AtomicInteger()
+        val checked = AtomicInteger()
         val cachedNamesByShare = HashMap<String, Set<String>>()
         val queue = ArrayDeque<String>()
         queue.add(folderUrl)
 
-        while (queue.isNotEmpty()) {
-            currentCoroutineContext().ensureActive()
-            val folder = queue.removeFirst()
+        // Several pictures are processed at the same time: most of the time is spent waiting
+        // for the network, so this is much faster than one picture after the other.
+        val permits = Semaphore(PARALLEL_FILES)
 
-            val entries = try {
-                SmbFileClient.listFiles(applicationContext, folder)
-            } catch (e: Exception) {
-                android.util.Log.w("ThumbnailPrepare", "Could not list $folder", e)
-                failed++
-                continue
-            }
-            entries.filter { it.isDirectory }.forEach { queue.add(it.url) }
+        coroutineScope {
+            while (queue.isNotEmpty()) {
+                ensureActive()
+                val folder = queue.removeFirst()
 
-            val media = entries.filter { !it.isDirectory && it.isMedia }
-            if (media.isEmpty()) continue
-
-            val smb = SmbPath.parse(folder) ?: continue
-            val cachedNames = cachedNamesByShare.getOrPut("${smb.host}/${smb.share}") {
-                SmbThumbnailCache.listCachedNames(applicationContext, folder)
-            }
-
-            for (file in media) {
-                currentCoroutineContext().ensureActive()
-                try {
-                    when (SmbThumbnailCache.prepare(applicationContext, file.url, cachedNames)) {
-                        SmbThumbnailCache.PrepareResult.CREATED -> created++
-                        SmbThumbnailCache.PrepareResult.ALREADY_THERE -> alreadyThere++
-                    }
+                val entries = try {
+                    SmbFileClient.listFiles(applicationContext, folder)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    android.util.Log.w("ThumbnailPrepare", "No thumbnail for ${file.url}", e)
-                    failed++
+                    android.util.Log.w("ThumbnailPrepare", "Could not list $folder", e)
+                    failed.incrementAndGet()
+                    continue
                 }
-                checked++
-                if (checked % 5 == 0) updateNotification(checked, created)
+                entries.filter { it.isDirectory }.forEach { queue.add(it.url) }
+
+                val media = entries.filter { !it.isDirectory && it.isMedia }
+                if (media.isEmpty()) continue
+
+                val smb = SmbPath.parse(folder) ?: continue
+                val cachedNames = cachedNamesByShare.getOrPut("${smb.host}/${smb.share}") {
+                    SmbThumbnailCache.listCachedNames(applicationContext, folder)
+                }
+
+                for (file in media) {
+                    ensureActive()
+                    permits.acquire()
+                    launch(Dispatchers.IO) {
+                        try {
+                            when (SmbThumbnailCache.prepare(applicationContext, file.url, cachedNames)) {
+                                SmbThumbnailCache.PrepareResult.CREATED -> created.incrementAndGet()
+                                SmbThumbnailCache.PrepareResult.ALREADY_THERE -> alreadyThere.incrementAndGet()
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            android.util.Log.w("ThumbnailPrepare", "No thumbnail for ${file.url}", e)
+                            failed.incrementAndGet()
+                        } finally {
+                            permits.release()
+                        }
+                        val total = checked.incrementAndGet()
+                        if (total % 5 == 0) updateNotification(total, created.get())
+                    }
+                }
             }
         }
-        return Triple(created, alreadyThere, failed)
+        return Triple(created.get(), alreadyThere.get(), failed.get())
     }
 
     // ---------------------------------------------------------------- notifications

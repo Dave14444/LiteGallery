@@ -18,7 +18,7 @@ import java.security.MessageDigest
  */
 object SmbThumbnailCache {
 
-    private const val CACHE_DIR = ".LiteGalleryThumbnails"
+    internal const val CACHE_DIR = ".LiteGalleryThumbnails"
     private const val CACHE_VERSION = "thumb-v5"
     private const val THUMB_SIZE = 384
 
@@ -31,13 +31,34 @@ object SmbThumbnailCache {
     /** Images up to this size are downloaded once and decoded from memory. */
     private const val MAX_IN_MEMORY_SOURCE_BYTES = 48L * 1024 * 1024
 
-    private val cacheLock = Any()
+    /**
+     * At most this many thumbnails are made at the same time. Each one downloads a whole picture,
+     * so more would only slow the connection down and use up memory. Reading thumbnails that
+     * already exist is not limited by this.
+     */
+    private const val MAX_PARALLEL_CREATIONS = 3
 
-    fun openThumbnailStream(context: Context, imageUrl: String): InputStream {
-        return synchronized(cacheLock) {
-            openThumbnailStreamLocked(context, imageUrl)
+    private val creationPermits = java.util.concurrent.Semaphore(MAX_PARALLEL_CREATIONS)
+
+    // Two requests for the same thumbnail must not both create it. Different thumbnails are made
+    // in parallel: a fixed set of locks, picked by the thumbnail's key, keeps this simple.
+    private const val LOCK_STRIPES = 64
+    private val stripeLocks = Array(LOCK_STRIPES) { Any() }
+
+    private fun <T> withKeyLock(key: String, block: () -> T): T =
+        synchronized(stripeLocks[(key.hashCode() and Int.MAX_VALUE) % LOCK_STRIPES]) { block() }
+
+    private fun <T> limitedCreation(block: () -> T): T {
+        creationPermits.acquire()
+        try {
+            return block()
+        } finally {
+            creationPermits.release()
         }
     }
+
+    fun openThumbnailStream(context: Context, imageUrl: String): InputStream =
+        openThumbnailStreamImpl(context, imageUrl)
 
     enum class PrepareResult { CREATED, ALREADY_THERE }
 
@@ -72,18 +93,18 @@ object SmbThumbnailCache {
         val hasDuration = !isVideo || durationName in knownCachedNames
         if (hasThumbnail && hasDuration) return PrepareResult.ALREADY_THERE
 
-        return synchronized(cacheLock) {
+        return withKeyLock(key) {
             val thumbnailFile = "$CACHE_DIR/$thumbnailName"
             val durationFile = "$CACHE_DIR/$durationName"
             if (hasThumbnail || SmbClient.fileExists(context, path.host, path.share, thumbnailFile)) {
                 // Only the length of the video is missing.
                 if (isVideo && !hasDuration) {
-                    val milliseconds = readVideoDuration(context, imageUrl)
+                    val milliseconds = limitedCreation { readVideoDuration(context, imageUrl) }
                     if (milliseconds > 0L) writeDuration(context, path, durationFile, milliseconds)
                 }
                 PrepareResult.ALREADY_THERE
             } else {
-                val created = createThumbnail(context, imageUrl, meta.size)
+                val created = limitedCreation { createThumbnail(context, imageUrl, meta.size) }
                 SmbClient.writeBytes(context, path.host, path.share, thumbnailFile, created.bytes)
                 if (created.durationMs > 0L) writeDuration(context, path, durationFile, created.durationMs)
                 PrepareResult.CREATED
@@ -102,16 +123,17 @@ object SmbThumbnailCache {
 
         readDuration(context, path, durationFile)?.let { return it }
 
-        return synchronized(cacheLock) {
+        return withKeyLock(durationFile) {
             readDuration(context, path, durationFile) ?: run {
-                val milliseconds = readVideoDuration(context, videoUrl)
+                val milliseconds = limitedCreation { readVideoDuration(context, videoUrl) }
                 if (milliseconds > 0L) writeDuration(context, path, durationFile, milliseconds)
                 milliseconds
             }
         }
     }
 
-    private fun cacheKey(url: String, fileSize: Long, lastModified: Long): String =
+    /** Name of the thumbnail files of a picture: "<key>.jpg" (and "<key>.dur" for videos). */
+    internal fun cacheKey(url: String, fileSize: Long, lastModified: Long): String =
         sha256("$url|$fileSize|$lastModified|$CACHE_VERSION")
 
     private fun readDuration(context: Context, path: SmbPath, durationFile: String): Long? {
@@ -158,7 +180,7 @@ object SmbThumbnailCache {
         }
     }
 
-    private fun openThumbnailStreamLocked(context: Context, imageUrl: String): InputStream {
+    private fun openThumbnailStreamImpl(context: Context, imageUrl: String): InputStream {
         val path = SmbPath.parse(imageUrl)
             ?: return RemoteClients.forUrl(imageUrl)!!.openInputStream(context, imageUrl)
 
@@ -177,28 +199,52 @@ object SmbThumbnailCache {
             throw IOException("Could not read file information for $imageUrl")
         }
 
-        val cacheKey = sha256("$imageUrl|$fileSize|$lastModified|$CACHE_VERSION")
-        val cacheFile = "$CACHE_DIR/$cacheKey.jpg"
+        val key = cacheKey(imageUrl, fileSize, lastModified)
+        val cacheFile = "$CACHE_DIR/$key.jpg"
         val cachePath = SmbPath.toUrl(path.host, path.share, cacheFile)
 
+        // Fast path, no lock: most thumbnails exist already and only have to be read.
         try {
             return client.openInputStream(context, cachePath)
         } catch (_: Exception) {
             // Not cached yet (or unreadable cache entry): generate it below.
         }
 
-        val created = createThumbnail(context, imageUrl, fileSize)
-        try {
-            SmbClient.writeBytes(context, path.host, path.share, cacheFile, created.bytes)
-            if (created.durationMs > 0L) {
-                writeDuration(context, path, cacheFile.removeSuffix(".jpg") + ".dur", created.durationMs)
+        return withKeyLock(key) {
+            // Another request may have made it while this one was waiting.
+            if (SmbClient.fileExists(context, path.host, path.share, cacheFile)) {
+                try {
+                    return@withKeyLock client.openInputStream(context, cachePath)
+                } catch (_: Exception) {
+                    // Fall through and make it again.
+                }
             }
-        } catch (e: Exception) {
-            // Still display the generated thumbnail even if saving it failed.
-            android.util.Log.e("SmbThumbnailCache", "Could not save thumbnail to SMB cache: $cachePath", e)
+
+            val created = limitedCreation { createThumbnail(context, imageUrl, fileSize) }
+            try {
+                SmbClient.writeBytes(context, path.host, path.share, cacheFile, created.bytes)
+                if (created.durationMs > 0L) {
+                    writeDuration(context, path, "$CACHE_DIR/$key.dur", created.durationMs)
+                }
+            } catch (e: Exception) {
+                // Still display the generated thumbnail even if saving it failed.
+                android.util.Log.e("SmbThumbnailCache", "Could not save thumbnail to SMB cache: $cachePath", e)
+            }
+            ByteArrayInputStream(created.bytes)
         }
-        return ByteArrayInputStream(created.bytes)
     }
+
+    /**
+     * Which of the files in the thumbnail folder ([cachedNames]) no picture needs any more:
+     * the picture was deleted, renamed or changed, or the thumbnail is from an older version of
+     * the app. [validKeys] are the keys ([cacheKey]) of all pictures that exist now. Files that
+     * are not thumbnails or video lengths are never touched.
+     */
+    internal fun unusedNames(cachedNames: Collection<String>, validKeys: Set<String>): List<String> =
+        cachedNames.filter { name ->
+            (name.endsWith(".jpg") || name.endsWith(".dur")) &&
+                name.substringBeforeLast('.') !in validKeys
+        }
 
     private class Created(val bytes: ByteArray, val durationMs: Long)
 

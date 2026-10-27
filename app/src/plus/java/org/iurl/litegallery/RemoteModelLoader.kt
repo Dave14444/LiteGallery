@@ -64,7 +64,15 @@ class RemoteImageFetcher(
 
     private var inputStream: InputStream? = null
 
+    @Volatile
+    private var cancelled = false
+
     override fun loadData(priority: Priority, callback: DataFetcher.DataCallback<in InputStream>) {
+        // The picture scrolled out of view while waiting for a free thread: do not load it.
+        if (cancelled) {
+            callback.onLoadFailed(java.io.IOException("Cancelled"))
+            return
+        }
         try {
             val isThumbnail = url.startsWith("smbthumb://")
             val imageUrl = if (isThumbnail) url.removePrefix("smbthumb://") else url
@@ -104,7 +112,8 @@ class RemoteImageFetcher(
     }
 
     override fun cancel() {
-        // No-op: remote reads are synchronous
+        // A read that already started cannot be interrupted, but one that has not is skipped.
+        cancelled = true
     }
 
     override fun getDataClass(): Class<InputStream> = InputStream::class.java

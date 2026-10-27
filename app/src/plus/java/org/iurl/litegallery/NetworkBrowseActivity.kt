@@ -153,6 +153,10 @@ onBackPressedDispatcher.addCallback(
                 ThumbnailPreparer.start(this, currentPath, label)
                 true
             }
+            R.id.action_cleanup_thumbnails -> {
+                ThumbnailCleanup.start(this, currentPath)
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -166,6 +170,7 @@ onBackPressedDispatcher.addCallback(
         // The trash belongs to a share: offer it while a folder on an SMB share is open.
         menu.findItem(R.id.action_network_trash)?.isVisible = SmbPath.isSmb(currentPath)
         menu.findItem(R.id.action_prepare_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
+        menu.findItem(R.id.action_cleanup_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
         return super.onPrepareOptionsMenu(menu)
     }
 

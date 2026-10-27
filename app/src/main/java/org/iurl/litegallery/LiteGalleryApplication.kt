@@ -18,6 +18,9 @@ class LiteGalleryApplication : Application() {
 
         // Register any optional media sources for the current flavor (no-op in `core`).
         MediaSourceBootstrap.init(this)
+
+        // Remove leftovers of shares and edits that were never cleaned up.
+        TempFileCleaner.cleanUpInBackground(this)
     }
 
     override fun onTerminate() {

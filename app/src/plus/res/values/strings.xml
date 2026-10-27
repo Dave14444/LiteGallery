@@ -50,6 +50,13 @@
     <string name="smb_cover_failed">Could not use this picture</string>
     <string name="network_trash_scope_note">Trash of the network share %s. Every device that uses this share sees it.</string>
     <string name="network_trash_restoring">Restoring…</string>
+    <string name="thumb_cleanup_menu">Clean up previews</string>
+    <string name="thumb_cleanup_confirm">Searches the whole share for previews that are no longer needed (of deleted, renamed or changed files, or made by an older version of the app) and then asks whether to delete them. Previews of existing files stay. Your pictures and videos are not touched.</string>
+    <string name="thumb_cleanup_scanning">Searching…</string>
+    <string name="thumb_cleanup_scan_progress">%1$d folders searched</string>
+    <string name="thumb_cleanup_failed">The share could not be read completely. Nothing was deleted.</string>
+    <string name="thumb_cleanup_nothing">No unused previews found</string>
+    <string name="thumb_cleanup_found">%1$d unused preview file(s) found (%2$s). Delete them?</string>
     <string name="thumb_prepare_menu">Prepare previews</string>
     <string name="thumb_prepare_title">Preparing previews</string>
     <string name="thumb_prepare_confirm">Create the previews of all pictures and videos in “%s” and its sub folders now? This can take a while and reads each file once over the network. Afterwards the previews are on the share and show up quickly, even on a slow connection.</string>

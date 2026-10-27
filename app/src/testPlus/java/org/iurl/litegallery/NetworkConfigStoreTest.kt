@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -13,6 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import javax.crypto.spec.SecretKeySpec
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
@@ -20,15 +22,90 @@ class NetworkConfigStoreTest {
 
     private lateinit var context: Context
 
+    private val originalKeyProvider = PasswordCipher.keyProvider
+
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
+        // The Android Keystore does not exist in unit tests: use a fixed key instead.
+        PasswordCipher.keyProvider = { SecretKeySpec(ByteArray(32) { it.toByte() }, "AES") }
         clearStore()
     }
 
     @After
     fun tearDown() {
         clearStore()
+        PasswordCipher.keyProvider = originalKeyProvider
+    }
+
+    private fun storedJson(): String =
+        context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
+            .getString("servers_json", "") ?: ""
+
+    @Test
+    fun password_isNeverSavedAsPlainText() {
+        val saved = NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "", displayName = "NAS", host = "nas.local", share = "Photos",
+                username = "arthur", password = "sehr-geheim-123"
+            )
+        )
+
+        assertFalse(storedJson().contains("sehr-geheim-123"))
+        assertEquals("sehr-geheim-123", NetworkConfigStore.getServerById(context, saved.id)?.password)
+    }
+
+    @Test
+    fun password_survivesAFreshReadFromStorage() {
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(id = "a", displayName = "NAS", host = "nas.local", password = "pässwörd €")
+        )
+        // Same content, but a different text (a space at the end): the in-memory copy is not used.
+        val raw = storedJson() + " "
+        clearStore()
+        context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
+            .edit().putString("servers_json", raw).commit()
+
+        assertEquals("pässwörd €", NetworkConfigStore.getServerById(context, "a")?.password)
+    }
+
+    @Test
+    fun plainTextPasswordOfOlderVersions_isEncryptedOnFirstRead() {
+        context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
+            .edit()
+            .putString(
+                "servers_json",
+                """[{"id":"old","displayName":"NAS","host":"nas.local","share":"Photos",""" +
+                    """"path":"","port":445,"username":"u","password":"alt-passwort","isGuest":false}]"""
+            )
+            .commit()
+
+        val servers = NetworkConfigStore.getAllServers(context)
+
+        assertEquals("alt-passwort", servers.single().password)
+        assertFalse(storedJson().contains("alt-passwort"))
+        assertEquals("alt-passwort", NetworkConfigStore.getServerById(context, "old")?.password)
+    }
+
+    @Test
+    fun passwordThatCannotBeDecrypted_comesBackEmptyInsteadOfBreakingTheList() {
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(id = "a", displayName = "NAS", host = "nas.local", password = "pw")
+        )
+        val raw = storedJson() + " "
+        // A different key, like after a restore on another phone.
+        PasswordCipher.keyProvider = { SecretKeySpec(ByteArray(32) { (it + 1).toByte() }, "AES") }
+        clearStore()
+        context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
+            .edit().putString("servers_json", raw).commit()
+
+        val server = NetworkConfigStore.getServerById(context, "a")
+
+        assertEquals("nas.local", server?.host)
+        assertEquals("", server?.password)
     }
 
     @Test
