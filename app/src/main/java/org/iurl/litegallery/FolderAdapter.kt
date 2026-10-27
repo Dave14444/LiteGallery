@@ -14,16 +14,11 @@ import java.text.NumberFormat
 
 class FolderAdapter(
     private val onFolderClick: (MediaFolder) -> Unit,
-    private val onFolderLongClick: (MediaFolder) -> Unit,
-    /** Fixed width of a card in pixels (for a horizontal row); 0 = as wide as the column. */
-    private val cardWidthPx: Int = 0
+    private val onFolderLongClick: (MediaFolder) -> Unit
 ) : ListAdapter<MediaFolder, FolderAdapter.FolderViewHolder>(FolderDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FolderViewHolder {
         val binding = ItemFolderBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        if (cardWidthPx > 0) {
-            binding.root.layoutParams = binding.root.layoutParams.apply { width = cardWidthPx }
-        }
         return FolderViewHolder(binding)
     }
 

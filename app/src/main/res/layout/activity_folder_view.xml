@@ -155,7 +155,7 @@
             </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Sub folders of a network folder, above its pictures. Scrolls away with the list. -->
+            <!-- Sub folders of a network folder as a grid above its pictures. Scrolls away with the list. -->
             <LinearLayout
                 android:id="@+id/subFolderSection"
                 android:layout_width="match_parent"
@@ -180,10 +180,10 @@
                     android:id="@+id/subFolderRecyclerView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:clipToPadding="false"
+                    android:layout_marginTop="4dp"
                     android:nestedScrollingEnabled="false"
                     android:overScrollMode="never"
-                    android:paddingHorizontal="2dp"
+                    android:paddingHorizontal="4dp"
                     android:scrollbars="none" />
 
             </LinearLayout>

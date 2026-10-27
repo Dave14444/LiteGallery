@@ -62,8 +62,8 @@ class FolderViewActivity : AppCompatActivity() {
         private const val DELETE_PREFS = "delete_prefs"
         private const val DELETE_MOVE_TO_TRASH_KEY = "delete_move_to_trash"
 
-        /** Width of a sub folder card in the row above the pictures. */
-        private const val SUB_FOLDER_CARD_WIDTH_DP = 168
+        /** Columns of the sub folder cards above the pictures (as in the network browser). */
+        private const val SUB_FOLDER_COLUMNS = 2
         /** Sub folder details (cover, count) read at the same time. */
         private const val SUB_FOLDER_PARALLEL = 3
         /** Menu item ids for entries offered by a media source; far away from generated ids. */
@@ -623,14 +623,12 @@ class FolderViewActivity : AppCompatActivity() {
     }
 
     private fun setupSubFolders() {
-        val cardWidth = (SUB_FOLDER_CARD_WIDTH_DP * resources.displayMetrics.density).roundToInt()
         subFolderAdapter = FolderAdapter(
             onFolderClick = { folder -> openSubFolder(folder) },
-            onFolderLongClick = { },
-            cardWidthPx = cardWidth
+            onFolderLongClick = { }
         )
-        binding.subFolderRecyclerView.layoutManager =
-            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        // All cards in a grid above the pictures; the grid scrolls away with the list.
+        binding.subFolderRecyclerView.layoutManager = GridLayoutManager(this, SUB_FOLDER_COLUMNS)
         binding.subFolderRecyclerView.adapter = subFolderAdapter
     }
 
