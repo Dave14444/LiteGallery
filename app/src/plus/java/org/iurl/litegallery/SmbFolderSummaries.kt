@@ -52,7 +52,7 @@ object SmbFolderSummaries {
         card.copy(
             itemCount = if (summary.mediaCount > 0) summary.mediaCount else -1,
             // Covers come from the thumbnail cache on the share (SMB only).
-            thumbnail = summary.coverUrl?.takeIf { SmbPath.isSmb(it) }?.let { "smbthumb://$it" },
+            thumbnail = summary.coverUrl?.takeIf { SmbPath.isSmb(it) }?.let { SmbThumbnailModel.of(it) },
             totalSizeBytes = summary.totalSize,
             latestDateModifiedMs = summary.latestModified
         )

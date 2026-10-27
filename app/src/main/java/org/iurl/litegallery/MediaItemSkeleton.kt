@@ -52,7 +52,7 @@ data class MediaItemSkeleton(
     /** What Glide loads as thumbnail: a MediaStore URI, a file path or a share URL. */
     fun thumbnailModel(): Any {
         if (isRemote) {
-            return if (path.startsWith("smb://")) "smbthumb://$path" else path
+            return if (path.startsWith("smb://")) SmbThumbnailModel.of(path) else path
         }
 
         if (path.startsWith("content://")) return Uri.parse(path)

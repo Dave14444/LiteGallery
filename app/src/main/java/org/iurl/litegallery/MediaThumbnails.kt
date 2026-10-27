@@ -23,7 +23,7 @@ object MediaThumbnails {
             .centerCrop()
 
     private fun diskCacheStrategy(skeleton: MediaItemSkeleton): DiskCacheStrategy = when {
-        // The 384 px thumbnail from the share is small: keep it on the phone, so scrolling back
+        // The thumbnail from the share is small: keep it on the phone, so scrolling back
         // does not read it over the network again.
         skeleton.path.startsWith("smb://") -> DiskCacheStrategy.DATA
         skeleton.isRemote -> DiskCacheStrategy.RESOURCE

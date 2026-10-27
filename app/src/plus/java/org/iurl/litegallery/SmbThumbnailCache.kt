@@ -14,13 +14,17 @@ import java.security.MessageDigest
 
 /**
  * Persistent thumbnail cache stored on the SMB share itself.
- * Thumbnails are square JPEG files of [THUMB_SIZE] x [THUMB_SIZE] pixels.
+ * Thumbnails are square JPEG files of [THUMB_SIZE] x [THUMB_SIZE] pixels. Changing the size needs
+ * a new [CACHE_VERSION] (new files on the share) and a new SmbThumbnailModel.PREFIX (so the
+ * phone forgets its copies of the old ones).
  */
 object SmbThumbnailCache {
 
     internal const val CACHE_DIR = ".LiteGalleryThumbnails"
-    private const val CACHE_VERSION = "thumb-v5"
-    private const val THUMB_SIZE = 384
+    private const val CACHE_VERSION = "thumb-v6"
+    /** Sharp also in the large two-column view and on the folder cards. */
+    private const val THUMB_SIZE = 640
+    private const val JPEG_QUALITY = 90
 
     /** Position of the video frame used as thumbnail. */
     private const val VIDEO_FRAME_TIME_US = 1_000_000L
@@ -263,7 +267,7 @@ object SmbThumbnailCache {
 
         val bytes = try {
             ByteArrayOutputStream().use { output ->
-                thumbnail.compress(Bitmap.CompressFormat.JPEG, 85, output)
+                thumbnail.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output)
                 output.toByteArray()
             }
         } finally {
@@ -295,7 +299,8 @@ object SmbThumbnailCache {
 
         val options = BitmapFactory.Options().apply {
             inSampleSize = calculateSampleSize(bounds.outWidth, bounds.outHeight, THUMB_SIZE)
-            inPreferredConfig = Bitmap.Config.RGB_565
+            // Full colour depth: RGB_565 shows bands in skies and skin tones.
+            inPreferredConfig = Bitmap.Config.ARGB_8888
         }
 
         val orientation = open().use {

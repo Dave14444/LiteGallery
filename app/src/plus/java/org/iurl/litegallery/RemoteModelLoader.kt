@@ -18,13 +18,11 @@ import java.io.InputStream
 class RemoteModelLoader(private val context: Context) : ModelLoader<String, InputStream> {
 
     companion object {
-        /** Prefix for thumbnail requests; they are served from the thumbnail cache on the share. */
-        private const val SMB_THUMB_PREFIX = "smbthumb://"
 
         /** Check if a remote URL points to an image (not a video). */
         fun isRemoteImage(path: String): Boolean {
-            val imagePath = if (path.startsWith(SMB_THUMB_PREFIX)) {
-                path.removePrefix(SMB_THUMB_PREFIX)
+            val imagePath = if (SmbThumbnailModel.isModel(path)) {
+                SmbThumbnailModel.urlOf(path)
             } else {
                 path
             }
@@ -33,7 +31,7 @@ class RemoteModelLoader(private val context: Context) : ModelLoader<String, Inpu
             if (RemoteFileTypes.isImage(imagePath)) return true
 
             // Thumbnails of SMB videos are made from a video frame (see SmbThumbnailCache).
-            return path.startsWith(SMB_THUMB_PREFIX) &&
+            return SmbThumbnailModel.isModel(path) &&
                 SmbPath.isSmb(imagePath) &&
                 RemoteFileTypes.isVideo(imagePath)
         }
@@ -74,8 +72,8 @@ class RemoteImageFetcher(
             return
         }
         try {
-            val isThumbnail = url.startsWith("smbthumb://")
-            val imageUrl = if (isThumbnail) url.removePrefix("smbthumb://") else url
+            val isThumbnail = SmbThumbnailModel.isModel(url)
+            val imageUrl = if (isThumbnail) SmbThumbnailModel.urlOf(url) else url
 
             val client = RemoteClients.forUrl(imageUrl)
             if (client == null) {

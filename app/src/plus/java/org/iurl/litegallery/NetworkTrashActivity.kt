@@ -320,7 +320,7 @@ class NetworkTrashAdapter(
 
             // Cover from the thumbnail cache of the share, faded to show it is deleted.
             Glide.with(context)
-                .load("smbthumb://${item.trashedUrl}")
+                .load(SmbThumbnailModel.of(item.trashedUrl))
                 .centerCrop()
                 .placeholder(R.drawable.ic_folder)
                 .error(R.drawable.ic_folder)

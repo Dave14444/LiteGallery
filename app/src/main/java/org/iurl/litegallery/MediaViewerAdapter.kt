@@ -137,7 +137,7 @@ class MediaViewerAdapter(
                         Glide.with(context)
                             .load(
                                 if (mediaItem.path.startsWith("smb://")) {
-                                    "smbthumb://${mediaItem.path}"
+                                    SmbThumbnailModel.of(mediaItem.path)
                                 } else {
                                     mediaItem.path
                                 }
