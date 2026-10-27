@@ -17,7 +17,9 @@ android {
         applicationId "org.iurl.litegallery"
         minSdk 24
         targetSdk 36
-        versionCode 611
+        // Every GitHub build gets a higher number, so each APK is a real update of the previous
+        // one instead of a different file with the same version. Local builds keep 611.
+        versionCode System.getenv("GITHUB_RUN_NUMBER") ? 611000 + System.getenv("GITHUB_RUN_NUMBER").toInteger() : 611
         versionName "6.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -28,6 +30,8 @@ android {
             (System.getenv("LG_ENCRYPT_PASSWORDS") == "false") ? "false" : "true"
         buildConfigField "boolean", "CLEAN_TEMP_FILES",
             (System.getenv("LG_CLEAN_TEMP_FILES") == "false") ? "false" : "true"
+        buildConfigField "boolean", "THUMB_CLEANUP",
+            (System.getenv("LG_THUMB_CLEANUP") == "false") ? "false" : "true"
     }
 
     // Use the persistent upload key in GitHub Actions.

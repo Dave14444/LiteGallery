@@ -19,6 +19,10 @@ on:
         description: "Remove temporary files at app start (off only to test Play Protect)"
         type: boolean
         default: true
+      thumb_cleanup:
+        description: "Offer 'Clean up previews' (off only to test Play Protect)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -56,6 +60,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           LG_ENCRYPT_PASSWORDS: ${{ inputs.encrypt_passwords }}
           LG_CLEAN_TEMP_FILES: ${{ inputs.clean_temp_files }}
+          LG_THUMB_CLEANUP: ${{ inputs.thumb_cleanup }}
         run: |
           chmod +x ./gradlew
           ./gradlew assemblePlus${{ inputs.build_type }}
