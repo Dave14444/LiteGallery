@@ -167,6 +167,12 @@ override suspend fun copyToCache(
         return modified.coerceAtLeast(0L)
     }
 
+    /** Asks the server (not the list cache), so a half-written file is noticed. */
+    override fun fileSize(context: Context, path: String): Long {
+        val smb = SmbPath.parse(path) ?: return -1L
+        return SmbClient.getFileSizeAndLastModified(context, smb.host, smb.share, smb.path).first
+    }
+
     override fun videoDurationMs(context: Context, path: String): Long =
         SmbThumbnailCache.videoDuration(context, path)
 

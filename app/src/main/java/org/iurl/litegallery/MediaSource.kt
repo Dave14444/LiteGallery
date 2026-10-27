@@ -91,6 +91,9 @@ suspend fun copyToCache(
     /** Modification time of [path] in epoch milliseconds, or 0 if unknown. */
     fun lastModified(context: Context, path: String): Long = 0L
 
+    /** Size of the file at [path] in bytes, asked from the source itself; -1 if unknown. */
+    fun fileSize(context: Context, path: String): Long = -1L
+
     /** Length of the video at [path] in milliseconds, or 0 if it cannot be determined. */
     fun videoDurationMs(context: Context, path: String): Long = 0L
 

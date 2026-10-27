@@ -260,18 +260,29 @@ class NetworkTrashActivity : AppCompatActivity() {
             total = list.size,
             work = { onProgress ->
                 var done = 0
-                var failed = 0
-                list.forEachIndexed { index, item ->
+                var cancelled = false
+                val failures = mutableListOf<FileTransfer.Failure>()
+                for ((index, item) in list.withIndex()) {
+                    if (OperationCancel.isRequested()) {
+                        cancelled = true
+                        break
+                    }
                     val ok = try {
                         action(item)
                     } catch (e: Exception) {
                         android.util.Log.e("NetworkTrashActivity", "Operation failed: ${item.trashedUrl}", e)
                         false
                     }
-                    if (ok) done++ else failed++
+                    if (ok) {
+                        done++
+                    } else {
+                        failures.add(FileTransfer.Failure(item.originalUrl, FileTransfer.Reason.OTHER))
+                    }
                     onProgress(index + 1, list.size)
                 }
-                FileTransfer.Result(done, failed, emptyList(), emptyList())
+                FileTransfer.Result(
+                    done, failures.size, emptyList(), emptyList(), failures, cancelled
+                )
             },
             onDone = {
                 isBusy = false

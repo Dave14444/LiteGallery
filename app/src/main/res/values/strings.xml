@@ -549,6 +549,15 @@
     <string name="file_op_deleting">Deleting…</string>
     <string name="file_op_done">%d file(s) done</string>
     <string name="file_op_partial">%1$d done, %2$d failed</string>
+    <string name="file_op_cancelling">Cancelling…</string>
+    <string name="file_op_cancelled">Cancelled: %d file(s) done</string>
+    <string name="file_op_cancelled_partial">Cancelled: %1$d done, %2$d failed</string>
+    <string name="file_op_failed_title">Not all files could be processed</string>
+    <string name="file_op_failed_more">… and %d more</string>
+    <string name="file_op_reason_copy">Could not be copied</string>
+    <string name="file_op_reason_size">The copy has a different size, so the original was kept</string>
+    <string name="file_op_reason_delete">Copied, but the original could not be deleted</string>
+    <string name="file_op_reason_other">Failed</string>
     <string name="file_op_folder_failed">Could not open the folder</string>
     <string name="file_op_folder_create_failed">Could not create the folder</string>
     <string name="file_op_delete_selected_confirmation">Delete %d selected file(s)?</string>

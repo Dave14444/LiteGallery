@@ -550,6 +550,15 @@
     <string name="file_op_deleting">Lösche…</string>
     <string name="file_op_done">%d Datei(en) erledigt</string>
     <string name="file_op_partial">%1$d erledigt, %2$d fehlgeschlagen</string>
+    <string name="file_op_cancelling">Breche ab…</string>
+    <string name="file_op_cancelled">Abgebrochen: %d Datei(en) erledigt</string>
+    <string name="file_op_cancelled_partial">Abgebrochen: %1$d erledigt, %2$d fehlgeschlagen</string>
+    <string name="file_op_failed_title">Nicht alle Dateien konnten verarbeitet werden</string>
+    <string name="file_op_failed_more">… und %d weitere</string>
+    <string name="file_op_reason_copy">Konnte nicht kopiert werden</string>
+    <string name="file_op_reason_size">Die Kopie hat eine andere Größe, das Original wurde behalten</string>
+    <string name="file_op_reason_delete">Kopiert, aber das Original ließ sich nicht löschen</string>
+    <string name="file_op_reason_other">Fehlgeschlagen</string>
     <string name="file_op_folder_failed">Ordner konnte nicht geöffnet werden</string>
     <string name="file_op_folder_create_failed">Ordner konnte nicht angelegt werden</string>
     <string name="file_op_delete_selected_confirmation">%d ausgewählte Datei(en) löschen?</string>

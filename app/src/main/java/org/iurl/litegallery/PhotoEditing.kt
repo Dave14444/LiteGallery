@@ -91,34 +91,9 @@ object PhotoEditing {
      * out of the original and writes it to [output] (the extension decides the format).
      */
     fun render(loaded: Loaded, rotation: Int, crop: RectF, output: File, lastModified: Long) {
-        val rotatedWidth = if (rotation % 180 == 0) loaded.uprightWidth else loaded.uprightHeight
-        val rotatedHeight = if (rotation % 180 == 0) loaded.uprightHeight else loaded.uprightWidth
-        val rotatedRect = RectF(
-            crop.left * rotatedWidth,
-            crop.top * rotatedHeight,
-            crop.right * rotatedWidth,
-            crop.bottom * rotatedHeight
+        val storedRect = storedRectFor(
+            loaded.rawWidth, loaded.rawHeight, loaded.orientation, rotation, crop
         )
-
-        // Map the crop area back from the rotated picture to the stored pixels of the file.
-        val toRotated = Matrix()
-        toRotated.setConcat(
-            orientationMatrix(rotationOrientation(rotation), loaded.uprightWidth, loaded.uprightHeight),
-            orientationMatrix(loaded.orientation, loaded.rawWidth, loaded.rawHeight)
-        )
-        val toStored = Matrix()
-        if (!toRotated.invert(toStored)) throw IOException("Cannot map the crop area")
-        val storedRectF = RectF()
-        toStored.mapRect(storedRectF, rotatedRect)
-        val storedRect = Rect(
-            floor(storedRectF.left).toInt().coerceIn(0, loaded.rawWidth - 1),
-            floor(storedRectF.top).toInt().coerceIn(0, loaded.rawHeight - 1),
-            ceil(storedRectF.right).toInt().coerceIn(1, loaded.rawWidth),
-            ceil(storedRectF.bottom).toInt().coerceIn(1, loaded.rawHeight)
-        )
-        if (storedRect.width() < 1 || storedRect.height() < 1) {
-            throw IOException("Empty crop area")
-        }
 
         @Suppress("DEPRECATION")
         val decoder = BitmapRegionDecoder.newInstance(loaded.file.absolutePath, false)
@@ -151,6 +126,51 @@ object PhotoEditing {
         }
 
         if (lastModified > 0L) output.setLastModified(lastModified)
+    }
+
+    /**
+     * The part of the stored pixels (a [rawWidth] x [rawHeight] picture with the EXIF
+     * [orientation]) that belongs to [crop], given as fractions 0..1 of the picture after it
+     * was turned upright and then by [rotation] degrees clockwise.
+     */
+    internal fun storedRectFor(
+        rawWidth: Int,
+        rawHeight: Int,
+        orientation: Int,
+        rotation: Int,
+        crop: RectF
+    ): Rect {
+        val uprightWidth = if (swapsAxes(orientation)) rawHeight else rawWidth
+        val uprightHeight = if (swapsAxes(orientation)) rawWidth else rawHeight
+        val rotatedWidth = if (rotation % 180 == 0) uprightWidth else uprightHeight
+        val rotatedHeight = if (rotation % 180 == 0) uprightHeight else uprightWidth
+        val rotatedRect = RectF(
+            crop.left * rotatedWidth,
+            crop.top * rotatedHeight,
+            crop.right * rotatedWidth,
+            crop.bottom * rotatedHeight
+        )
+
+        // Map the crop area back from the rotated picture to the stored pixels of the file.
+        val toRotated = Matrix()
+        toRotated.setConcat(
+            orientationMatrix(rotationOrientation(rotation), uprightWidth, uprightHeight),
+            orientationMatrix(orientation, rawWidth, rawHeight)
+        )
+        val toStored = Matrix()
+        if (!toRotated.invert(toStored)) throw IOException("Cannot map the crop area")
+        val storedRectF = RectF()
+        toStored.mapRect(storedRectF, rotatedRect)
+        val storedRect = Rect(
+            floor(storedRectF.left).toInt().coerceIn(0, rawWidth - 1),
+            floor(storedRectF.top).toInt().coerceIn(0, rawHeight - 1),
+            ceil(storedRectF.right).toInt().coerceIn(1, rawWidth),
+            ceil(storedRectF.bottom).toInt().coerceIn(1, rawHeight)
+        )
+        if (storedRect.width() < 1 || storedRect.height() < 1) {
+            throw IOException("Empty crop area")
+        }
+        return storedRect
     }
 
     /** Cuts out [rect] and turns it upright and by [rotation] degrees. */

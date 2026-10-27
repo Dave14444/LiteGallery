@@ -93,29 +93,37 @@ object QuickBackup {
             total = total,
             work = { onProgress ->
                 var done = 0
-                var failed = 0
                 var finishedFiles = 0
+                var cancelled = false
                 val created = mutableListOf<String>()
                 val removed = mutableListOf<String>()
+                val failures = mutableListOf<FileTransfer.Failure>()
 
-                plan.forEach { (job, files) ->
-                    if (files.isNotEmpty()) {
-                        val base = finishedFiles
-                        val result = FileTransfer.transfer(
-                            activity.applicationContext,
-                            files.map { it.absolutePath },
-                            job.destination,
-                            FileTransfer.Mode.MOVE,
-                            onProgress = { filesDone, _ -> onProgress(base + filesDone, total) }
-                        )
-                        done += result.done
-                        failed += result.failed
-                        created.addAll(result.createdPaths)
-                        removed.addAll(result.removedPaths)
-                        finishedFiles += files.size
+                for ((job, files) in plan) {
+                    if (files.isEmpty()) continue
+                    if (OperationCancel.isRequested()) {
+                        cancelled = true
+                        break
+                    }
+                    val base = finishedFiles
+                    val result = FileTransfer.transfer(
+                        activity.applicationContext,
+                        files.map { it.absolutePath },
+                        job.destination,
+                        FileTransfer.Mode.MOVE,
+                        onProgress = { filesDone, _ -> onProgress(base + filesDone, total) }
+                    )
+                    done += result.done
+                    created.addAll(result.createdPaths)
+                    removed.addAll(result.removedPaths)
+                    failures.addAll(result.failures)
+                    finishedFiles += files.size
+                    if (result.cancelled) {
+                        cancelled = true
+                        break
                     }
                 }
-                FileTransfer.Result(done, failed, created, removed)
+                FileTransfer.Result(done, failures.size, created, removed, failures, cancelled)
             },
             onDone = { result ->
                 jobs.forEach {
@@ -262,17 +270,24 @@ object QuickBackup {
      * The pictures and videos directly in [source], oldest first, without the newest one.
      * Null if the folder cannot be read.
      */
-    private fun filesToMove(source: String): List<File>? {
+    internal fun filesToMove(source: String): List<File>? {
         val files = File(source).listFiles { file -> file.isFile && isMedia(file) } ?: return null
         val sorted = files.sortedWith(compareBy<File>({ it.lastModified() }, { it.name }))
         return if (sorted.size <= 1) emptyList() else sorted.dropLast(1)
     }
 
-    private fun isMedia(file: File): Boolean {
+    // The same file types the gallery shows for a folder on the phone.
+    private val MEDIA_EXTENSIONS = setOf(
+        "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif",
+        "mp4", "avi", "mov", "mkv", "3gp", "webm", "m4v", "flv"
+    )
+
+    internal fun isMedia(file: File): Boolean {
         // Hidden files include pictures that are still being written and trashed files.
         if (file.name.startsWith(".")) return false
-        val mime = MediaMimeTypes.fromExtension(file.extension)
-        return mime.startsWith("image/") || mime.startsWith("video/")
+        // Not via MediaMimeTypes: it answers "image/*" for every unknown extension, so notes or
+        // documents lying in the folder would be moved as well.
+        return file.extension.lowercase() in MEDIA_EXTENSIONS
     }
 
     private fun displayPath(context: Context, path: String): String {

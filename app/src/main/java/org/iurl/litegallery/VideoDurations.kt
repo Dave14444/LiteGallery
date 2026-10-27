@@ -82,7 +82,7 @@ object VideoDurations {
         }
     }
 
-    private fun format(milliseconds: Long): String {
+    internal fun format(milliseconds: Long): String {
         if (milliseconds <= 0L) return ""
         val seconds = milliseconds / 1000
         val minutes = seconds / 60

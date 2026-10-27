@@ -20,6 +20,21 @@ object FileTransfer {
 
     enum class Mode { COPY, MOVE }
 
+    enum class Reason {
+        /** The data could not be copied (no space, connection lost, no permission, ...). */
+        COPY_FAILED,
+
+        /** The copy has a different size than the original; the original was kept. */
+        SIZE_MISMATCH,
+
+        /** The copy is fine, but the original could not be deleted. */
+        DELETE_FAILED,
+        OTHER
+    }
+
+    /** A file that could not be processed, and why. */
+    class Failure(val path: String, val reason: Reason)
+
     class Result(
         /** Number of files processed successfully. */
         val done: Int,
@@ -27,10 +42,19 @@ object FileTransfer {
         /** New files that were created (local paths or remote URLs). */
         val createdPaths: List<String>,
         /** Source files that no longer exist at their old location. */
-        val removedPaths: List<String>
+        val removedPaths: List<String>,
+        /** The files counted in [failed], with the reason. */
+        val failures: List<Failure> = emptyList(),
+        /** True if the user stopped the operation before all files were processed. */
+        val cancelled: Boolean = false
     )
 
     private const val BUFFER_SIZE = 256 * 1024
+
+    /** Tells MediaStore about local files; replaceable so tests need no media scanner. */
+    internal var localScanner: (Context, Array<String>) -> Unit = { context, paths ->
+        MediaScannerConnection.scanFile(context, paths, null, null)
+    }
 
     // ---------------------------------------------------------------- copy / move
 
@@ -46,25 +70,39 @@ object FileTransfer {
         val destSource = MediaSourceRegistry.forPath(destFolder)
         val created = mutableListOf<String>()
         val removed = mutableListOf<String>()
+        val failures = mutableListOf<Failure>()
         var done = 0
-        var failed = 0
+        var cancelled = false
 
-        sourcePaths.forEachIndexed { index, sourcePath ->
+        for ((index, sourcePath) in sourcePaths.withIndex()) {
+            if (OperationCancel.isRequested()) {
+                cancelled = true
+                break
+            }
             val ok = try {
                 transferOne(
                     context, sourcePath, destFolder, destSource, mode,
-                    overrideLastModified, created, removed
+                    overrideLastModified, created, removed, failures
                 )
             } catch (e: Exception) {
                 android.util.Log.e("FileTransfer", "Transfer failed: $sourcePath", e)
                 false
             }
-            if (ok) done++ else failed++
+            if (ok) {
+                done++
+            } else if (OperationCancel.isRequested()) {
+                // The file was interrupted by the cancel request: not an error.
+                failures.removeAll { it.path == sourcePath }
+                cancelled = true
+                break
+            } else if (failures.none { it.path == sourcePath }) {
+                failures.add(Failure(sourcePath, Reason.OTHER))
+            }
             onProgress(index + 1, sourcePaths.size)
         }
 
         scanLocalPaths(context, created + removed)
-        return Result(done, failed, created, removed)
+        return Result(done, failures.size, created, removed, failures.toList(), cancelled)
     }
 
     private fun transferOne(
@@ -75,7 +113,8 @@ object FileTransfer {
         mode: Mode,
         overrideLastModified: Long,
         created: MutableList<String>,
-        removed: MutableList<String>
+        removed: MutableList<String>,
+        failures: MutableList<Failure>
     ): Boolean {
         val sourceSource = MediaSourceRegistry.forPath(sourcePath)
         val name = fileNameOf(sourcePath)
@@ -107,18 +146,35 @@ object FileTransfer {
             sourceSource == null -> File(sourcePath).lastModified()
             else -> sourceSource.lastModified(context, sourcePath)
         }
-        val input: InputStream = if (sourceSource == null) {
-            FileInputStream(sourcePath)
-        } else {
-            sourceSource.openInput(context, sourcePath)
-        }
+        // What the copy has to look like when it is finished (-1: the source cannot tell).
+        val expectedSize = sizeOf(context, sourcePath, sourceSource)
+
+        val input: InputStream = CancellableInputStream(
+            if (sourceSource == null) {
+                FileInputStream(sourcePath)
+            } else {
+                sourceSource.openInput(context, sourcePath)
+            }
+        )
         val newPath = input.use {
             if (destSource == null) {
                 writeLocal(File(destFolder), name, it, lastModified)
             } else {
                 destSource.writeNew(context, destFolder, name, it, lastModified)
             }
-        } ?: return false
+        }
+        if (newPath == null) {
+            failures.add(Failure(sourcePath, Reason.COPY_FAILED))
+            return false
+        }
+
+        // Check the copy before anything is deleted: ask the destination how big the new file is.
+        if (!sizeMatches(expectedSize, sizeOf(context, newPath, destSource), mode)) {
+            android.util.Log.e("FileTransfer", "Size mismatch for $sourcePath -> $newPath")
+            deleteQuietly(context, newPath, destSource)
+            failures.add(Failure(sourcePath, Reason.SIZE_MISMATCH))
+            return false
+        }
         created.add(newPath)
 
         if (mode == Mode.MOVE) {
@@ -127,10 +183,43 @@ object FileTransfer {
             } else {
                 sourceSource.deleteFile(context, sourcePath)
             }
-            if (!deleted) return false
+            if (!deleted) {
+                failures.add(Failure(sourcePath, Reason.DELETE_FAILED))
+                return false
+            }
             removed.add(sourcePath)
         }
         return true
+    }
+
+    /**
+     * Whether a copy of [actual] bytes is acceptable for an original of [expected] bytes.
+     * If one of the sizes is unknown (-1) a copy is accepted, but never when moving: then the
+     * original would be deleted without having been checked.
+     */
+    internal fun sizeMatches(expected: Long, actual: Long, mode: Mode): Boolean {
+        if (expected < 0L || actual < 0L) return mode == Mode.COPY
+        return expected == actual
+    }
+
+    private fun sizeOf(context: Context, path: String, source: MediaSource?): Long =
+        try {
+            if (source == null) {
+                val file = File(path)
+                if (file.isFile) file.length() else -1L
+            } else {
+                source.fileSize(context, path)
+            }
+        } catch (e: Exception) {
+            -1L
+        }
+
+    private fun deleteQuietly(context: Context, path: String, source: MediaSource?) {
+        try {
+            if (source == null) File(path).delete() else source.deleteFile(context, path)
+        } catch (e: Exception) {
+            android.util.Log.e("FileTransfer", "Could not remove $path", e)
+        }
     }
 
     // ---------------------------------------------------------------- delete
@@ -146,10 +235,15 @@ object FileTransfer {
         onProgress: (done: Int, total: Int) -> Unit
     ): Result {
         val removed = mutableListOf<String>()
+        val failures = mutableListOf<Failure>()
         var done = 0
-        var failed = 0
+        var cancelled = false
 
-        items.forEachIndexed { index, item ->
+        for ((index, item) in items.withIndex()) {
+            if (OperationCancel.isRequested()) {
+                cancelled = true
+                break
+            }
             val ok = try {
                 deleteOne(context, item, moveToTrash)
             } catch (e: Exception) {
@@ -160,13 +254,13 @@ object FileTransfer {
                 done++
                 removed.add(item.path)
             } else {
-                failed++
+                failures.add(Failure(item.path, Reason.DELETE_FAILED))
             }
             onProgress(index + 1, items.size)
         }
 
         scanLocalPaths(context, removed)
-        return Result(done, failed, emptyList(), removed)
+        return Result(done, failures.size, emptyList(), removed, failures.toList(), cancelled)
     }
 
     private fun deleteOne(context: Context, item: MediaItemSkeleton, moveToTrash: Boolean): Boolean {
@@ -275,7 +369,7 @@ object FileTransfer {
     }
 
     /** [name] in [dir], or "name (1).ext", "name (2).ext", ... if it already exists. */
-    private fun uniqueFile(dir: File, name: String): File {
+    internal fun uniqueFile(dir: File, name: String): File {
         var candidate = File(dir, name)
         if (!candidate.exists()) return candidate
 
@@ -295,6 +389,6 @@ object FileTransfer {
     private fun scanLocalPaths(context: Context, paths: List<String>) {
         val local = paths.filter { isLocalPath(it) }.distinct()
         if (local.isEmpty()) return
-        MediaScannerConnection.scanFile(context, local.toTypedArray(), null, null)
+        localScanner(context, local.toTypedArray())
     }
 }

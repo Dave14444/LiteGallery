@@ -63,6 +63,16 @@ object SmbTrash {
         }
     }
 
+    /**
+     * Splits a name in the trash ("<millis>-<4 digits>__<original name>") into the time of
+     * deletion and the original name; null if it does not follow that scheme.
+     */
+    internal fun parseTrashedName(name: String): Pair<Long, String>? {
+        val match = TRASHED_NAME.matchEntire(name) ?: return null
+        val millis = match.groupValues[1].toLongOrNull() ?: return null
+        return millis to match.groupValues[3]
+    }
+
     /** Everything in the trash of the share at [shareRootUrl], newest first. */
     fun list(context: Context, shareRootUrl: String): List<Item> {
         val root = SmbPath.parse(shareRootUrl) ?: return emptyList()
@@ -79,9 +89,9 @@ object SmbTrash {
         return entries
             .filter { !it.isDirectory && !it.name.endsWith(META_SUFFIX) }
             .map { entry ->
-                val match = TRASHED_NAME.matchEntire(entry.name)
-                val deletedAt = match?.groupValues?.get(1)?.toLongOrNull() ?: entry.lastModified
-                val fallbackName = match?.groupValues?.get(3) ?: entry.name
+                val parsed = parseTrashedName(entry.name)
+                val deletedAt = parsed?.first ?: entry.lastModified
+                val fallbackName = parsed?.second ?: entry.name
                 val original = if (names.contains(entry.name + META_SUFFIX)) {
                     readOriginalUrl(context, root, entry.name)
                 } else {
