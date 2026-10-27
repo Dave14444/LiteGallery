@@ -658,22 +658,38 @@ object SmbClient {
     }
 
     private fun <T> executeWithRetry(context: Context, host: String, shareName: String, block: (DiskShare) -> T): T {
+        var share: DiskShare? = null
         try {
-            val share = getOrCreateShare(context, host, shareName)
+            share = getOrCreateShare(context, host, shareName)
             return block(share)
         } catch (e: Exception) {
-            val msg = e.message ?: ""
-            val causeMsg = e.cause?.message ?: ""
-            if (msg.contains("closed", ignoreCase = true) || causeMsg.contains("closed", ignoreCase = true) ||
-                msg.contains("Connection reset", ignoreCase = true) || causeMsg.contains("Connection reset", ignoreCase = true) ||
-                msg.contains("Broken pipe", ignoreCase = true) || causeMsg.contains("Broken pipe", ignoreCase = true)) {
-                
-                android.util.Log.w("SmbClient", "SMB connection appears stale, retrying...", e)
-                disconnect(host)
-                val newShare = getOrCreateShare(context, host, shareName)
-                return block(newShare)
-            }
-            throw e
+            if (!looksLikeLostConnection(e)) throw e
+
+            android.util.Log.w("SmbClient", "SMB connection appears stale, retrying...", e)
+            dropIfStillCurrent(host, share)
+            val newShare = getOrCreateShare(context, host, shareName)
+            return block(newShare)
+        }
+    }
+
+    private fun looksLikeLostConnection(e: Exception): Boolean {
+        val messages = listOf(e.message.orEmpty(), e.cause?.message.orEmpty())
+        return messages.any { message ->
+            message.contains("closed", ignoreCase = true) ||
+                message.contains("Connection reset", ignoreCase = true) ||
+                message.contains("Broken pipe", ignoreCase = true)
+        }
+    }
+
+    /**
+     * Drops the connection to [host] after [failed] stopped working. Several requests run at the
+     * same time (e.g. thumbnails): when they all notice the lost connection, only the first one
+     * reconnects; the others must not close the fresh connection it has just opened.
+     */
+    @Synchronized
+    private fun dropIfStillCurrent(host: String, failed: DiskShare?) {
+        if (failed == null || shares.values.any { it === failed }) {
+            disconnect(host)
         }
     }
 

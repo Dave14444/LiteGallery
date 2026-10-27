@@ -23,15 +23,6 @@ android {
         versionName "6.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
-        // Switches for finding out what Play Protect objects to: the GitHub workflow can turn
-        // them off per run. Normal builds have both on.
-        buildConfigField "boolean", "ENCRYPT_PASSWORDS",
-            (System.getenv("LG_ENCRYPT_PASSWORDS") == "false") ? "false" : "true"
-        buildConfigField "boolean", "CLEAN_TEMP_FILES",
-            (System.getenv("LG_CLEAN_TEMP_FILES") == "false") ? "false" : "true"
-        buildConfigField "boolean", "THUMB_CLEANUP",
-            (System.getenv("LG_THUMB_CLEANUP") == "false") ? "false" : "true"
     }
 
     // Use the persistent upload key in GitHub Actions.

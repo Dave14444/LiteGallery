@@ -41,36 +41,31 @@ data class MediaItemSkeleton(
     }
 
 
-        
-/**
- * Remote videos show only a placeholder, except on SMB shares, where a thumbnail is made
- * from a video frame and stored in the thumbnail cache.
- */
-val usesPlaceholderThumbnail: Boolean
-    get() = isRemote && isVideo && !path.startsWith("smb://")
 
-fun thumbnailModel(): Any {
-    if (isRemote) {
-        return if (path.startsWith("smb://")) {
-            "smbthumb://$path"
-        } else {
-            path
+    /**
+     * Remote videos show only a placeholder, except on SMB shares, where a thumbnail is made
+     * from a video frame and stored in the thumbnail cache.
+     */
+    val usesPlaceholderThumbnail: Boolean
+        get() = isRemote && isVideo && !path.startsWith("smb://")
+
+    /** What Glide loads as thumbnail: a MediaStore URI, a file path or a share URL. */
+    fun thumbnailModel(): Any {
+        if (isRemote) {
+            return if (path.startsWith("smb://")) "smbthumb://$path" else path
         }
-    }
 
-    if (path.startsWith("content://")) return Uri.parse(path)
+        if (path.startsWith("content://")) return Uri.parse(path)
 
-    if (id > MediaItem.NO_MEDIASTORE_ID) {
-        val baseUri = if (isVideo) {
-            MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        } else {
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        if (id > MediaItem.NO_MEDIASTORE_ID) {
+            val baseUri = if (isVideo) {
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            } else {
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            }
+            return ContentUris.withAppendedId(baseUri, id)
         }
-        return ContentUris.withAppendedId(baseUri, id)
+
+        return path
     }
-
-    return path
-}
-
-    
 }

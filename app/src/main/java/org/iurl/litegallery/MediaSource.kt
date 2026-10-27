@@ -21,12 +21,14 @@ interface MediaSource {
     /** A virtual home-screen folder representing this source, or null to show none. */
     fun homeEntry(context: Context): MediaFolder?
 
+    /** All home-screen entries of this source (e.g. one per saved connection). */
     fun homeEntries(context: Context): List<MediaFolder> =
-    listOfNotNull(homeEntry(context))
+        listOfNotNull(homeEntry(context))
 
-fun browseIntent(context: Context, path: String): Intent =
-    browseIntent(context)
-    
+    /** Intent that opens this source's browse UI at [path]. */
+    fun browseIntent(context: Context, path: String): Intent =
+        browseIntent(context)
+
     /** Intent that opens this source's browse UI. */
     fun browseIntent(context: Context): Intent
 
@@ -57,15 +59,15 @@ fun browseIntent(context: Context, path: String): Intent =
     ): RenameOutcome
 
     /**
- * Copy a remote media file to a local destination for sharing.
- * Returns false if exporting the file is not supported or fails.
- */
-suspend fun copyToCache(
-    context: Context,
-    path: String,
-    destination: java.io.File
-): Boolean = false
-    
+     * Copy a remote media file to a local destination for sharing.
+     * Returns false if exporting the file is not supported or fails.
+     */
+    suspend fun copyToCache(
+        context: Context,
+        path: String,
+        destination: java.io.File
+    ): Boolean = false
+
     // ---- File operations (copy / move / delete / new folder) ----
     // All functions below do blocking I/O: call them from a background thread.
 

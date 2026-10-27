@@ -4,8 +4,6 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.signature.ObjectKey
 import org.iurl.litegallery.databinding.ItemMediaBinding
 import org.iurl.litegallery.databinding.ItemMediaListBinding
 import org.iurl.litegallery.databinding.ItemMediaDetailedBinding
@@ -178,30 +176,7 @@ class MediaAdapter(
             if (skeleton.usesPlaceholderThumbnail) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
-                Glide.with(binding.root.context)
-                    .load(
-    if (skeleton.path.startsWith("smb://")) {
-        "smbthumb://${skeleton.path}"
-    } else {
-        skeleton.thumbnailModel()
-    }
-)
-.signature(
-    ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
-)
-.diskCacheStrategy(
-    when {
-        // The 384 px thumbnail from the share is small: keep it on the phone, so scrolling back
-        // does not read it over the network again.
-        skeleton.path.startsWith("smb://") ->
-            DiskCacheStrategy.DATA
-        skeleton.isRemote ->
-            DiskCacheStrategy.RESOURCE
-        else ->
-            DiskCacheStrategy.AUTOMATIC
-    }
-)
-.centerCrop()
+                MediaThumbnails.request(Glide.with(binding.root.context), skeleton)
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .into(binding.thumbnailImageView)
@@ -258,30 +233,7 @@ class MediaAdapter(
             if (skeleton.usesPlaceholderThumbnail) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
-                Glide.with(binding.root.context)
-                    .load(
-    if (skeleton.path.startsWith("smb://")) {
-        "smbthumb://${skeleton.path}"
-    } else {
-        skeleton.thumbnailModel()
-    }
-)
-.signature(
-    ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
-)
-.diskCacheStrategy(
-    when {
-        // The 384 px thumbnail from the share is small: keep it on the phone, so scrolling back
-        // does not read it over the network again.
-        skeleton.path.startsWith("smb://") ->
-            DiskCacheStrategy.DATA
-        skeleton.isRemote ->
-            DiskCacheStrategy.RESOURCE
-        else ->
-            DiskCacheStrategy.AUTOMATIC
-    }
-)
-.centerCrop()
+                MediaThumbnails.request(Glide.with(binding.root.context), skeleton)
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .into(binding.thumbnailImageView)
@@ -329,30 +281,7 @@ class MediaAdapter(
             if (skeleton.usesPlaceholderThumbnail) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
-                Glide.with(binding.root.context)
-                    .load(
-    if (skeleton.path.startsWith("smb://")) {
-        "smbthumb://${skeleton.path}"
-    } else {
-        skeleton.thumbnailModel()
-    }
-)
-.signature(
-    ObjectKey("${skeleton.path}_${skeleton.dateModified}_${skeleton.size}")
-)
-.diskCacheStrategy(
-    when {
-        // The 384 px thumbnail from the share is small: keep it on the phone, so scrolling back
-        // does not read it over the network again.
-        skeleton.path.startsWith("smb://") ->
-            DiskCacheStrategy.DATA
-        skeleton.isRemote ->
-            DiskCacheStrategy.RESOURCE
-        else ->
-            DiskCacheStrategy.AUTOMATIC
-    }
-)
-.centerCrop()
+                MediaThumbnails.request(Glide.with(binding.root.context), skeleton)
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .into(binding.thumbnailImageView)

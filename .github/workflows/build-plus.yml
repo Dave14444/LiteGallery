@@ -3,26 +3,6 @@ name: Build LiteGallery Plus
 
 on:
   workflow_dispatch:
-    inputs:
-      build_type:
-        description: "Build type (Release is shrunk; Debug is not)"
-        type: choice
-        options:
-          - Release
-          - Debug
-        default: Release
-      encrypt_passwords:
-        description: "Encrypt saved passwords (off only to test Play Protect)"
-        type: boolean
-        default: true
-      clean_temp_files:
-        description: "Remove temporary files at app start (off only to test Play Protect)"
-        type: boolean
-        default: true
-      thumb_cleanup:
-        description: "Offer 'Clean up previews' (off only to test Play Protect)"
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -58,18 +38,15 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          LG_ENCRYPT_PASSWORDS: ${{ inputs.encrypt_passwords }}
-          LG_CLEAN_TEMP_FILES: ${{ inputs.clean_temp_files }}
-          LG_THUMB_CLEANUP: ${{ inputs.thumb_cleanup }}
         run: |
           chmod +x ./gradlew
-          ./gradlew assemblePlus${{ inputs.build_type }}
+          ./gradlew assemblePlusRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
         with:
           name: LiteGallery-Plus-APK
-          path: app/build/outputs/apk/plus/*/*.apk
+          path: app/build/outputs/apk/plus/release/*.apk
           if-no-files-found: error
 
       # Runs after the APK is uploaded: a failing test turns the run red, but the APK is still

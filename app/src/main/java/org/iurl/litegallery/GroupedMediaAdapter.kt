@@ -241,17 +241,7 @@ class GroupedMediaAdapter(
         if (skeleton.usesPlaceholderThumbnail) {
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
-            Glide.with(binding.root.context)
-                
-.load(
-    if (skeleton.path.startsWith("smb://")) {
-        "smbthumb://${skeleton.path}"
-    } else {
-        skeleton.thumbnailModel()
-    }
-)
-
-                .centerCrop()
+            MediaThumbnails.request(Glide.with(binding.root.context), skeleton)
                 .placeholder(R.drawable.ic_image_placeholder)
                 .error(R.drawable.ic_image_placeholder)
                 .into(binding.thumbnailImageView)
@@ -271,17 +261,7 @@ class GroupedMediaAdapter(
         if (skeleton.usesPlaceholderThumbnail) {
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
-            Glide.with(binding.root.context)
-                
-.load(
-    if (skeleton.path.startsWith("smb://")) {
-        "smbthumb://${skeleton.path}"
-    } else {
-        skeleton.thumbnailModel()
-    }
-)
-
-                .centerCrop()
+            MediaThumbnails.request(Glide.with(binding.root.context), skeleton)
                 .placeholder(R.drawable.ic_image_placeholder)
                 .error(R.drawable.ic_image_placeholder)
                 .into(binding.thumbnailImageView)
@@ -301,17 +281,7 @@ class GroupedMediaAdapter(
         if (skeleton.usesPlaceholderThumbnail) {
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
-            Glide.with(binding.root.context)
-                
-.load(
-    if (skeleton.path.startsWith("smb://")) {
-        "smbthumb://${skeleton.path}"
-    } else {
-        skeleton.thumbnailModel()
-    }
-)
-
-                .centerCrop()
+            MediaThumbnails.request(Glide.with(binding.root.context), skeleton)
                 .placeholder(R.drawable.ic_image_placeholder)
                 .error(R.drawable.ic_image_placeholder)
                 .into(binding.thumbnailImageView)

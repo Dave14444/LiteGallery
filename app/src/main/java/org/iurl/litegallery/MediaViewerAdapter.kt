@@ -136,12 +136,12 @@ class MediaViewerAdapter(
                         binding.videoThumbnail?.clearColorFilter()
                         Glide.with(context)
                             .load(
-    if (mediaItem.path.startsWith("smb://")) {
-        "smbthumb://${mediaItem.path}"
-    } else {
-        mediaItem.path
-    }
-)
+                                if (mediaItem.path.startsWith("smb://")) {
+                                    "smbthumb://${mediaItem.path}"
+                                } else {
+                                    mediaItem.path
+                                }
+                            )
                             .signature(ObjectKey("${mediaItem.path}_${mediaItem.dateModified}_${mediaItem.size}"))
                             .fitCenter()
                             .into(binding.videoThumbnail)

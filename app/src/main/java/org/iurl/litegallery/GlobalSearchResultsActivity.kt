@@ -3,7 +3,6 @@ package org.iurl.litegallery
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.SystemClock
 import android.text.format.Formatter
@@ -25,8 +24,6 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.ListPreloader
-import com.bumptech.glide.RequestBuilder
 import com.bumptech.glide.integration.recyclerview.RecyclerViewPreloader
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -282,31 +279,15 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
         updateLayoutManager()
     }
 
-    private fun createThumbnailPreloader(): RecyclerViewPreloader<Any> {
-        val requestManager = Glide.with(this)
-        val preloadModelProvider = object : ListPreloader.PreloadModelProvider<Any> {
-            override fun getPreloadItems(position: Int): MutableList<Any> {
-                val skeleton = when (binding.recyclerView.adapter) {
-                    mediaAdapter -> mediaAdapter.currentList.getOrNull(position)
-                    groupedMediaAdapter -> (groupedMediaAdapter.currentList.getOrNull(position) as? FolderDisplayItem.Media)?.skeleton
-                    else -> null
-                }
-                if (skeleton == null || skeleton.usesPlaceholderThumbnail) return mutableListOf()
-                return mutableListOf(skeleton.thumbnailModel())
-            }
-
-            override fun getPreloadRequestBuilder(item: Any): RequestBuilder<Drawable>? {
-                return requestManager.load(item).centerCrop()
+    private fun createThumbnailPreloader(): RecyclerViewPreloader<MediaItemSkeleton> =
+        MediaThumbnails.preloader(Glide.with(this), resources.displayMetrics.density) { position ->
+            when (binding.recyclerView.adapter) {
+                mediaAdapter -> mediaAdapter.currentList.getOrNull(position)
+                groupedMediaAdapter ->
+                    (groupedMediaAdapter.currentList.getOrNull(position) as? FolderDisplayItem.Media)?.skeleton
+                else -> null
             }
         }
-        val preloadSizeProvider = object : ListPreloader.PreloadSizeProvider<Any> {
-            override fun getPreloadSize(item: Any, adapterPosition: Int, perItemPosition: Int): IntArray {
-                val sizePx = (96 * resources.displayMetrics.density).roundToInt().coerceAtLeast(96)
-                return intArrayOf(sizePx, sizePx)
-            }
-        }
-        return RecyclerViewPreloader(requestManager, preloadModelProvider, preloadSizeProvider, 20)
-    }
 
     private fun setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener {

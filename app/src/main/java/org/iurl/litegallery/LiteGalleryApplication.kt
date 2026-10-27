@@ -20,7 +20,7 @@ class LiteGalleryApplication : Application() {
         MediaSourceBootstrap.init(this)
 
         // Remove leftovers of shares and edits that were never cleaned up.
-        if (BuildConfig.CLEAN_TEMP_FILES) TempFileCleaner.cleanUpInBackground(this)
+        TempFileCleaner.cleanUpInBackground(this)
     }
 
     override fun onTerminate() {

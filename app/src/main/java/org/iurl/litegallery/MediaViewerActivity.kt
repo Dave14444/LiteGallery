@@ -553,6 +553,20 @@ class MediaViewerActivity : AppCompatActivity() {
         applyActionBarCustomization()
     }
 
+    /** Adds [action] to the visible actions of an existing installation, once ([flag]). */
+    private fun makeVisibleOnce(prefs: android.content.SharedPreferences, flag: String, action: String) {
+        if (prefs.getBoolean(flag, false)) return
+        val editor = prefs.edit()
+        val storedVisible = prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)
+        if (storedVisible != null && storedVisible.split(',').none { it.trim() == action }) {
+            val migrated = (storedVisible.split(',').filter { it.isNotBlank() } + action)
+                .distinct()
+                .joinToString(",")
+            editor.putString(ActionBarPreferences.KEY_VISIBLE, migrated)
+        }
+        editor.putBoolean(flag, true).apply()
+    }
+
     private fun applyActionBarCustomization() {
         val prefs = getSharedPreferences(ActionBarPreferences.PREFS_NAME, MODE_PRIVATE)
         val defaultOrder = ActionBarPreferences.DEFAULT_ACTION_ORDER
@@ -585,68 +599,21 @@ class MediaViewerActivity : AppCompatActivity() {
             editor.putBoolean("exif_action_migrated", true).apply()
         }
 
-        val order = (
-    prefs.getString(ActionBarPreferences.KEY_ORDER, null)
-        ?.split(',')
-        ?.filter { it.isNotBlank() }
-        ?: defaultOrder
-)
+        // Existing installations: actions added in newer versions become visible once.
+        makeVisibleOnce(prefs, "share_action_migrated", "share")
+        makeVisibleOnce(prefs, "edit_action_migrated", "edit")
 
-// Migrate existing installations so the new Share action is visible.
-if (!prefs.getBoolean("share_action_migrated", false)) {
-    val storedVisible = prefs.getString(
-        ActionBarPreferences.KEY_VISIBLE, null
-    )
+        val order = prefs.getString(ActionBarPreferences.KEY_ORDER, null)
+            ?.split(',')
+            ?.filter { it.isNotBlank() }
+            ?: defaultOrder
 
-    if (storedVisible != null &&
-        storedVisible.split(',').none { it.trim() == "share" }
-    ) {
-        val migratedVisible = (
-            storedVisible.split(',')
-                .filter { it.isNotBlank() } + "share"
-        ).distinct().joinToString(",")
+        val visible = prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)
+            ?.split(',')
+            ?.filter { it.isNotBlank() }
+            ?.toSet()
+            ?: defaultOrder.toSet()
 
-        prefs.edit()
-            .putString(ActionBarPreferences.KEY_VISIBLE, migratedVisible)
-            .apply()
-    }
-
-    prefs.edit()
-        .putBoolean("share_action_migrated", true)
-        .apply()
-}
-
-// Migrate existing installations so the Edit (crop) action is visible.
-if (!prefs.getBoolean("edit_action_migrated", false)) {
-    val storedVisible = prefs.getString(
-        ActionBarPreferences.KEY_VISIBLE, null
-    )
-
-    if (storedVisible != null &&
-        storedVisible.split(',').none { it.trim() == "edit" }
-    ) {
-        val migratedVisible = (
-            storedVisible.split(',')
-                .filter { it.isNotBlank() } + "edit"
-        ).distinct().joinToString(",")
-
-        prefs.edit()
-            .putString(ActionBarPreferences.KEY_VISIBLE, migratedVisible)
-            .apply()
-    }
-
-    prefs.edit()
-        .putBoolean("edit_action_migrated", true)
-        .apply()
-}
-
-val visible = (
-    prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)
-        ?.split(',')
-        ?.filter { it.isNotBlank() }
-        ?.toSet()
-        ?: defaultOrder.toSet()
-)
         val container = binding.actionButtonsContainer
         container.removeAllViews()
 

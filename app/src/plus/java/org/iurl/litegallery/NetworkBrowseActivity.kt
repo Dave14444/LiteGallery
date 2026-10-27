@@ -25,7 +25,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.iurl.litegallery.databinding.ActivityNetworkBrowseBinding
 import org.iurl.litegallery.theme.ThemeColorResolver
@@ -44,6 +47,9 @@ class NetworkBrowseActivity : AppCompatActivity() {
 
         /** Marks the "images in this folder" card (the folder's own pictures) in [MediaFolder.path]. */
         private const val IMAGES_CARD_SUFFIX = "#images"
+
+        /** Folder summaries (cover, count) read at the same time. */
+        private const val SUMMARY_PARALLEL = 3
     }
 
     private lateinit var binding: ActivityNetworkBrowseBinding
@@ -81,19 +87,19 @@ class NetworkBrowseActivity : AppCompatActivity() {
         currentPackKey = ThemeHelper.getCurrentPack(this).key
         remoteMediaScanner = RemoteMediaScanner(this)
 
-// Unterstützt die Zurück-Geste einschließlich Predictive Back.
-onBackPressedDispatcher.addCallback(
-    this,
-    object : OnBackPressedCallback(true) {
-        override fun handleOnBackPressed() {
-            if (currentPath.isNotBlank()) {
-                navigateUp()
-            } else {
-                finish()
+        // Back gesture (including predictive back): one folder up, or leave the screen.
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (currentPath.isNotBlank()) {
+                        navigateUp()
+                    } else {
+                        finish()
+                    }
+                }
             }
-        }
-    }
-)
+        )
 
         setupToolbar()
         setupAddressBar()
@@ -154,7 +160,7 @@ onBackPressedDispatcher.addCallback(
                 true
             }
             R.id.action_cleanup_thumbnails -> {
-                if (BuildConfig.THUMB_CLEANUP) ThumbnailCleanup.start(this, currentPath)
+                ThumbnailCleanup.start(this, currentPath)
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -170,8 +176,7 @@ onBackPressedDispatcher.addCallback(
         // The trash belongs to a share: offer it while a folder on an SMB share is open.
         menu.findItem(R.id.action_network_trash)?.isVisible = SmbPath.isSmb(currentPath)
         menu.findItem(R.id.action_prepare_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
-        menu.findItem(R.id.action_cleanup_thumbnails)?.isVisible =
-            BuildConfig.THUMB_CLEANUP && SmbPath.isSmb(currentPath)
+        menu.findItem(R.id.action_cleanup_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -780,20 +785,30 @@ onBackPressedDispatcher.addCallback(
         summaryJob = lifecycleScope.launch {
             val results = LinkedHashMap<String, SmbFolderSummaries.Summary>()
             var sinceLastUpdate = 0
-            for (folder in folders) {
-                val summary = withContext(Dispatchers.IO) {
-                    try {
-                        SmbFolderSummaries.refresh(applicationContext, folder.url)
-                    } catch (e: Exception) {
-                        null
-                    }
-                } ?: continue
+            // A few folders are read at the same time: much faster than one after the other,
+            // without flooding the server.
+            val permits = Semaphore(SUMMARY_PARALLEL)
+            coroutineScope {
+                for (folder in folders) {
+                    launch {
+                        val summary = permits.withPermit {
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    SmbFolderSummaries.refresh(applicationContext, folder.url)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                        } ?: return@launch
 
-                results[folder.url] = summary
-                sinceLastUpdate++
-                if (sinceLastUpdate >= 3) {
-                    applySummaries(results)
-                    sinceLastUpdate = 0
+                        // Back on the main thread: no other coroutine changes these meanwhile.
+                        results[folder.url] = summary
+                        sinceLastUpdate++
+                        if (sinceLastUpdate >= 3) {
+                            applySummaries(results)
+                            sinceLastUpdate = 0
+                        }
+                    }
                 }
             }
             applySummaries(results)

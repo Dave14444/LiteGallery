@@ -18,7 +18,6 @@ object NetworkMediaSource : MediaSource {
 
     override fun handles(path: String): Boolean = RemotePath.isRemote(path)
 
-    
     override fun homeEntry(context: Context): MediaFolder {
         val serverCount = NetworkConfigStore.getAllServers(context).size
         return MediaFolder(
@@ -46,17 +45,15 @@ object NetworkMediaSource : MediaSource {
         return listOf(networkHub) + savedConnections
     }
 
-
-
     override fun browseIntent(context: Context): Intent =
-    Intent(context, NetworkBrowseActivity::class.java)
+        Intent(context, NetworkBrowseActivity::class.java)
 
-override fun browseIntent(context: Context, path: String): Intent =
-    Intent(context, NetworkBrowseActivity::class.java).apply {
-        if (path != "smb://") {
-            putExtra(NetworkBrowseActivity.EXTRA_START_PATH, path)
+    override fun browseIntent(context: Context, path: String): Intent =
+        Intent(context, NetworkBrowseActivity::class.java).apply {
+            if (path != "smb://") {
+                putExtra(NetworkBrowseActivity.EXTRA_START_PATH, path)
+            }
         }
-    }
 
     override val folderIconRes: Int = R.drawable.ic_network
 
@@ -97,34 +94,28 @@ override fun browseIntent(context: Context, path: String): Intent =
             else -> RenameOutcome.Failed
         }
     }
-override suspend fun copyToCache(
-    context: Context,
-    path: String,
-    destination: java.io.File
-): Boolean = withContext(Dispatchers.IO) {
-    val client = RemoteClients.forUrl(path)
-        ?: return@withContext false
+    override suspend fun copyToCache(
+        context: Context,
+        path: String,
+        destination: java.io.File
+    ): Boolean = withContext(Dispatchers.IO) {
+        val client = RemoteClients.forUrl(path) ?: return@withContext false
 
-    try {
-        destination.parentFile?.mkdirs()
-
-        client.openInputStream(context, path).use { input ->
-            destination.outputStream().use { output ->
-                input.copyTo(output)
+        try {
+            destination.parentFile?.mkdirs()
+            client.openInputStream(context, path).use { input ->
+                destination.outputStream().use { output ->
+                    input.copyTo(output, 256 * 1024)
+                }
             }
+            destination.isFile && destination.length() > 0L
+        } catch (e: Exception) {
+            destination.delete()
+            android.util.Log.e("NetworkMediaSource", "Failed to copy remote media for sharing", e)
+            false
         }
-
-        destination.isFile && destination.length() > 0L
-    } catch (e: Exception) {
-        destination.delete()
-        android.util.Log.e(
-            "NetworkMediaSource",
-            "Failed to copy remote media for sharing",
-            e
-        )
-        false
     }
-}
+
     // ---- File operations (SMB only) ----
 
     override fun supportsFileOperations(path: String): Boolean = SmbPath.isSmb(path)

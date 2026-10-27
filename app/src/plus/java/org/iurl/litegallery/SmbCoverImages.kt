@@ -141,6 +141,7 @@ object SmbCoverImages {
                 )
             } ?: ExifInterface.ORIENTATION_NORMAL
             val oriented = ImageOrientation.apply(decoded, orientation)
+            if (oriented !== decoded) decoded.recycle()
 
             val scale = MAX_SIDE.toFloat() / maxOf(oriented.width, oriented.height)
             val bitmap = if (scale < 1f) {
@@ -161,6 +162,8 @@ object SmbCoverImages {
             target.outputStream().use { output ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 88, output)
             }
+            if (bitmap !== oriented) oriented.recycle()
+            bitmap.recycle()
 
             val previous = prefs(context).getString(serverId, null)
             prefs(context).edit().putString(serverId, target.name).apply()
