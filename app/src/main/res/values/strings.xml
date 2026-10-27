@@ -626,4 +626,5 @@
     <string name="exif_wb_manual">Manual</string>
     <string name="exif_location">Location</string>
     <string name="exif_altitude">Altitude</string>
+    <string name="folder_sub_folders">Folders (%d)</string>
 </resources>

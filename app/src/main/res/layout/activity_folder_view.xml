@@ -155,6 +155,39 @@
             </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Sub folders of a network folder, above its pictures. Scrolls away with the list. -->
+            <LinearLayout
+                android:id="@+id/subFolderSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical"
+                android:visibility="gone"
+                app:layout_scrollFlags="scroll"
+                tools:visibility="visible">
+
+                <TextView
+                    android:id="@+id/subFolderHeaderTextView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="12dp"
+                    android:textAllCaps="true"
+                    android:textAppearance="?attr/textAppearanceLabelSmall"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    tools:text="Folders (3)" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/subFolderRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipToPadding="false"
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never"
+                    android:paddingHorizontal="2dp"
+                    android:scrollbars="none" />
+
+            </LinearLayout>
+
             <HorizontalScrollView
                 android:id="@+id/folderControlsRow"
                 android:layout_width="match_parent"

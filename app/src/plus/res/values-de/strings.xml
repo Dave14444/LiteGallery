@@ -2,7 +2,6 @@
 <resources>
 
     <!-- Netzwerk-Ordneransicht und Anzeigebilder -->
-    <string name="network_images_in_folder">Bilder in diesem Ordner</string>
     <string name="smb_cover_choose">Anzeigebild wählen</string>
     <string name="smb_cover_reset">Anzeigebild zurücksetzen</string>
     <string name="smb_cover_failed">Dieses Bild konnte nicht verwendet werden</string>

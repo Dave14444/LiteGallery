@@ -45,9 +45,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_START_PATH = "extra_start_path"
 
-        /** Marks the "images in this folder" card (the folder's own pictures) in [MediaFolder.path]. */
-        private const val IMAGES_CARD_SUFFIX = "#images"
-
         /** Folder summaries (cover, count) read at the same time. */
         private const val SUMMARY_PARALLEL = 3
     }
@@ -63,6 +60,9 @@ class NetworkBrowseActivity : AppCompatActivity() {
     /** Scroll position (first visible item, offset) of the folders left behind, by folder URL. */
     private val scrollPositions = HashMap<String, IntArray>()
     private var launchedWithPath = false
+    /** Opened from a sub folder card of the folder screen: back from [startPath] returns there. */
+    private var openedFromFolderScreen = false
+    private var startPath = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         ThemeHelper.applyTheme(this)
@@ -112,6 +112,10 @@ class NetworkBrowseActivity : AppCompatActivity() {
         val intentPath = intent.getStringExtra(EXTRA_START_PATH)
         if (!intentPath.isNullOrBlank()) {
             launchedWithPath = true
+            startPath = intentPath
+            openedFromFolderScreen = intent.getBooleanExtra(EXTRA_OPENED_FROM_FOLDER_SCREEN, false)
+            // The folder is about to open: do not flash the list of saved servers meanwhile.
+            binding.savedServersLayout.visibility = View.GONE
             binding.addressEditText.setText(intentPath)
             navigateTo(intentPath)
         }
@@ -617,9 +621,9 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 val folders = items.filter { it.isDirectory }
                 val media = items.filter { !it.isDirectory && it.isMedia }
 
-                if (folders.isEmpty() && media.isNotEmpty()) {
-                    // Only pictures and videos: the regular folder screen shows them, exactly
-                    // like a local folder.
+                if (media.isNotEmpty()) {
+                    // Pictures and videos (with or without sub folders): the regular folder
+                    // screen shows them like a local folder, its sub folders as cards above.
                     openImagesScreen(address)
                     if (previousPath.isBlank() && launchedWithPath) {
                         finish()
@@ -644,7 +648,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
 
                 showFolder(address)
                 showCardMode()
-                val cards = buildCards(address, folders, media)
+                val cards = buildCards(folders)
                 if (cards.isEmpty()) {
                     browseAdapter.submitList(emptyList())
                     binding.emptyView.visibility = View.VISIBLE
@@ -702,11 +706,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
     }
 
     private fun onFolderCardClick(folder: MediaFolder) {
-        if (folder.path.endsWith(IMAGES_CARD_SUFFIX)) {
-            openImagesScreen(folder.path.removeSuffix(IMAGES_CARD_SUFFIX))
-        } else {
-            navigateTo(folder.path)
-        }
+        navigateTo(folder.path)
     }
 
     /** Opens the regular folder screen (grid, sorting, grouping, selection...) for a network folder. */
@@ -726,55 +726,19 @@ class NetworkBrowseActivity : AppCompatActivity() {
         )
     }
 
-    /** Cards for the folder's own pictures (if any) and for each sub folder. */
-    private fun buildCards(
-        address: String,
-        folders: List<RemoteFileInfo>,
-        media: List<RemoteFileInfo>
-    ): List<MediaFolder> {
-        val cards = mutableListOf<MediaFolder>()
-
-        if (media.isNotEmpty()) {
-            val pictures = media.filter { !it.isVideo }
-            cards.add(
-                MediaFolder(
-                    name = getString(R.string.network_images_in_folder),
-                    path = address + IMAGES_CARD_SUFFIX,
-                    itemCount = media.size,
-                    thumbnail = coverModel(pictures.maxByOrNull { it.lastModified }?.url),
-                    imageCount = pictures.size,
-                    videoCount = media.size - pictures.size,
-                    totalSizeBytes = media.sumOf { it.size },
-                    latestDateModifiedMs = media.maxOf { it.lastModified },
-                    isSubFolder = true
-                )
-            )
-        }
-
-        folders.forEach { folder ->
+    /** A card for each sub folder, with what is known about it already. */
+    private fun buildCards(folders: List<RemoteFileInfo>): List<MediaFolder> =
+        folders.map { folder ->
             val card = MediaFolder(
                 name = folder.name,
                 path = folder.url,
                 itemCount = -1,
                 isSubFolder = true
             )
-            val summary = SmbFolderSummaries.cached(this, folder.url)
-            cards.add(if (summary != null) withSummary(card, summary) else card)
+            SmbFolderSummaries.cached(this, folder.url)
+                ?.let { SmbFolderSummaries.applyTo(card, it) }
+                ?: card
         }
-        return cards
-    }
-
-    private fun withSummary(card: MediaFolder, summary: SmbFolderSummaries.Summary): MediaFolder =
-        card.copy(
-            itemCount = if (summary.mediaCount > 0) summary.mediaCount else -1,
-            thumbnail = coverModel(summary.coverUrl),
-            totalSizeBytes = summary.totalSize,
-            latestDateModifiedMs = summary.latestModified
-        )
-
-    /** Cover pictures come from the thumbnail cache on the share (SMB only). */
-    private fun coverModel(pictureUrl: String?): String? =
-        if (pictureUrl != null && SmbPath.isSmb(pictureUrl)) "smbthumb://$pictureUrl" else null
 
     /**
      * Fills in the cover picture, count and size of the folder cards one folder at a time. The
@@ -819,12 +783,17 @@ class NetworkBrowseActivity : AppCompatActivity() {
         if (results.isEmpty()) return
         val updated = browseAdapter.currentList.map { card ->
             val summary = results[card.path]
-            if (summary == null) card else withSummary(card, summary)
+            if (summary == null) card else SmbFolderSummaries.applyTo(card, summary)
         }
         browseAdapter.submitList(updated)
     }
 
     private fun navigateUp() {
+        // Opened from the folder screen: going back from that folder returns there.
+        if (openedFromFolderScreen && currentPath.trimEnd('/') == startPath.trimEnd('/')) {
+            finish()
+            return
+        }
         val parent = when {
             SmbPath.isSmb(currentPath) ->
                 SmbPath.parse(currentPath)?.let {

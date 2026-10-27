@@ -32,7 +32,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
@@ -58,6 +61,13 @@ class FolderViewActivity : AppCompatActivity() {
         // Same preference as the viewer's delete dialog.
         private const val DELETE_PREFS = "delete_prefs"
         private const val DELETE_MOVE_TO_TRASH_KEY = "delete_move_to_trash"
+
+        /** Width of a sub folder card in the row above the pictures. */
+        private const val SUB_FOLDER_CARD_WIDTH_DP = 168
+        /** Sub folder details (cover, count) read at the same time. */
+        private const val SUB_FOLDER_PARALLEL = 3
+        /** Menu item ids for entries offered by a media source; far away from generated ids. */
+        private const val FOLDER_ACTION_ID_BASE = 0x00F0_0000
     }
     
     private lateinit var binding: ActivityFolderViewBinding
@@ -112,6 +122,11 @@ class FolderViewActivity : AppCompatActivity() {
     private var moveMenuItem: MenuItem? = null
     private var deleteMenuItem: MenuItem? = null
     private var selectAllMenuItem: MenuItem? = null
+
+    private lateinit var subFolderAdapter: FolderAdapter
+    private var subFolderJob: Job? = null
+    private val folderActions = HashMap<Int, FolderAction>()
+    private val folderActionItems = mutableListOf<MenuItem>()
 
     private val selectionBackCallback = object : androidx.activity.OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
@@ -181,6 +196,7 @@ class FolderViewActivity : AppCompatActivity() {
 
         setupToolbar()
         setupRecyclerView()
+        setupSubFolders()
         setupSwipeRefresh()
         setupSearchFilters()
         setupFastScroller()
@@ -190,6 +206,13 @@ class FolderViewActivity : AppCompatActivity() {
 
         mediaScanner = MediaScanner(this)
         loadMediaItems()
+        loadSubFolders()
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        // Back from a sub folder: files may have been added, moved or deleted there.
+        loadSubFolders()
     }
 
     override fun onDestroy() {
@@ -226,6 +249,7 @@ class FolderViewActivity : AppCompatActivity() {
         moveMenuItem = menu.findItem(R.id.action_move_selection)
         deleteMenuItem = menu.findItem(R.id.action_delete_selection)
         selectAllMenuItem = menu.findItem(R.id.action_select_all)
+        addFolderActions(menu)
         setupSearchMenuItem(searchMenuItem)
         updateSortIndicator()
         updateSelectionUi()
@@ -233,6 +257,10 @@ class FolderViewActivity : AppCompatActivity() {
     }
     
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        folderActions[item.itemId]?.let { action ->
+            action.run(this)
+            return true
+        }
         return when (item.itemId) {
             android.R.id.home -> {
                 if (selectedPaths.isNotEmpty()) clearSelection() else finish()
@@ -328,6 +356,7 @@ class FolderViewActivity : AppCompatActivity() {
         moveMenuItem?.isVisible = selecting
         deleteMenuItem?.isVisible = selecting
         selectAllMenuItem?.isVisible = selecting
+        folderActionItems.forEach { it.isVisible = !selecting }
         selectionBackCallback.isEnabled = selecting
     }
 
@@ -575,6 +604,91 @@ class FolderViewActivity : AppCompatActivity() {
                 runOnUiThread { loadMediaItems(showBlockingLoading = false) }
             }
         }
+    }
+
+    // ---- Sub folders and source menu entries (network folders) ----
+
+    /** Entries the media source offers for this folder (e.g. trash bin, prepare previews). */
+    private fun addFolderActions(menu: Menu) {
+        folderActions.clear()
+        folderActionItems.clear()
+        val actions = MediaSourceRegistry.forPath(folderPath)?.folderMenuActions(this, folderPath).orEmpty()
+        actions.forEachIndexed { index, action ->
+            val id = FOLDER_ACTION_ID_BASE + index
+            val item = menu.add(Menu.NONE, id, Menu.CATEGORY_SECONDARY + index, action.label)
+            item.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+            folderActions[id] = action
+            folderActionItems.add(item)
+        }
+    }
+
+    private fun setupSubFolders() {
+        val cardWidth = (SUB_FOLDER_CARD_WIDTH_DP * resources.displayMetrics.density).roundToInt()
+        subFolderAdapter = FolderAdapter(
+            onFolderClick = { folder -> openSubFolder(folder) },
+            onFolderLongClick = { },
+            cardWidthPx = cardWidth
+        )
+        binding.subFolderRecyclerView.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        binding.subFolderRecyclerView.adapter = subFolderAdapter
+    }
+
+    /**
+     * Shows the sub folders of a network folder above its pictures: first with what is known
+     * already, then each card is brought up to date (cover, count).
+     */
+    private fun loadSubFolders() {
+        val source = MediaSourceRegistry.forPath(folderPath) ?: return
+        subFolderJob?.cancel()
+        subFolderJob = lifecycleScope.launch {
+            val cards = try {
+                withContext(Dispatchers.IO) { source.subFolderCards(applicationContext, folderPath) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("FolderViewActivity", "Could not list the sub folders of $folderPath", e)
+                return@launch
+            }
+
+            var shown = cards
+            showSubFolders(shown)
+            if (cards.isEmpty()) return@launch
+
+            val permits = Semaphore(SUB_FOLDER_PARALLEL)
+            coroutineScope {
+                for (card in cards) {
+                    launch {
+                        val fresh = permits.withPermit {
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    source.refreshSubFolderCard(applicationContext, card)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                        } ?: return@launch
+                        // On the main thread: the updates come one after the other.
+                        shown = shown.map { if (it.path == fresh.path) fresh else it }
+                        subFolderAdapter.submitList(shown)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showSubFolders(cards: List<MediaFolder>) {
+        binding.subFolderSection.visibility = if (cards.isEmpty()) View.GONE else View.VISIBLE
+        binding.subFolderHeaderTextView.text = getString(R.string.folder_sub_folders, cards.size)
+        subFolderAdapter.submitList(cards)
+    }
+
+    private fun openSubFolder(folder: MediaFolder) {
+        val source = MediaSourceRegistry.forPath(folder.path) ?: return
+        startActivity(
+            source.browseIntent(this, folder.path)
+                .putExtra(EXTRA_OPENED_FROM_FOLDER_SCREEN, true)
+        )
     }
 
     private fun setupToolbar() {
@@ -1106,6 +1220,7 @@ class FolderViewActivity : AppCompatActivity() {
             lastSwipeRefreshAtMs = now
 
             loadMediaItems(showBlockingLoading = false, fromSwipeRefresh = true)
+            loadSubFolders()
         }
         binding.swipeRefresh.setColorSchemeColors(
             ThemeColorResolver.resolveColor(this, com.google.android.material.R.attr.colorPrimary),

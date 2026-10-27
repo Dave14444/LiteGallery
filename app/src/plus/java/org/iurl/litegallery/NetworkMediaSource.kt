@@ -284,6 +284,56 @@ object NetworkMediaSource : MediaSource {
         return true
     }
 
+    // ---- Folder screen ----
+
+    override fun subFolderCards(context: Context, folderPath: String): List<MediaFolder> {
+        val client = RemoteClients.forUrl(folderPath) ?: return emptyList()
+        return client.listFiles(context, folderPath)
+            .filter { it.isDirectory }
+            .sortedBy { it.name.lowercase() }
+            .map { folder ->
+                val card = MediaFolder(
+                    name = folder.name,
+                    path = folder.url,
+                    itemCount = -1,
+                    isSubFolder = true
+                )
+                SmbFolderSummaries.cached(context, folder.url)
+                    ?.let { SmbFolderSummaries.applyTo(card, it) }
+                    ?: card
+            }
+    }
+
+    override fun refreshSubFolderCard(context: Context, card: MediaFolder): MediaFolder? =
+        SmbFolderSummaries.refresh(context, card.path)?.let { SmbFolderSummaries.applyTo(card, it) }
+
+    override fun folderMenuActions(context: Context, folderPath: String): List<FolderAction> {
+        if (!SmbPath.isSmb(folderPath)) return emptyList()
+        val label = folderPath.trimEnd('/').substringAfterLast('/')
+        val actions = mutableListOf<FolderAction>()
+        SmbTrash.shareRootOf(folderPath)?.let { shareRoot ->
+            actions.add(
+                FolderAction(context.getString(R.string.trash_bin_title)) { activity ->
+                    activity.startActivity(
+                        Intent(activity, NetworkTrashActivity::class.java)
+                            .putExtra(NetworkTrashActivity.EXTRA_SHARE_URL, shareRoot)
+                    )
+                }
+            )
+        }
+        actions.add(
+            FolderAction(context.getString(R.string.thumb_prepare_menu)) { activity ->
+                ThumbnailPreparer.start(activity, folderPath, label)
+            }
+        )
+        actions.add(
+            FolderAction(context.getString(R.string.thumb_cleanup_menu)) { activity ->
+                ThumbnailCleanup.start(activity, folderPath)
+            }
+        )
+        return actions
+    }
+
     override fun shutdown() {
         RemoteClients.all().forEach { it.disconnectAll() }
     }

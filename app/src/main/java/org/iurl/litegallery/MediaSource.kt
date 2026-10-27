@@ -159,9 +159,35 @@ interface MediaSource {
         onChanged: () -> Unit
     ): Boolean = false
 
+    // ---- Folder screen (sub folders, extra menu entries) ----
+
+    /**
+     * Sub folders of [folderPath] as cards for the top of the folder screen. Uses what is known
+     * already (cover, count); [refreshSubFolderCard] brings a card up to date. Blocking.
+     */
+    fun subFolderCards(context: Context, folderPath: String): List<MediaFolder> = emptyList()
+
+    /** [card] with fresh details (cover, count), or null if nothing could be read. Blocking. */
+    fun refreshSubFolderCard(context: Context, card: MediaFolder): MediaFolder? = null
+
+    /** Extra entries for the menu of the folder screen showing [folderPath] (e.g. the share's trash). */
+    fun folderMenuActions(context: Context, folderPath: String): List<FolderAction> = emptyList()
+
     /** Release any held resources (connections, caches) on app shutdown. */
     fun shutdown()
 }
+
+/** An entry for the folder screen's menu, offered by a [MediaSource]. */
+class FolderAction(
+    val label: String,
+    val run: (androidx.appcompat.app.AppCompatActivity) -> Unit
+)
+
+/**
+ * Set on a [MediaSource.browseIntent] opened from a sub folder card of the folder screen: going
+ * back from that folder returns to the folder screen.
+ */
+const val EXTRA_OPENED_FROM_FOLDER_SCREEN = "org.iurl.litegallery.extra.OPENED_FROM_FOLDER_SCREEN"
 
 /** A trash bin of a [MediaSource]: [label] is shown in the list, [open] opens it. */
 class TrashLocation(

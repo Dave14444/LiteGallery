@@ -47,6 +47,16 @@ object SmbFolderSummaries {
         return summary
     }
 
+    /** [card] showing the cover, count, size and date of [summary]. */
+    fun applyTo(card: MediaFolder, summary: Summary): MediaFolder =
+        card.copy(
+            itemCount = if (summary.mediaCount > 0) summary.mediaCount else -1,
+            // Covers come from the thumbnail cache on the share (SMB only).
+            thumbnail = summary.coverUrl?.takeIf { SmbPath.isSmb(it) }?.let { "smbthumb://$it" },
+            totalSizeBytes = summary.totalSize,
+            latestDateModifiedMs = summary.latestModified
+        )
+
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
