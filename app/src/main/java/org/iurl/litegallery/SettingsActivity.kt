@@ -404,6 +404,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                 val preference = findPreference<androidx.preference.ListPreference>("default_view_mode")
                 preference?.summary = when (viewMode) {
                     "grid" -> getString(R.string.thumbnail_view)
+                    "large_grid" -> getString(R.string.large_thumbnail_view)
                     "list" -> getString(R.string.list_view)
                     "detailed" -> getString(R.string.detailed_view)
                     else -> getString(R.string.thumbnail_view)
@@ -874,6 +875,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             val viewModePreference = findPreference<androidx.preference.ListPreference>("default_view_mode")
             viewModePreference?.summary = when (viewMode) {
                 "grid" -> getString(R.string.thumbnail_view)
+                "large_grid" -> getString(R.string.large_thumbnail_view)
                 "list" -> getString(R.string.list_view)
                 "detailed" -> getString(R.string.detailed_view)
                 else -> getString(R.string.thumbnail_view)

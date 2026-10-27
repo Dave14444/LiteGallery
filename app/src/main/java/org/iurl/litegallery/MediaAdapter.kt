@@ -31,7 +31,11 @@ class MediaAdapter(
         }
 
     enum class ViewMode {
-        GRID, LIST, DETAILED
+        GRID,
+        /** Grid with two columns: thumbnails as big as the folder cards. */
+        LARGE_GRID,
+        LIST,
+        DETAILED
     }
 
     companion object {
@@ -104,7 +108,7 @@ class MediaAdapter(
 
     override fun getItemViewType(position: Int): Int {
         return when (viewMode) {
-            ViewMode.GRID -> VIEW_TYPE_GRID
+            ViewMode.GRID, ViewMode.LARGE_GRID -> VIEW_TYPE_GRID
             ViewMode.LIST -> VIEW_TYPE_LIST
             ViewMode.DETAILED -> VIEW_TYPE_DETAILED
         }

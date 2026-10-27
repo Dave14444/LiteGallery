@@ -40,12 +40,14 @@
     <!-- View Mode Options -->
     <string-array name="view_mode_entries">
         <item>@string/thumbnail_view</item>
+        <item>@string/large_thumbnail_view</item>
         <item>@string/list_view</item>
         <item>@string/detailed_view</item>
     </string-array>
     
     <string-array name="view_mode_values">
         <item>grid</item>
+        <item>large_grid</item>
         <item>list</item>
         <item>detailed</item>
     </string-array>

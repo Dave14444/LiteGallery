@@ -17,6 +17,7 @@
     <!-- Ordneransicht -->
     <string name="items_count">%d Elemente</string>
     <string name="thumbnail_view">Miniaturansicht</string>
+    <string name="large_thumbnail_view">Große Kacheln</string>
     <string name="list_view">Listenansicht</string>
     <string name="detailed_view">Detailansicht</string>
 

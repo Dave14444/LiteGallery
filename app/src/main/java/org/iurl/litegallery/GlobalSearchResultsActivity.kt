@@ -915,7 +915,10 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
 
     private fun updateLayoutManager() {
         binding.recyclerView.layoutManager = when (currentViewMode) {
-            MediaAdapter.ViewMode.GRID -> GridLayoutManager(this, 3).apply {
+            MediaAdapter.ViewMode.GRID, MediaAdapter.ViewMode.LARGE_GRID -> GridLayoutManager(
+                this,
+                if (currentViewMode == MediaAdapter.ViewMode.LARGE_GRID) 2 else 3
+            ).apply {
                 spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                     override fun getSpanSize(position: Int): Int {
                         return if (
@@ -1092,13 +1095,15 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
 
     private fun toggleViewMode() {
         currentViewMode = when (currentViewMode) {
-            MediaAdapter.ViewMode.GRID -> MediaAdapter.ViewMode.LIST
+            MediaAdapter.ViewMode.GRID -> MediaAdapter.ViewMode.LARGE_GRID
+            MediaAdapter.ViewMode.LARGE_GRID -> MediaAdapter.ViewMode.LIST
             MediaAdapter.ViewMode.LIST -> MediaAdapter.ViewMode.DETAILED
             MediaAdapter.ViewMode.DETAILED -> MediaAdapter.ViewMode.GRID
         }
         updateLayoutManager()
         val modeName = when (currentViewMode) {
             MediaAdapter.ViewMode.GRID -> getString(R.string.thumbnail_view)
+            MediaAdapter.ViewMode.LARGE_GRID -> getString(R.string.large_thumbnail_view)
             MediaAdapter.ViewMode.LIST -> getString(R.string.list_view)
             MediaAdapter.ViewMode.DETAILED -> getString(R.string.detailed_view)
         }
@@ -1107,6 +1112,7 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
 
     private fun parseViewModePreference(viewModeValue: String?): MediaAdapter.ViewMode {
         return when (viewModeValue) {
+            "large_grid" -> MediaAdapter.ViewMode.LARGE_GRID
             "list" -> MediaAdapter.ViewMode.LIST
             "detailed" -> MediaAdapter.ViewMode.DETAILED
             else -> MediaAdapter.ViewMode.GRID

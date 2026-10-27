@@ -17,6 +17,7 @@
     <!-- Folder View -->
     <string name="items_count">%d items</string>
     <string name="thumbnail_view">Thumbnail View</string>
+    <string name="large_thumbnail_view">Large Thumbnails</string>
     <string name="list_view">List View</string>
     <string name="detailed_view">Detailed View</string>
     

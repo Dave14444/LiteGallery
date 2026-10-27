@@ -1336,7 +1336,10 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun updateLayoutManager() {
         binding.recyclerView.layoutManager = when (currentViewMode) {
-            MediaAdapter.ViewMode.GRID -> GridLayoutManager(this, 3).apply {
+            MediaAdapter.ViewMode.GRID, MediaAdapter.ViewMode.LARGE_GRID -> GridLayoutManager(
+                this,
+                if (currentViewMode == MediaAdapter.ViewMode.LARGE_GRID) 2 else 3
+            ).apply {
                 spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                     override fun getSpanSize(position: Int): Int {
                         return if (
@@ -1378,7 +1381,8 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun toggleViewMode() {
         currentViewMode = when (currentViewMode) {
-            MediaAdapter.ViewMode.GRID -> MediaAdapter.ViewMode.LIST
+            MediaAdapter.ViewMode.GRID -> MediaAdapter.ViewMode.LARGE_GRID
+            MediaAdapter.ViewMode.LARGE_GRID -> MediaAdapter.ViewMode.LIST
             MediaAdapter.ViewMode.LIST -> MediaAdapter.ViewMode.DETAILED
             MediaAdapter.ViewMode.DETAILED -> MediaAdapter.ViewMode.GRID
         }
@@ -1388,6 +1392,7 @@ class FolderViewActivity : AppCompatActivity() {
         // Show toast to indicate current view mode
         val modeName = when (currentViewMode) {
             MediaAdapter.ViewMode.GRID -> getString(R.string.thumbnail_view)
+            MediaAdapter.ViewMode.LARGE_GRID -> getString(R.string.large_thumbnail_view)
             MediaAdapter.ViewMode.LIST -> getString(R.string.list_view)
             MediaAdapter.ViewMode.DETAILED -> getString(R.string.detailed_view)
         }
@@ -1396,6 +1401,7 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun parseViewModePreference(viewModeValue: String?): MediaAdapter.ViewMode {
         return when (viewModeValue) {
+            "large_grid" -> MediaAdapter.ViewMode.LARGE_GRID
             "list" -> MediaAdapter.ViewMode.LIST
             "detailed" -> MediaAdapter.ViewMode.DETAILED
             else -> MediaAdapter.ViewMode.GRID
@@ -1405,6 +1411,7 @@ class FolderViewActivity : AppCompatActivity() {
     private fun viewModeToPreferenceValue(viewMode: MediaAdapter.ViewMode): String {
         return when (viewMode) {
             MediaAdapter.ViewMode.GRID -> "grid"
+            MediaAdapter.ViewMode.LARGE_GRID -> "large_grid"
             MediaAdapter.ViewMode.LIST -> "list"
             MediaAdapter.ViewMode.DETAILED -> "detailed"
         }

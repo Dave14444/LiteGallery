@@ -81,7 +81,7 @@ class GroupedMediaAdapter(
         return when (getItem(position)) {
             is FolderDisplayItem.Header -> VIEW_TYPE_HEADER
             is FolderDisplayItem.Media -> when (viewMode) {
-                MediaAdapter.ViewMode.GRID -> VIEW_TYPE_GRID
+                MediaAdapter.ViewMode.GRID, MediaAdapter.ViewMode.LARGE_GRID -> VIEW_TYPE_GRID
                 MediaAdapter.ViewMode.LIST -> VIEW_TYPE_LIST
                 MediaAdapter.ViewMode.DETAILED -> VIEW_TYPE_DETAILED
             }
