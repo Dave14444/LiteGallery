@@ -32,7 +32,7 @@ jobs:
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/litegallery-upload.jks"
           test -s "$RUNNER_TEMP/litegallery-upload.jks"
 
-      - name: Build signed Plus APK
+      - name: Build signed Plus release APK
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/litegallery-upload.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -40,13 +40,13 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
-          ./gradlew assemblePlusDebug
+          ./gradlew assemblePlusRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
         with:
           name: LiteGallery-Plus-APK
-          path: app/build/outputs/apk/plus/debug/*.apk
+          path: app/build/outputs/apk/plus/release/*.apk
           if-no-files-found: error
 
       # Runs after the APK is uploaded: a failing test turns the run red, but the APK is still

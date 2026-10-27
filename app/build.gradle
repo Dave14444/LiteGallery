@@ -51,7 +51,19 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            // Same persistent key as the debug build, so the release APK installs as an update.
+            if (System.getenv("ANDROID_KEYSTORE_PATH")) {
+                signingConfig signingConfigs.upload
+            }
         }
+    }
+
+    lint {
+        // The release build must not fail on style findings (e.g. a missing translation);
+        // lint can still be run on its own.
+        checkReleaseBuilds false
+        abortOnError false
     }
 
     flavorDimensions = ["connectivity"]

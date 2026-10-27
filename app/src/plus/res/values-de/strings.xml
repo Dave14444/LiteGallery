@@ -22,4 +22,45 @@
     <string name="thumb_prepare_running">Die Vorschaubilder werden bereits vorbereitet</string>
     <string name="thumb_prepare_progress">%1$d geprüft · %2$d neu</string>
     <string name="thumb_prepare_done">Fertig: %1$d neu, %2$d schon vorhanden, %3$d fehlgeschlagen</string>
+
+    <!-- Netzwerkfreigaben -->
+    <string name="network_browse_title">Netzlaufwerke</string>
+    <string name="network_address_hint">smb://- oder nfs://-Adresse</string>
+    <string name="smb_connect_button">Los</string>
+    <string name="smb_saved_servers">Gespeicherte Server</string>
+    <string name="smb_add_server">Server hinzufügen</string>
+    <string name="smb_edit_server">Server bearbeiten</string>
+    <string name="smb_no_saved_servers">Keine gespeicherten Server. Gib oben eine Adresse ein oder tippe auf +, um einen hinzuzufügen.</string>
+    <string name="smb_empty_folder">Dieser Ordner ist leer</string>
+    <string name="smb_enter_address">Bitte eine SMB-Adresse eingeben</string>
+    <string name="smb_invalid_address">Ungültige SMB-Adresse</string>
+    <string name="smb_enter_share_name">Bitte den Freigabepfad in der Adressleiste oben eingeben</string>
+    <string name="smb_enter_host">Bitte die Serveradresse eingeben</string>
+    <string name="smb_connect_to">Mit %1$s verbinden</string>
+    <string name="smb_connect">Verbinden</string>
+    <string name="smb_save">Speichern</string>
+    <string name="smb_save_server">Server speichern</string>
+    <string name="smb_connection_failed">Verbindung fehlgeschlagen: %1$s</string>
+    <string name="smb_connection_test_failed">Verbindungstest fehlgeschlagen</string>
+    <string name="smb_server_saved">Server gespeichert</string>
+    <string name="smb_server_removed">Server entfernt</string>
+    <string name="smb_delete_server_title">Server löschen</string>
+    <string name="smb_delete_server_message">Server \"%1$s\" löschen?</string>
+    <string name="smb_host_hint">Serveradresse (IP oder Hostname)</string>
+    <string name="smb_display_name_hint">Anzeigename (optional)</string>
+    <string name="smb_guest_login">Als Gast verbinden</string>
+    <string name="smb_username_hint">Benutzername</string>
+    <string name="smb_password_hint">Passwort</string>
+    <string name="protocol_smb">SMB</string>
+    <string name="protocol_nfs">NFS</string>
+    <string name="nfs_export_hint">Exportpfad (z. B. /volume1/photo)</string>
+    <string name="nfs_list_exports">Exporte auflisten</string>
+    <string name="nfs_no_exports_found">Keine Exporte gefunden – Pfad manuell eingeben</string>
+    <string name="nfs_show_advanced">Erweitert (UID/GID)</string>
+    <string name="nfs_uid_hint">UID</string>
+    <string name="nfs_gid_hint">GID</string>
+    <string name="nfs_enter_export">Bitte einen Exportpfad auswählen oder eingeben</string>
+    <string name="nfs_error_unreachable">NFS-Dienst nicht erreichbar. Prüfe, ob NFS auf dem Server aktiviert ist und die Firewall die Ports 111 und 2049 erlaubt.</string>
+    <string name="nfs_error_mount_denied">Einbinden verweigert. Prüfe die IP-Freigabeliste und die Berechtigungen des Exports und erlaube in den NFS-Einstellungen des NAS Verbindungen von nicht privilegierten Ports.</string>
+    <string name="nfs_error_access">Leseberechtigung verweigert. Passe die erweiterten UID/GID-Werte oder die Squash-Einstellung des Exports an.</string>
 </resources>

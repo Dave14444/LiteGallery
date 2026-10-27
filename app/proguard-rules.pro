@@ -9,3 +9,7 @@
 }
 
 # SMB-specific keep rules live in proguard-smb.pro, applied only to the `plus` flavor.
+
+# Screens of the settings are created by name from XML (preference "fragment" attributes).
+-keep class * extends androidx.fragment.app.Fragment { <init>(); }
+-keep class * extends androidx.preference.PreferenceFragmentCompat { <init>(); }
