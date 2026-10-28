@@ -235,7 +235,7 @@ class MediaScannerStreamedLoadTest {
         isVideo: Boolean
     ) {
         addRow(
-            arrayOf(
+            arrayOf<Any?>(
                 id,
                 path,
                 name,

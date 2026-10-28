@@ -260,7 +260,7 @@ class CustomThemeColorResolutionTest {
             as ThemePackAdapter.PackVH
         adapter.onBindViewHolder(packHolder, 0)
 
-        assertEquals(Color.CYAN, packHolder.card.strokeColor)
+        assertEquals(Color.CYAN, packHolder.card.strokeColorStateList?.defaultColor)
         assertEquals(Color.CYAN, packHolder.checkFilled.backgroundTintList?.defaultColor)
         assertEquals(Color.YELLOW, packHolder.checkFilled.imageTintList?.defaultColor)
 

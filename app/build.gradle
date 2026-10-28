@@ -168,6 +168,9 @@ tasks.register('jacocoTestDebugUnitTestReport', JacocoReport) {
         csv.required = false
     }
 
+    // layout.buildDirectory instead of buildDir, which Gradle 9 no longer has.
+    def buildDirectory = layout.buildDirectory.get().asFile
+
     def coverageExcludes = [
             '**/R.class',
             '**/R$*.class',
@@ -181,11 +184,11 @@ tasks.register('jacocoTestDebugUnitTestReport', JacocoReport) {
     ]
 
     classDirectories.setFrom(files([
-            fileTree(dir: "$buildDir/intermediates/javac/plusDebug/classes", excludes: coverageExcludes),
-            fileTree(dir: "$buildDir/tmp/kotlin-classes/plusDebug", excludes: coverageExcludes)
+            fileTree(dir: "$buildDirectory/intermediates/javac/plusDebug/classes", excludes: coverageExcludes),
+            fileTree(dir: "$buildDirectory/tmp/kotlin-classes/plusDebug", excludes: coverageExcludes)
     ]))
     sourceDirectories.setFrom(files(["$projectDir/src/main/java", "$projectDir/src/plus/java"]))
-    executionData.setFrom(fileTree(dir: buildDir, includes: [
+    executionData.setFrom(fileTree(dir: buildDirectory, includes: [
             'jacoco/testPlusDebugUnitTest.exec',
             'outputs/unit_test_code_coverage/plusDebugUnitTest/testPlusDebugUnitTest.exec'
     ]))
