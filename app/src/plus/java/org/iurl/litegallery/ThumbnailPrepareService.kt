@@ -65,11 +65,26 @@ class ThumbnailPrepareService : Service() {
                 .putExtra(EXTRA_LABEL, label)
             ContextCompat.startForegroundService(context, intent)
         }
+
+        /** Stops a running preparation (same as "Cancel" in its notification). */
+        fun stop(context: Context) {
+            try {
+                context.startService(
+                    Intent(context, ThumbnailPrepareService::class.java).setAction(ACTION_STOP)
+                )
+            } catch (e: Exception) {
+                android.util.Log.w("ThumbnailPrepare", "Could not stop", e)
+            }
+        }
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
     private var label = ""
+
+    /** Set by "Cancel": the notification is gone and late results must not bring it back. */
+    @Volatile
+    private var stopping = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -77,8 +92,7 @@ class ThumbnailPrepareService : Service() {
         createChannel()
 
         if (intent?.action == ACTION_STOP) {
-            job?.cancel()
-            if (job == null) stopSelf()
+            stopNow()
             return START_NOT_STICKY
         }
 
@@ -98,6 +112,7 @@ class ThumbnailPrepareService : Service() {
         }
 
         isRunning = true
+        stopping = false
         job = scope.launch {
             var summary: Triple<Int, Int, Int>? = null
             try {
@@ -107,17 +122,34 @@ class ThumbnailPrepareService : Service() {
             } catch (e: Exception) {
                 android.util.Log.e("ThumbnailPrepare", "Preparing thumbnails failed", e)
             } finally {
-                isRunning = false
-                ServiceCompat.stopForeground(this@ThumbnailPrepareService, ServiceCompat.STOP_FOREGROUND_DETACH)
-                if (summary != null) {
-                    notifyDone(summary.first, summary.second, summary.third)
-                } else {
-                    NotificationManagerCompat.from(this@ThumbnailPrepareService).cancel(NOTIFICATION_ID)
+                // After "Cancel" everything was cleaned up already (see stopNow).
+                if (!stopping) {
+                    isRunning = false
+                    ServiceCompat.stopForeground(this@ThumbnailPrepareService, ServiceCompat.STOP_FOREGROUND_DETACH)
+                    if (summary != null) {
+                        notifyDone(summary.first, summary.second, summary.third)
+                    } else {
+                        NotificationManagerCompat.from(this@ThumbnailPrepareService).cancel(NOTIFICATION_ID)
+                    }
+                    stopSelf()
                 }
-                stopSelf()
             }
         }
         return START_NOT_STICKY
+    }
+
+    /**
+     * Ends the preparation right away. Pictures that are being read over the network at this
+     * moment cannot be interrupted; they finish quietly in the background (a few seconds at most,
+     * or longer for a big video), but nothing new is started and the notification is gone.
+     */
+    private fun stopNow() {
+        stopping = true
+        isRunning = false
+        job?.cancel()
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
+        stopSelf()
     }
 
     override fun onDestroy() {
@@ -228,6 +260,7 @@ class ThumbnailPrepareService : Service() {
     }
 
     private fun updateNotification(checked: Int, created: Int) {
+        if (stopping) return
         try {
             NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, progressNotification(checked, created))
         } catch (e: SecurityException) {
@@ -256,7 +289,16 @@ object ThumbnailPreparer {
 
     fun start(activity: AppCompatActivity, folderUrl: String, label: String) {
         if (ThumbnailPrepareService.isRunning) {
-            Toast.makeText(activity, R.string.thumb_prepare_running, Toast.LENGTH_LONG).show()
+            // Already running: offer to stop it (also possible from its notification).
+            AlertDialog.Builder(activity)
+                .setTitle(R.string.thumb_prepare_menu)
+                .setMessage(R.string.thumb_prepare_running)
+                .setPositiveButton(R.string.thumb_prepare_stop) { _, _ ->
+                    ThumbnailPrepareService.stop(activity.applicationContext)
+                    Toast.makeText(activity, R.string.thumb_prepare_stopped, Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton(R.string.thumb_prepare_continue, null)
+                .show()
             return
         }
 

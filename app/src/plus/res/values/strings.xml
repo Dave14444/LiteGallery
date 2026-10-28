@@ -60,6 +60,9 @@
     <string name="thumb_prepare_title">Preparing previews</string>
     <string name="thumb_prepare_confirm">Create the previews of all pictures and videos in “%s” and its sub folders now? This can take a while and reads each file once over the network. Afterwards the previews are on the share and show up quickly, even on a slow connection.</string>
     <string name="thumb_prepare_started">Preparing the previews in the background…</string>
+    <string name="thumb_prepare_stop">Stop</string>
+    <string name="thumb_prepare_continue">Keep going</string>
+    <string name="thumb_prepare_stopped">Preparing the previews was stopped</string>
     <string name="thumb_prepare_running">The previews are already being prepared</string>
     <string name="thumb_prepare_progress">%1$d checked · %2$d new</string>
     <string name="thumb_prepare_done">Done: %1$d new, %2$d already there, %3$d failed</string>

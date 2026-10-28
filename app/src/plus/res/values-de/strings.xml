@@ -18,6 +18,9 @@
     <string name="thumb_prepare_title">Bereite Vorschaubilder vor</string>
     <string name="thumb_prepare_confirm">Vorschaubilder für alle Fotos und Videos in „%s“ und allen Unterordnern jetzt erzeugen? Das kann dauern und liest jede Datei einmal über das Netzwerk. Danach liegen die Vorschaubilder auf der Freigabe und erscheinen schnell, auch bei langsamer Verbindung.</string>
     <string name="thumb_prepare_started">Die Vorschaubilder werden im Hintergrund vorbereitet…</string>
+    <string name="thumb_prepare_stop">Anhalten</string>
+    <string name="thumb_prepare_continue">Weiterlaufen lassen</string>
+    <string name="thumb_prepare_stopped">Vorbereiten der Vorschaubilder angehalten</string>
     <string name="thumb_prepare_running">Die Vorschaubilder werden bereits vorbereitet</string>
     <string name="thumb_prepare_progress">%1$d geprüft · %2$d neu</string>
     <string name="thumb_prepare_done">Fertig: %1$d neu, %2$d schon vorhanden, %3$d fehlgeschlagen</string>
