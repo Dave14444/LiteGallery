@@ -794,6 +794,12 @@ class NetworkBrowseActivity : AppCompatActivity() {
             finish()
             return
         }
+        // Back from the folder of a saved connection (e.g. ".../David/Bilder"): leave, instead of
+        // going on into the rest of the share. Opened from the home screen, that is where it ends.
+        if (isConnectionRoot(currentPath)) {
+            if (launchedWithPath) finish() else goHome()
+            return
+        }
         val parent = when {
             SmbPath.isSmb(currentPath) ->
                 SmbPath.parse(currentPath)?.let {
@@ -803,6 +809,13 @@ class NetworkBrowseActivity : AppCompatActivity() {
             else -> null
         }
         if (parent == null) goHome() else navigateTo(parent, restoreScroll = true)
+    }
+
+    private fun isConnectionRoot(path: String): Boolean {
+        val folder = path.trimEnd('/')
+        return NetworkConfigStore.getAllServers(this).any {
+            it.rootUrl().trimEnd('/').equals(folder, ignoreCase = true)
+        }
     }
 
     private fun rememberScrollPosition(path: String) {

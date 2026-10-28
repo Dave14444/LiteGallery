@@ -30,9 +30,13 @@ object ThumbnailCleanup {
         val trashUrl = SmbPath.toUrl(smb.host, smb.share, SmbTrash.TRASH_DIR)
 
         val validKeys = HashSet<String>()
-        // The trash folder is hidden, but its previews are shown too: look into it as well.
+        // Only the folders of the saved connections (e.g. ".../David/Bilder"), not everything
+        // else on the share. The trash folder is hidden, but its previews are shown too.
+        val connectionRoots = NetworkConfigStore.getAllServers(context)
+            .filter { !it.isNfs }
+            .map { it.rootUrl() }
         val queue = ArrayDeque<String>().apply {
-            add(root)
+            addAll(searchRoots(root, connectionRoots))
             add(trashUrl)
         }
         var searched = 0
@@ -70,6 +74,26 @@ object ThumbnailCleanup {
         }
         val unusedNames = SmbThumbnailCache.unusedNames(cached.map { it.name }, validKeys).toSet()
         return Scan(root, cached.filter { it.name in unusedNames })
+    }
+
+    /**
+     * Where to look for pictures on the share [shareRoot]: the saved connections on it. A
+     * connection inside another one is covered by the outer one. Without any saved connection on
+     * this share the whole share is searched.
+     */
+    internal fun searchRoots(shareRoot: String, connectionRoots: List<String>): List<String> {
+        val share = shareRoot.trimEnd('/')
+        val onShare = connectionRoots
+            .map { it.trimEnd('/') }
+            .filter { it.equals(share, ignoreCase = true) || it.startsWith("$share/", ignoreCase = true) }
+            .distinctBy { it.lowercase() }
+        if (onShare.isEmpty()) return listOf(share)
+        return onShare.filter { candidate ->
+            onShare.none { outer ->
+                !outer.equals(candidate, ignoreCase = true) &&
+                    candidate.startsWith("$outer/", ignoreCase = true)
+            }
+        }
     }
 
     /** Deletes the files found by [scan]. */
