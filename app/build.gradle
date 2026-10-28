@@ -90,10 +90,6 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-    
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
 
     buildFeatures {
         buildConfig true
@@ -104,10 +100,17 @@ android {
         unitTests.includeAndroidResources = true
     }
 
-    packagingOptions {
+    packaging {
         resources {
             excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF']
         }
+    }
+}
+
+// Replaces the former kotlinOptions block (an error since Kotlin 2.2).
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
     }
 }
 
@@ -127,9 +130,10 @@ dependencies {
     implementation 'com.github.bumptech.glide:recyclerview-integration:4.15.1'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
-    implementation 'androidx.room:room-runtime:2.6.1'
-    implementation 'androidx.room:room-ktx:2.6.1'
-    kapt 'androidx.room:room-compiler:2.6.1'
+    // Room 2.7 is the first version that reads the class files of Kotlin 2 (needed by kapt).
+    implementation 'androidx.room:room-runtime:2.7.2'
+    implementation 'androidx.room:room-ktx:2.7.2'
+    kapt 'androidx.room:room-compiler:2.7.2'
     // Media3 dependencies (replacing ExoPlayer 2.x)
     implementation "androidx.media3:media3-exoplayer:1.2.0"
     implementation "androidx.media3:media3-ui:1.2.0"
