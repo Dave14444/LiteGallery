@@ -73,6 +73,8 @@ object FileTransfer {
         val failures = mutableListOf<Failure>()
         var done = 0
         var cancelled = false
+        // For the progress in MB: the sizes that are known without asking the network.
+        OperationProgress.addTotal(sourcePaths.sumOf { knownSizeOf(it).coerceAtLeast(0L) })
 
         for ((index, sourcePath) in sourcePaths.withIndex()) {
             if (OperationCancel.isRequested()) {
@@ -118,9 +120,12 @@ object FileTransfer {
     ): Boolean {
         val sourceSource = MediaSourceRegistry.forPath(sourcePath)
         val name = fileNameOf(sourcePath)
+        // Known before anything happens: after a move the old path is gone.
+        val knownSize = knownSizeOf(sourcePath)
 
         // Moving a file into the folder it is already in: nothing to do.
         if (mode == Mode.MOVE && parentOf(sourcePath, sourceSource) == destFolder.trimEnd('/')) {
+            OperationProgress.addDone(knownSize)
             return true
         }
 
@@ -134,6 +139,8 @@ object FileTransfer {
                 null
             }
             if (moved != null) {
+                // Nothing to copy: the whole file counts as done at once.
+                OperationProgress.addDone(knownSize)
                 created.add(moved)
                 removed.add(sourcePath)
                 return true
@@ -155,7 +162,7 @@ object FileTransfer {
             } else {
                 sourceSource.openInput(context, sourcePath)
             }
-        )
+        ) { bytes -> OperationProgress.addDone(bytes.toLong()) }
         val newPath = input.use {
             if (destSource == null) {
                 writeLocal(File(destFolder), name, it, lastModified)
@@ -200,6 +207,14 @@ object FileTransfer {
     internal fun sizeMatches(expected: Long, actual: Long, mode: Mode): Boolean {
         if (expected < 0L || actual < 0L) return mode == Mode.COPY
         return expected == actual
+    }
+
+    /** Size of [path] if it is known without network access (files on the phone, listed files). */
+    private fun knownSizeOf(path: String): Long {
+        val source = MediaSourceRegistry.forPath(path)
+        if (source != null) return source.cachedFileSize(path)
+        val file = File(path)
+        return if (file.isFile) file.length() else -1L
     }
 
     private fun sizeOf(context: Context, path: String, source: MediaSource?): Long =

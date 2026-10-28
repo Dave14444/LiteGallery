@@ -32,6 +32,7 @@ class FileTransferTest {
         context = ApplicationProvider.getApplicationContext()
         FileTransfer.localScanner = { _, _ -> }
         OperationCancel.reset()
+        OperationProgress.reset()
         fake = FakeMediaSource()
         MediaSourceRegistry.register(fake)
     }
@@ -245,6 +246,42 @@ class FileTransferTest {
         assertEquals(1, result.failed)
         assertFalse(result.cancelled)
         assertEquals(2, fake.files.size)
+    }
+
+    // ---------------------------------------------------------------- progress in bytes
+
+    @Test
+    fun progress_countsTheBytesOfAllCopiedFiles() {
+        val a = localFile("a.jpg", ByteArray(1000) { 1 })
+        val b = localFile("b.jpg", ByteArray(500) { 2 })
+
+        doTransfer(listOf(a.absolutePath, b.absolutePath), "fake://share/Photos", FileTransfer.Mode.COPY)
+
+        assertEquals(1500L, OperationProgress.bytesTotal)
+        assertEquals(1500L, OperationProgress.bytesDone)
+    }
+
+    @Test
+    fun progress_countsAMoveWithoutCopyAsDone() {
+        val source = localFile("a.jpg", ByteArray(700) { 1 })
+        val destDir = tmp.newFolder("moved")
+
+        doTransfer(listOf(source.absolutePath), destDir.absolutePath, FileTransfer.Mode.MOVE)
+
+        assertEquals(700L, OperationProgress.bytesTotal)
+        assertEquals(700L, OperationProgress.bytesDone)
+    }
+
+    @Test
+    fun progress_addsUpOverSeveralTransfers() {
+        val a = localFile("a.jpg", ByteArray(300) { 1 })
+        val b = localFile("b.jpg", ByteArray(200) { 2 })
+
+        doTransfer(listOf(a.absolutePath), "fake://share/One", FileTransfer.Mode.COPY)
+        doTransfer(listOf(b.absolutePath), "fake://share/Two", FileTransfer.Mode.COPY)
+
+        assertEquals(500L, OperationProgress.bytesTotal)
+        assertEquals(500L, OperationProgress.bytesDone)
     }
 
     // ---------------------------------------------------------------- cancel

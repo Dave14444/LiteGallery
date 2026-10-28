@@ -26,6 +26,9 @@ object SmbCoverImages {
     private const val DIRECTORY = "smb_covers"
     private const val MAX_SIDE = 960
 
+    /** Covers are stored at most 960 px wide; anything far bigger is not a cover from this app. */
+    private const val MAX_IMPORTED_COVER_BYTES = 5 * 1024 * 1024
+
     /** Path of the cover picture of the connection [serverId], or null if none was chosen. */
     fun coverPath(context: Context, serverId: String): String? {
         val name = prefs(context).getString(serverId, null) ?: return null
@@ -173,6 +176,37 @@ object SmbCoverImages {
             true
         } catch (e: Exception) {
             android.util.Log.e("SmbCoverImages", "Could not save cover image", e)
+            false
+        }
+    }
+
+    /** The cover of [serverId] as Base64 text for the settings file, or null if it has none. */
+    fun exportCover(context: Context, serverId: String): String? {
+        val path = coverPath(context, serverId) ?: return null
+        return try {
+            android.util.Base64.encodeToString(File(path).readBytes(), android.util.Base64.NO_WRAP)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Stores a cover from the settings file for [serverId]. Returns true on success. */
+    fun importCover(context: Context, serverId: String, base64: String): Boolean {
+        return try {
+            val bytes = android.util.Base64.decode(base64, android.util.Base64.NO_WRAP)
+            if (bytes.isEmpty() || bytes.size > MAX_IMPORTED_COVER_BYTES) return false
+
+            val directory = directory(context)
+            if (!directory.isDirectory) directory.mkdirs()
+            val target = File(directory, "${serverId}_${System.currentTimeMillis()}.jpg")
+            target.writeBytes(bytes)
+
+            val previous = prefs(context).getString(serverId, null)
+            prefs(context).edit().putString(serverId, target.name).apply()
+            if (previous != null && previous != target.name) File(directory, previous).delete()
+            true
+        } catch (e: Exception) {
+            android.util.Log.w("SmbCoverImages", "Could not take over the cover of $serverId", e)
             false
         }
     }

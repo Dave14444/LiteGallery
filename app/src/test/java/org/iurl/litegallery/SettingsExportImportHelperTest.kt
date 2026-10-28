@@ -742,7 +742,7 @@ class SettingsExportImportHelperTest {
     }
 
     @Test
-    fun export_neverContainsSavedNetworkServersOrTheirPasswords() {
+    fun export_neverContainsPasswordsOfSavedNetworkServers() {
         context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
             .edit()
             .putString(
@@ -757,6 +757,25 @@ class SettingsExportImportHelperTest {
 
         assertFalse(text.contains("geheim-4711"))
         assertFalse(text.contains("QUJDREVGR0hJSktMTU5PUA"))
-        assertFalse(text.contains("nas.local"))
+    }
+
+    @Test
+    fun mediaSources_exportTheirPartAndGetItBackOnImport() {
+        val source = FakeMediaSource()
+        source.exportedSettings = JSONObject().put("servers", 2)
+        MediaSourceRegistry.register(source)
+        try {
+            val output = ByteArrayOutputStream()
+            assertTrue(helper.exportSettings(output))
+            val exported = JSONObject(output.toString(Charsets.UTF_8.name()))
+            assertEquals(2, exported.getJSONObject("media_sources").getJSONObject("fake").getInt("servers"))
+
+            source.importedSettings = null
+            helper.importSettings(ByteArrayInputStream(output.toByteArray()))
+            assertEquals(2, source.importedSettings?.getInt("servers"))
+        } finally {
+            @Suppress("UNCHECKED_CAST")
+            (MediaSourceRegistry.all() as MutableList<MediaSource>).remove(source)
+        }
     }
 }

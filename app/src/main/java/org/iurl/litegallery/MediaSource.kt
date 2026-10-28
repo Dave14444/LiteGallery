@@ -96,6 +96,9 @@ interface MediaSource {
     /** Size of the file at [path] in bytes, asked from the source itself; -1 if unknown. */
     fun fileSize(context: Context, path: String): Long = -1L
 
+    /** Size of the file at [path] if known without network access (e.g. from a listing); else -1. */
+    fun cachedFileSize(path: String): Long = -1L
+
     /** Length of the video at [path] in milliseconds, or 0 if it cannot be determined. */
     fun videoDurationMs(context: Context, path: String): Long = 0L
 
@@ -172,6 +175,18 @@ interface MediaSource {
 
     /** Extra entries for the menu of the folder screen showing [folderPath] (e.g. the share's trash). */
     fun folderMenuActions(context: Context, folderPath: String): List<FolderAction> = emptyList()
+
+    // ---- Settings export ----
+
+    /** Name of this source's part in the settings file, or null if it has nothing to export. */
+    val settingsExportKey: String?
+        get() = null
+
+    /** This source's settings for the settings file (never passwords), or null. */
+    fun exportSettings(context: Context): org.json.JSONObject? = null
+
+    /** Takes over what [exportSettings] wrote. Returns how many entries were added. */
+    fun importSettings(context: Context, data: org.json.JSONObject): Int = 0
 
     /** Release any held resources (connections, caches) on app shutdown. */
     fun shutdown()

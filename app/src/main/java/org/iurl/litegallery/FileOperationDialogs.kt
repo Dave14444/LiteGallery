@@ -3,11 +3,16 @@ package org.iurl.litegallery
 import android.app.AlertDialog
 import android.content.Context
 import android.net.Uri
+import android.os.SystemClock
+import android.text.format.DateUtils
+import android.text.format.Formatter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -19,6 +24,28 @@ object FileOperationDialogs {
 
     /** At most this many failed files are listed by name. */
     private const val MAX_LISTED_FAILURES = 25
+
+    /** Below this amount of data the progress in MB is not worth showing. */
+    private const val MIN_BYTES_FOR_DISPLAY = 5L * 1024L * 1024L
+
+    private const val PROGRESS_REFRESH_MS = 500L
+
+    /** "45 MB of 230 MB · about 02:10 left", or null for small amounts of data. */
+    private fun bytesLine(context: Context, elapsedMs: Long): String? {
+        val total = OperationProgress.bytesTotal
+        if (total < MIN_BYTES_FOR_DISPLAY) return null
+        val done = OperationProgress.bytesDone.coerceAtMost(total)
+        val line = context.getString(
+            R.string.file_op_bytes_progress,
+            Formatter.formatShortFileSize(context, done),
+            Formatter.formatShortFileSize(context, total)
+        )
+        val secondsLeft = OperationProgress.estimateSecondsLeft(done, total, elapsedMs) ?: return line
+        return line + " · " + context.getString(
+            R.string.file_op_time_left,
+            DateUtils.formatElapsedTime(secondsLeft)
+        )
+    }
 
     /**
      * Runs [work] on a background thread while a progress dialog is shown, then reports the
@@ -41,12 +68,21 @@ object FileOperationDialogs {
     ) {
         val appContext = activity.applicationContext
         OperationCancel.reset()
+        OperationProgress.reset()
+        val startedAt = SystemClock.elapsedRealtime()
         fun progressText(done: Int, all: Int): String =
             if (progressTextRes != 0) appContext.getString(progressTextRes, done, all) else "$done / $all"
 
+        // "3 / 10", and for large amounts of data a second line "45 MB of 230 MB · about 02:10 left".
+        var filesText = progressText(0, total)
+        fun message(): String {
+            val bytes = bytesLine(appContext, SystemClock.elapsedRealtime() - startedAt)
+            return if (bytes == null) filesText else "$filesText\n$bytes"
+        }
+
         val dialog = AlertDialog.Builder(activity)
             .setTitle(titleRes)
-            .setMessage(progressText(0, total))
+            .setMessage(message())
             .setCancelable(false)
             .setNegativeButton(R.string.cancel, null)
             .create()
@@ -60,16 +96,26 @@ object FileOperationDialogs {
             dialog.setMessage(appContext.getString(R.string.file_op_cancelling))
         }
 
+        // The bytes change all the time: refresh the text twice a second.
+        val ticker = scope.launch {
+            while (isActive) {
+                delay(PROGRESS_REFRESH_MS)
+                if (dialog.isShowing && !OperationCancel.isRequested()) dialog.setMessage(message())
+            }
+        }
+
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 work { done, all ->
                     activity.runOnUiThread {
+                        filesText = progressText(done, all)
                         if (dialog.isShowing && !OperationCancel.isRequested()) {
-                            dialog.setMessage(progressText(done, all))
+                            dialog.setMessage(message())
                         }
                     }
                 }
             }
+            ticker.cancel()
             val alive = !activity.isFinishing && !activity.isDestroyed
             if (alive) {
                 try {

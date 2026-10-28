@@ -39,7 +39,6 @@
     <string name="use_new_name">Neuen Namen verwenden</string>
     <string name="cancel">Abbrechen</string>
     <string name="rename_file">Datei umbenennen</string>
-    <string name="new_name">Neuer Name</string>
     <string name="ok">OK</string>
 
     <!-- Löschen und Papierkorb -->
@@ -66,16 +65,11 @@
 
     <!-- Einstellungen -->
     <string name="default_sort_order">Standard-Sortierung</string>
-    <string name="sort_by_date">Nach Datum sortieren</string>
-    <string name="sort_by_name">Nach Name sortieren</string>
     <string name="ascending">Aufsteigend</string>
     <string name="descending">Absteigend</string>
     <string name="customize_action_bar">Aktionsleiste anpassen</string>
-    <string name="action_bar_buttons">Schaltflächen der Aktionsleiste</string>
 
     <!-- Allgemein -->
-    <string name="yes">Ja</string>
-    <string name="no">Nein</string>
     <string name="done">Fertig</string>
     <string name="error">Fehler</string>
     <string name="success">Erfolgreich</string>
@@ -90,7 +84,6 @@
     <string name="play_pause">Wiedergabe/Pause</string>
     <string name="frame_backward">Ein Bild zurück</string>
     <string name="frame_forward">Ein Bild weiter</string>
-    <string name="frame_mode">Einzelbildmodus</string>
     <string name="expand_controls">Steuerelemente ausklappen</string>
     <string name="expand_info_sheet">Infofeld ausklappen</string>
     <string name="minimize_info_sheet">Infofeld einklappen</string>
@@ -108,19 +101,15 @@
     <string name="original_file_path">Ursprünglicher Pfad</string>
     <string name="restore_all">Alle wiederherstellen</string>
     <string name="restore_all_confirmation">Alle Dateien im Papierkorb wiederherstellen?</string>
-    <string name="restore_selected">Ausgewählte wiederherstellen</string>
     <string name="delete_selected_permanently">Ausgewählte endgültig löschen</string>
     <string name="delete_selected_confirmation">%d ausgewählte Dateien endgültig löschen?</string>
     <string name="trash_selected_count">%d ausgewählt</string>
     <string name="select_all">Alle auswählen</string>
     <string name="clear_selection">Auswahl aufheben</string>
     <string name="trash_auto_cleaned_count">%d abgelaufene Dateien automatisch aus dem Papierkorb gelöscht</string>
-    <string name="trash_reindexed_count">%d Papierkorbdateien neu indiziert</string>
 
       <!-- Einstellungen -->
     <string name="display_settings">Anzeigeeinstellungen</string>
-    <string name="action_bar_settings">Einstellungen der Aktionsleiste</string>
-    <string name="general_settings">Allgemeine Einstellungen</string>
     <string name="storage_and_privacy_settings">Speicher und Datenschutz</string>
     <string name="advanced_settings">Erweiterte Einstellungen</string>
     <string name="about_settings">Über</string>
@@ -181,7 +170,6 @@
     <string name="external_folder_access_title">Ordnerzugriff gewähren</string>
     <string name="external_folder_access_message">Damit du weitere Dateien im selben externen Ordner durchsuchen kannst, musst du den Zugriff auf diesen Ordner freigeben. Alternativ kannst du in den Einstellungen den vollständigen Speicherzugriff aktivieren.</string>
     <string name="external_folder_access_target_folder_label">Zielordner</string>
-    <string name="external_folder_access_target_folder">Zielordner: %1$s</string>
     <string name="external_folder_access_if_not_opened_hint">Falls der Ordner nicht automatisch geöffnet wird, navigiere bitte manuell dorthin.</string>
     <string name="external_folder_access_select_folder_hint">Gib diesen Ordner im Auswahlfenster frei: %1$s</string>
     <string name="storage_internal_label">Interner Speicher</string>
@@ -306,7 +294,6 @@
 
     <!-- Dateinamensanzeige -->
     <string name="filename_max_lines_title">Maximale Zeilen für Dateinamen</string>
-    <string name="filename_max_lines_summary">Maximale Zeilenanzahl für Dateinamen (0 = unbegrenzt)</string>
     <string name="filename_max_lines_1">1 Zeile</string>
     <string name="filename_max_lines_2">2 Zeilen</string>
     <string name="filename_max_lines_3">3 Zeilen</string>
@@ -314,7 +301,6 @@
 
     <!-- Zoom -->
     <string name="zoom_max_scale_title">Maximaler Zoom</string>
-    <string name="zoom_max_scale_summary">Maximale Vergrößerung für Bilder</string>
     <string name="zoom_scale_2x">2-fach</string>
     <string name="zoom_scale_3x">3-fach</string>
     <string name="zoom_scale_4x">4-fach</string>
@@ -326,17 +312,11 @@
     <!-- Videoeinstellungen -->
     <string name="video_settings">Videoeinstellungen</string>
     <string name="video_single_tap_title">Aktion bei einmaligem Tippen</string>
-    <string name="video_single_tap_summary">Aktion, die bei einmaligem Tippen ausgeführt wird</string>
     <string name="video_double_tap_title">Aktion bei zweimaligem Tippen</string>
-    <string name="video_double_tap_summary">Aktion, die bei zweimaligem Tippen ausgeführt wird</string>
     <string name="video_left_swipe_up_title">Wischgeste nach oben auf der linken Seite</string>
-    <string name="video_left_swipe_up_summary">Aktion beim Wischen nach oben auf der linken Seite</string>
     <string name="video_left_swipe_down_title">Wischgeste nach unten auf der linken Seite</string>
-    <string name="video_left_swipe_down_summary">Aktion beim Wischen nach unten auf der linken Seite</string>
     <string name="video_right_swipe_up_title">Wischgeste nach oben auf der rechten Seite</string>
-    <string name="video_right_swipe_up_summary">Aktion beim Wischen nach oben auf der rechten Seite</string>
     <string name="video_right_swipe_down_title">Wischgeste nach unten auf der rechten Seite</string>
-    <string name="video_right_swipe_down_summary">Aktion beim Wischen nach unten auf der rechten Seite</string>
 
     <!-- Aktionen für Videogesten -->
     <string name="video_action_play_pause">Wiedergabe/Pause</string>
@@ -404,7 +384,6 @@
     <string name="home_stat_folders">Ordner</string>
     <string name="home_stat_size">Größe</string>
     <string name="home_section_folders">Ordner</string>
-    <string name="home_sort_recent">Zuletzt hinzugefügt</string>
     <string name="home_sort_recent_content_description">Sortierung: Neueste</string>
     <string name="folder_meta_format">%1$s · %2$s</string>
 
@@ -482,7 +461,6 @@
     <string name="custom_preview_card_label">Karte</string>
     <string name="custom_preview_button">Aktionsschaltfläche</string>
     <string name="fast_scroll_thumb_content_description">Griff für schnelles Scrollen</string>
-    <string name="fast_scroll_position_content_description">Aktueller Scrollbereich</string>
 
     <!-- Suche -->
     <string name="search">Suchen</string>
@@ -510,7 +488,6 @@
     <string name="search_no_results">Keine Ergebnisse für diese Filter</string>
     <string name="search_no_folders">Keine Ordner für diese Filter gefunden</string>
     <string name="search_no_media">Keine Medien für diese Filter gefunden</string>
-    <string name="search_global_media_prompt_title">Alle Medien durchsuchen</string>
     <string name="search_global_media_prompt_subtitle">Gib einen Namen ein oder wähle Filter, um indizierte Fotos und Videos zu durchsuchen.</string>
     <string name="search_global_media_error">Indizierte Medien konnten nicht durchsucht werden</string>
     <string name="search_result_folder_content_description">Ordner: %1$s</string>
@@ -549,6 +526,8 @@
     <string name="file_op_deleting">Lösche…</string>
     <string name="file_op_done">%d Datei(en) erledigt</string>
     <string name="file_op_partial">%1$d erledigt, %2$d fehlgeschlagen</string>
+    <string name="file_op_bytes_progress">%1$s von %2$s</string>
+    <string name="file_op_time_left">noch ca. %s</string>
     <string name="file_op_cancelling">Breche ab…</string>
     <string name="file_op_cancelled">Abgebrochen: %d Datei(en) erledigt</string>
     <string name="file_op_cancelled_partial">Abgebrochen: %1$d erledigt, %2$d fehlgeschlagen</string>

@@ -39,7 +39,6 @@
     <string name="use_new_name">Use New Name</string>
     <string name="cancel">Cancel</string>
     <string name="rename_file">Rename File</string>
-    <string name="new_name">New name</string>
     <string name="ok">OK</string>
     
     <!-- Delete/Trash -->
@@ -66,16 +65,11 @@
     
     <!-- Settings -->
     <string name="default_sort_order">Default Sort Order</string>
-    <string name="sort_by_date">Sort by Date</string>
-    <string name="sort_by_name">Sort by Name</string>
     <string name="ascending">Ascending</string>
     <string name="descending">Descending</string>
     <string name="customize_action_bar">Customize Action Bar</string>
-    <string name="action_bar_buttons">Action Bar Buttons</string>
     
     <!-- General -->
-    <string name="yes">Yes</string>
-    <string name="no">No</string>
     <string name="done">Done</string>
     <string name="error">Error</string>
     <string name="success">Success</string>
@@ -90,7 +84,6 @@
     <string name="play_pause">Play/Pause</string>
     <string name="frame_backward">Frame Backward</string>
     <string name="frame_forward">Frame Forward</string>
-    <string name="frame_mode">Frame Mode</string>
     <string name="expand_controls">Expand Controls</string>
     <string name="expand_info_sheet">Expand info sheet</string>
     <string name="minimize_info_sheet">Minimize info sheet</string>
@@ -108,19 +101,15 @@
     <string name="original_file_path">Original Path</string>
     <string name="restore_all">Restore All</string>
     <string name="restore_all_confirmation">Restore all files in trash?</string>
-    <string name="restore_selected">Restore Selected</string>
     <string name="delete_selected_permanently">Delete Selected Permanently</string>
     <string name="delete_selected_confirmation">Permanently delete %d selected files?</string>
     <string name="trash_selected_count">%d selected</string>
     <string name="select_all">Select All</string>
     <string name="clear_selection">Clear Selection</string>
     <string name="trash_auto_cleaned_count">Auto-cleaned %d expired trash files</string>
-    <string name="trash_reindexed_count">Re-indexed %d trash files</string>
 
     <!-- Settings -->
     <string name="display_settings">Display Settings</string>
-    <string name="action_bar_settings">Action Bar Settings</string>
-    <string name="general_settings">General Settings</string>
     <string name="storage_and_privacy_settings">Storage &amp; Privacy Settings</string>
     <string name="advanced_settings">Advanced Settings</string>
     <string name="about_settings">About</string>
@@ -181,7 +170,6 @@
     <string name="external_folder_access_title">Grant Folder Access</string>
     <string name="external_folder_access_message">To keep same-folder browsing for this external file, grant access to its folder. You can also enable Full Storage Access in Settings to avoid granting folders one by one.</string>
     <string name="external_folder_access_target_folder_label">Target folder</string>
-    <string name="external_folder_access_target_folder">Target folder: %1$s</string>
     <string name="external_folder_access_if_not_opened_hint">If the picker does not open this folder automatically, please navigate to it manually.</string>
     <string name="external_folder_access_select_folder_hint">Please grant this folder in the picker: %1$s</string>
     <string name="storage_internal_label">Internal Storage</string>
@@ -306,7 +294,6 @@
 
     <!-- Filename Display Settings -->
     <string name="filename_max_lines_title">Filename Max Lines</string>
-    <string name="filename_max_lines_summary">Maximum lines for filename display (0 = unlimited)</string>
     <string name="filename_max_lines_1">1 line (single line)</string>
     <string name="filename_max_lines_2">2 lines</string>
     <string name="filename_max_lines_3">3 lines</string>
@@ -314,7 +301,6 @@
 
     <!-- Zoom Settings -->
     <string name="zoom_max_scale_title">Maximum Zoom Scale</string>
-    <string name="zoom_max_scale_summary">Maximum zoom level for images</string>
     <string name="zoom_scale_2x">2x</string>
     <string name="zoom_scale_3x">3x</string>
     <string name="zoom_scale_4x">4x</string>
@@ -326,17 +312,11 @@
     <!-- Video Settings -->
     <string name="video_settings">Video Settings</string>
     <string name="video_single_tap_title">Single Tap Action</string>
-    <string name="video_single_tap_summary">Action performed on single tap</string>
     <string name="video_double_tap_title">Double Tap Action</string>
-    <string name="video_double_tap_summary">Action performed on double tap</string>
     <string name="video_left_swipe_up_title">Left Side Swipe Up Action</string>
-    <string name="video_left_swipe_up_summary">Action performed on left side upward swipe</string>
     <string name="video_left_swipe_down_title">Left Side Swipe Down Action</string>
-    <string name="video_left_swipe_down_summary">Action performed on left side downward swipe</string>
     <string name="video_right_swipe_up_title">Right Side Swipe Up Action</string>
-    <string name="video_right_swipe_up_summary">Action performed on right side upward swipe</string>
     <string name="video_right_swipe_down_title">Right Side Swipe Down Action</string>
-    <string name="video_right_swipe_down_summary">Action performed on right side downward swipe</string>
 
     <!-- Video Gesture Actions -->
     <string name="video_action_play_pause">Play/Pause</string>
@@ -405,7 +385,6 @@
     <string name="home_stat_folders">Folders</string>
     <string name="home_stat_size">Size</string>
     <string name="home_section_folders">Folders</string>
-    <string name="home_sort_recent">Recent</string>
     <string name="home_sort_recent_content_description">Sort: Recent</string>
     <string name="folder_meta_format">%1$s · %2$s</string>
 
@@ -483,7 +462,6 @@
     <string name="custom_preview_card_label">Card</string>
     <string name="custom_preview_button">Action button</string>
     <string name="fast_scroll_thumb_content_description">Fast scroll thumb</string>
-    <string name="fast_scroll_position_content_description">Current scroll section</string>
     <string name="search">Search</string>
     <string name="search_hint_folder">Search by name</string>
     <string name="search_hint_global_media">Search by name</string>
@@ -509,7 +487,6 @@
     <string name="search_no_results">No results matching filters</string>
     <string name="search_no_folders">No folders matching filters</string>
     <string name="search_no_media">No media matching filters</string>
-    <string name="search_global_media_prompt_title">Search all media</string>
     <string name="search_global_media_prompt_subtitle">Enter a name or choose filters to search indexed photos and videos.</string>
     <string name="search_global_media_error">Unable to search indexed media</string>
     <string name="search_result_folder_content_description">Folder: %1$s</string>
@@ -548,6 +525,8 @@
     <string name="file_op_deleting">Deleting…</string>
     <string name="file_op_done">%d file(s) done</string>
     <string name="file_op_partial">%1$d done, %2$d failed</string>
+    <string name="file_op_bytes_progress">%1$s of %2$s</string>
+    <string name="file_op_time_left">about %s left</string>
     <string name="file_op_cancelling">Cancelling…</string>
     <string name="file_op_cancelled">Cancelled: %d file(s) done</string>
     <string name="file_op_cancelled_partial">Cancelled: %1$d done, %2$d failed</string>

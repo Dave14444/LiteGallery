@@ -158,6 +158,8 @@ object NetworkMediaSource : MediaSource {
         return modified.coerceAtLeast(0L)
     }
 
+    override fun cachedFileSize(path: String): Long = SmbFileMetaCache.get(path)?.size ?: -1L
+
     /** Asks the server (not the list cache), so a half-written file is noticed. */
     override fun fileSize(context: Context, path: String): Long {
         val smb = SmbPath.parse(path) ?: return -1L
@@ -332,6 +334,35 @@ object NetworkMediaSource : MediaSource {
             }
         )
         return actions
+    }
+
+    // ---- Settings export ----
+
+    override val settingsExportKey: String = "network_servers"
+
+    /** The saved servers (without passwords) and their cover pictures. */
+    override fun exportSettings(context: Context): org.json.JSONObject {
+        val covers = org.json.JSONObject()
+        NetworkConfigStore.getAllServers(context).forEach { server ->
+            SmbCoverImages.exportCover(context, server.id)?.let { covers.put(server.id, it) }
+        }
+        return org.json.JSONObject()
+            .put("servers", NetworkConfigStore.exportWithoutPasswords(context))
+            .put("covers", covers)
+    }
+
+    /** Adds the servers that are not saved yet; their passwords have to be entered again. */
+    override fun importSettings(context: Context, data: org.json.JSONObject): Int {
+        val servers = data.optJSONArray("servers") ?: return 0
+        val added = NetworkConfigStore.importWithoutPasswords(context, servers)
+        val covers = data.optJSONObject("covers")
+        if (covers != null) {
+            added.forEach { (fileId, newId) ->
+                val cover = covers.optString(fileId, "")
+                if (cover.isNotEmpty()) SmbCoverImages.importCover(context, newId, cover)
+            }
+        }
+        return added.size
     }
 
     override fun shutdown() {

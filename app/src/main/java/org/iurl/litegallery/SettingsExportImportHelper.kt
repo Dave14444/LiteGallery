@@ -73,6 +73,9 @@ class SettingsExportImportHelper(private val context: Context) {
 
         private val CUSTOM_THEME_PREFERENCES_JSON_KEY = "custom_theme_preferences"
 
+        /** Settings of the media sources (e.g. the saved network servers, without passwords). */
+        private const val MEDIA_SOURCES_JSON_KEY = "media_sources"
+
         private val ACTION_BAR_PREFERENCE_TYPES = mapOf(
             ActionBarPreferences.KEY_ORDER to PreferenceType.STRING,
             ActionBarPreferences.KEY_VISIBLE to PreferenceType.STRING
@@ -134,6 +137,7 @@ class SettingsExportImportHelper(private val context: Context) {
                     CUSTOM_THEME_PREFERENCES_JSON_KEY,
                     exportPreferenceObject(customThemePreferences, CUSTOM_THEME_PREFERENCE_TYPES)
                 )
+                exportMediaSources()?.let { put(MEDIA_SOURCES_JSON_KEY, it) }
             }
 
             outputStream.write(settingsJson.toString(2).toByteArray())
@@ -187,8 +191,10 @@ class SettingsExportImportHelper(private val context: Context) {
                 CustomThemeStore.notifyExternalChange()
             }
 
+            val sourcesImportedCount = importMediaSources(settingsJson.optJSONObject(MEDIA_SOURCES_JSON_KEY))
+
             Pair(
-                defaultImportedCount + actionBarImportedCount + customImportedCount,
+                defaultImportedCount + actionBarImportedCount + customImportedCount + sourcesImportedCount,
                 defaultSkippedCount + actionBarSkippedCount + customSkippedCount
             )
 
@@ -344,5 +350,35 @@ class SettingsExportImportHelper(private val context: Context) {
         } else {
             value
         }
+    }
+
+    /** The parts of all media sources that have something to export, or null if none has. */
+    private fun exportMediaSources(): JSONObject? {
+        val sources = JSONObject()
+        MediaSourceRegistry.all().forEach { source ->
+            val key = source.settingsExportKey ?: return@forEach
+            try {
+                source.exportSettings(context)?.let { sources.put(key, it) }
+            } catch (e: Exception) {
+                android.util.Log.w("SettingsExport", "Could not export the settings of $key", e)
+            }
+        }
+        return if (sources.length() > 0) sources else null
+    }
+
+    /** Hands each media source its part of the settings file. Returns the number of added entries. */
+    private fun importMediaSources(sources: JSONObject?): Int {
+        if (sources == null) return 0
+        var imported = 0
+        MediaSourceRegistry.all().forEach { source ->
+            val key = source.settingsExportKey ?: return@forEach
+            val data = sources.optJSONObject(key) ?: return@forEach
+            try {
+                imported += source.importSettings(context, data)
+            } catch (e: Exception) {
+                android.util.Log.w("SettingsImport", "Could not import the settings of $key", e)
+            }
+        }
+        return imported
     }
 }

@@ -90,5 +90,18 @@ class FakeMediaSource : MediaSource {
         return true
     }
 
+    /** What [exportSettings] returns, and what [importSettings] received last. */
+    var exportedSettings: org.json.JSONObject? = null
+    var importedSettings: org.json.JSONObject? = null
+
+    override val settingsExportKey: String = "fake"
+
+    override fun exportSettings(context: Context): org.json.JSONObject? = exportedSettings
+
+    override fun importSettings(context: Context, data: org.json.JSONObject): Int {
+        importedSettings = data
+        return 1
+    }
+
     override fun shutdown() {}
 }

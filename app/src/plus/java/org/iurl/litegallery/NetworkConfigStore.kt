@@ -89,6 +89,51 @@ object NetworkConfigStore {
         saveServers(context, servers)
     }
 
+    // ---------------------------------------------------------------- settings export
+
+    /** The saved servers for the settings file: everything except the passwords. */
+    fun exportWithoutPasswords(context: Context): JSONArray {
+        val array = JSONArray()
+        getAllServers(context).forEach { config ->
+            array.put(serializeServer(config, includePassword = false))
+        }
+        return array
+    }
+
+    /**
+     * Adds the servers of a settings file that are not saved here yet (same protocol and address).
+     * They come without password; servers already saved keep theirs. Returns, for each added
+     * server, its id in the file and its id here.
+     */
+    @Synchronized
+    fun importWithoutPasswords(context: Context, array: JSONArray): Map<String, String> {
+        val servers = getAllServers(context).toMutableList()
+        val added = LinkedHashMap<String, String>()
+        for (i in 0 until array.length()) {
+            val entry = array.optJSONObject(i) ?: continue
+            val fileId = entry.optString("id", "")
+            val imported = parseServer(entry)?.copy(password = "") ?: continue
+            if (imported.host.isBlank() || servers.any { sameAddress(it, imported) }) continue
+
+            val id = if (fileId.isNotBlank() && servers.none { it.id == fileId }) {
+                fileId
+            } else {
+                UUID.randomUUID().toString()
+            }
+            servers.add(imported.copy(id = id))
+            added[fileId] = id
+        }
+        if (added.isNotEmpty()) saveServers(context, servers)
+        return added
+    }
+
+    private fun sameAddress(a: NetworkServerConfig, b: NetworkServerConfig): Boolean =
+        a.protocol == b.protocol &&
+            a.host.equals(b.host, ignoreCase = true) &&
+            a.share.equals(b.share, ignoreCase = true) &&
+            a.path.trim('/').equals(b.path.trim('/'), ignoreCase = true) &&
+            a.export.trimEnd('/') == b.export.trimEnd('/')
+
     @Synchronized
     private fun saveServers(context: Context, servers: List<NetworkServerConfig>) {
         val array = JSONArray()
@@ -104,7 +149,7 @@ object NetworkConfigStore {
         cachedServers = servers
     }
 
-    private fun serializeServer(config: NetworkServerConfig): JSONObject {
+    private fun serializeServer(config: NetworkServerConfig, includePassword: Boolean = true): JSONObject {
         return JSONObject().apply {
             put("id", config.id)
             put("displayName", config.displayName)
@@ -114,13 +159,15 @@ object NetworkConfigStore {
             put("path", config.path)
             put("port", config.port)
             put("username", config.username)
-            val encrypted = PasswordCipher.encrypt(config.password)
-            if (encrypted != null) {
-                put(KEY_PASSWORD, encrypted)
-            } else {
-                // The Keystore is unusable on this device. Rather than lose the login, keep the
-                // password as before; it is encrypted at the next save once the Keystore works.
-                put(KEY_LEGACY_PASSWORD, config.password)
+            if (includePassword) {
+                val encrypted = PasswordCipher.encrypt(config.password)
+                if (encrypted != null) {
+                    put(KEY_PASSWORD, encrypted)
+                } else {
+                    // The Keystore is unusable on this device. Rather than lose the login, keep the
+                    // password as before; it is encrypted at the next save once the Keystore works.
+                    put(KEY_LEGACY_PASSWORD, config.password)
+                }
             }
             put("isGuest", config.isGuest)
             put("export", config.export)
