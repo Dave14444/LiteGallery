@@ -327,6 +327,61 @@ class FolderViewActivity : AppCompatActivity() {
         }
     }
 
+    // ---- Selecting by dragging: long press, then move the finger over further pictures ----
+
+    private lateinit var dragSelect: DragSelectTouchListener
+    private var dragAnchor = RecyclerView.NO_POSITION
+    private var dragSelecting = true
+    private var dragInitial: Set<String> = emptySet()
+
+    private fun onMediaLongPressed(skeleton: MediaItemSkeleton) {
+        if (!canSelect(skeleton)) return
+        toggleSelection(skeleton)
+        val position = adapterPositionOf(skeleton.path)
+        if (position == RecyclerView.NO_POSITION) return
+        dragAnchor = position
+        // Long press on a selected picture deselects it: dragging then deselects the others too.
+        dragSelecting = skeleton.path in selectedPaths
+        dragInitial = LinkedHashSet(selectedPaths).apply {
+            if (dragSelecting) remove(skeleton.path) else add(skeleton.path)
+        }
+        dragSelect.start()
+    }
+
+    private fun onDragTo(position: Int) {
+        if (dragAnchor == RecyclerView.NO_POSITION) return
+        val positions = if (position >= dragAnchor) dragAnchor..position else dragAnchor downTo position
+        val range = positions.mapNotNull { skeletonAt(it) }.filter { canSelect(it) }.map { it.path }
+        val wanted = DragSelectTouchListener.selectionFor(dragInitial, range, dragSelecting)
+        if (wanted == selectedPaths) return
+
+        val changed = (selectedPaths - wanted) + (wanted - selectedPaths)
+        selectedPaths.clear()
+        selectedPaths.addAll(wanted)
+        notifySelectionChanged(changed)
+        updateSelectionUi()
+    }
+
+    private fun onDragEnd() {
+        dragAnchor = RecyclerView.NO_POSITION
+        dragInitial = emptySet()
+    }
+
+    private fun skeletonAt(position: Int): MediaItemSkeleton? = when (binding.recyclerView.adapter) {
+        mediaAdapter -> mediaAdapter.currentList.getOrNull(position)
+        groupedMediaAdapter ->
+            (groupedMediaAdapter.currentList.getOrNull(position) as? FolderDisplayItem.Media)?.skeleton
+        else -> null
+    }
+
+    private fun adapterPositionOf(path: String): Int = when (binding.recyclerView.adapter) {
+        mediaAdapter -> mediaAdapter.currentList.indexOfFirst { it.path == path }
+        groupedMediaAdapter -> groupedMediaAdapter.currentList.indexOfFirst {
+            it is FolderDisplayItem.Media && it.skeleton.path == path
+        }
+        else -> RecyclerView.NO_POSITION
+    }
+
     private fun toggleSelection(skeleton: MediaItemSkeleton) {
         if (!canSelect(skeleton)) return
         if (!selectedPaths.remove(skeleton.path)) selectedPaths.add(skeleton.path)
@@ -802,7 +857,7 @@ class FolderViewActivity : AppCompatActivity() {
                     openMediaViewer(mediaItem, position)
                 }
             },
-            onMediaLongClick = { mediaItem, _ -> toggleSelection(mediaItem) },
+            onMediaLongClick = { mediaItem, _ -> onMediaLongPressed(mediaItem) },
             isItemSelected = { mediaItem -> mediaItem.path in selectedPaths },
             onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem,
             onVideoDurationNeeded = ::requestVideoDuration
@@ -816,10 +871,13 @@ class FolderViewActivity : AppCompatActivity() {
                 }
             },
             onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem,
-            onMediaLongClick = { mediaItem, _ -> toggleSelection(mediaItem) },
+            onMediaLongClick = { mediaItem, _ -> onMediaLongPressed(mediaItem) },
             isItemSelected = { mediaItem -> mediaItem.path in selectedPaths },
             onVideoDurationNeeded = ::requestVideoDuration
         )
+
+        dragSelect = DragSelectTouchListener(binding.recyclerView, ::onDragTo, ::onDragEnd)
+        binding.recyclerView.addOnItemTouchListener(dragSelect)
 
         binding.recyclerView.apply {
             setHasFixedSize(true)
