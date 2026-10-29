@@ -30,6 +30,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.withTimeoutOrNull
@@ -51,6 +52,9 @@ class ThumbnailPrepareService : Service() {
 
         /** Pictures processed at the same time (see also SmbThumbnailCache.MAX_PARALLEL_CREATIONS). */
         private const val PARALLEL_FILES = 3
+
+        /** Longest time for one file (a big video over a slow VPN can take a while). */
+        private const val FILE_TIMEOUT_MS = 3L * 60L * 1000L
 
         /** Android stops data-sync services after 6 hours; stop a little earlier ourselves. */
         private const val MAX_RUN_MS = 5L * 60L * 60L * 1000L + 30L * 60L * 1000L
@@ -201,9 +205,20 @@ class ThumbnailPrepareService : Service() {
                     permits.acquire()
                     launch(Dispatchers.IO) {
                         try {
-                            when (SmbThumbnailCache.prepare(applicationContext, file.url, cachedNames)) {
+                            // A file that hangs (e.g. the connection stalled) must not stop the
+                            // whole run: after a while it is given up and counted as failed.
+                            val result = withTimeoutOrNull(FILE_TIMEOUT_MS) {
+                                runInterruptible {
+                                    SmbThumbnailCache.prepare(applicationContext, file.url, cachedNames)
+                                }
+                            }
+                            when (result) {
                                 SmbThumbnailCache.PrepareResult.CREATED -> created.incrementAndGet()
                                 SmbThumbnailCache.PrepareResult.ALREADY_THERE -> alreadyThere.incrementAndGet()
+                                null -> {
+                                    android.util.Log.w("ThumbnailPrepare", "Gave up on ${file.url}: took too long")
+                                    failed.incrementAndGet()
+                                }
                             }
                         } catch (e: CancellationException) {
                             throw e

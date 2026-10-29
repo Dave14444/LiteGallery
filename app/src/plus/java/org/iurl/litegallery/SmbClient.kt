@@ -29,10 +29,17 @@ object SmbClient {
     private val client: SMBClient by lazy {
         val config = SmbjConfig.builder()
             .withTimeout(60, TimeUnit.SECONDS)
-            .withSoTimeout(0, TimeUnit.SECONDS)
+            // Without a socket timeout a connection that silently died (Wi-Fi changed, NAS
+            // asleep, VPN dropped) stays open forever. Requests on it fail after the 60 s above
+            // and open a new connection (see looksLikeLostConnection); the socket timeout also
+            // closes a connection that has been quiet for a long time. Long enough not to drop
+            // a connection while one picture is being looked at.
+            .withSoTimeout(SOCKET_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
         SMBClient(config)
     }
+
+    private const val SOCKET_TIMEOUT_SECONDS = 300L
 
     // Cache: host -> Connection
     private val connections = ConcurrentHashMap<String, Connection>()
@@ -712,12 +719,21 @@ object SmbClient {
         }
     }
 
-    private fun looksLikeLostConnection(e: Exception): Boolean {
-        val messages = listOf(e.message.orEmpty(), e.cause?.message.orEmpty())
-        return messages.any { message ->
+    /** Whether [e] means the connection is gone (then it is opened again once). */
+    internal fun looksLikeLostConnection(e: Throwable): Boolean {
+        val chain = generateSequence(e) { it.cause }.take(8).toList()
+        // Stopped on purpose (e.g. "Cancel"): not a connection problem.
+        if (chain.any { it is InterruptedException }) return false
+        if (chain.any { it is java.net.SocketTimeoutException || it is java.util.concurrent.TimeoutException }) {
+            return true
+        }
+        return chain.any { error ->
+            val message = error.message.orEmpty()
             message.contains("closed", ignoreCase = true) ||
                 message.contains("Connection reset", ignoreCase = true) ||
-                message.contains("Broken pipe", ignoreCase = true)
+                message.contains("Broken pipe", ignoreCase = true) ||
+                message.contains("timed out", ignoreCase = true) ||
+                message.contains("Timeout expired", ignoreCase = true)
         }
     }
 
