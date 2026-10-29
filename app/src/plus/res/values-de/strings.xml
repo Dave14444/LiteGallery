@@ -23,6 +23,7 @@
     <string name="thumb_prepare_stopped">Vorbereiten der Vorschaubilder angehalten</string>
     <string name="thumb_prepare_running">Die Vorschaubilder werden bereits vorbereitet</string>
     <string name="thumb_prepare_progress">%1$d geprüft · %2$d neu</string>
+    <string name="thumb_prepare_too_slow">Übersprungen, weil es zu lange dauerte: %s</string>
     <string name="thumb_prepare_done">Fertig: %1$d neu, %2$d schon vorhanden, %3$d fehlgeschlagen</string>
 
     <!-- Netzwerkfreigaben -->

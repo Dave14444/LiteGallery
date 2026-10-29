@@ -26,11 +26,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.withTimeoutOrNull
@@ -55,6 +55,9 @@ class ThumbnailPrepareService : Service() {
 
         /** Longest time for one file (a big video over a slow VPN can take a while). */
         private const val FILE_TIMEOUT_MS = 3L * 60L * 1000L
+
+        /** Files that took too long are named in the final notification, at most this many. */
+        private const val MAX_NAMED_SLOW_FILES = 5
 
         /** Android stops data-sync services after 6 hours; stop a little earlier ourselves. */
         private const val MAX_RUN_MS = 5L * 60L * 60L * 1000L + 30L * 60L * 1000L
@@ -83,6 +86,9 @@ class ThumbnailPrepareService : Service() {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Runs the work for single files, so the run never has to wait for one that hangs. */
+    private val detachedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
     private var label = ""
 
@@ -118,7 +124,7 @@ class ThumbnailPrepareService : Service() {
         isRunning = true
         stopping = false
         job = scope.launch {
-            var summary: Triple<Int, Int, Int>? = null
+            var summary: Summary? = null
             try {
                 summary = withTimeoutOrNull(MAX_RUN_MS) { prepareAll(folderUrl) }
             } catch (e: CancellationException) {
@@ -131,7 +137,7 @@ class ThumbnailPrepareService : Service() {
                     isRunning = false
                     ServiceCompat.stopForeground(this@ThumbnailPrepareService, ServiceCompat.STOP_FOREGROUND_DETACH)
                     if (summary != null) {
-                        notifyDone(summary.first, summary.second, summary.third)
+                        notifyDone(summary)
                     } else {
                         NotificationManagerCompat.from(this@ThumbnailPrepareService).cancel(NOTIFICATION_ID)
                     }
@@ -158,16 +164,26 @@ class ThumbnailPrepareService : Service() {
 
     override fun onDestroy() {
         scope.coroutineContext[Job]?.cancel()
+        detachedScope.coroutineContext[Job]?.cancel()
         isRunning = false
         super.onDestroy()
     }
 
     /** Returns (created, alreadyThere, failed). */
-    private suspend fun prepareAll(folderUrl: String): Triple<Int, Int, Int> {
+    private class Summary(
+        val created: Int,
+        val alreadyThere: Int,
+        val failed: Int,
+        /** Files given up because they took too long (see FILE_TIMEOUT_MS). */
+        val tooSlow: List<String>
+    )
+
+    private suspend fun prepareAll(folderUrl: String): Summary {
         val created = AtomicInteger()
         val alreadyThere = AtomicInteger()
         val failed = AtomicInteger()
         val checked = AtomicInteger()
+        val tooSlow = java.util.Collections.synchronizedList(mutableListOf<String>())
         val cachedNamesByShare = HashMap<String, Set<String>>()
         val queue = ArrayDeque<String>()
         queue.add(folderUrl)
@@ -205,18 +221,26 @@ class ThumbnailPrepareService : Service() {
                     permits.acquire()
                     launch(Dispatchers.IO) {
                         try {
-                            // A file that hangs (e.g. the connection stalled) must not stop the
-                            // whole run: after a while it is given up and counted as failed.
-                            val result = withTimeoutOrNull(FILE_TIMEOUT_MS) {
-                                runInterruptible {
-                                    SmbThumbnailCache.prepare(applicationContext, file.url, cachedNames)
-                                }
+                            // A file that hangs must not stop the whole run. Reading a video
+                            // frame can hang inside Android's video decoder, where it cannot be
+                            // interrupted: the work runs on its own and is only waited for a
+                            // limited time. If it takes too long, the run goes on without it.
+                            val work = detachedScope.async {
+                                SmbThumbnailCache.prepare(applicationContext, file.url, cachedNames)
+                            }
+                            val result = try {
+                                withTimeoutOrNull(FILE_TIMEOUT_MS) { work.await() }
+                            } catch (e: CancellationException) {
+                                work.cancel()
+                                throw e
                             }
                             when (result) {
                                 SmbThumbnailCache.PrepareResult.CREATED -> created.incrementAndGet()
                                 SmbThumbnailCache.PrepareResult.ALREADY_THERE -> alreadyThere.incrementAndGet()
                                 null -> {
                                     android.util.Log.w("ThumbnailPrepare", "Gave up on ${file.url}: took too long")
+                                    work.cancel()
+                                    tooSlow.add(file.name)
                                     failed.incrementAndGet()
                                 }
                             }
@@ -234,7 +258,7 @@ class ThumbnailPrepareService : Service() {
                 }
             }
         }
-        return Triple(created.get(), alreadyThere.get(), failed.get())
+        return Summary(created.get(), alreadyThere.get(), failed.get(), tooSlow.toList())
     }
 
     // ---------------------------------------------------------------- notifications
@@ -283,11 +307,20 @@ class ThumbnailPrepareService : Service() {
         }
     }
 
-    private fun notifyDone(created: Int, alreadyThere: Int, failed: Int) {
+    private fun notifyDone(summary: Summary) {
+        val text = getString(R.string.thumb_prepare_done, summary.created, summary.alreadyThere, summary.failed)
+        val details = if (summary.tooSlow.isEmpty()) {
+            text
+        } else {
+            val names = summary.tooSlow.take(MAX_NAMED_SLOW_FILES).joinToString(", ") +
+                if (summary.tooSlow.size > MAX_NAMED_SLOW_FILES) ", …" else ""
+            text + "\n" + getString(R.string.thumb_prepare_too_slow, names)
+        }
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_refresh)
             .setContentTitle(getString(R.string.thumb_prepare_title))
-            .setContentText(getString(R.string.thumb_prepare_done, created, alreadyThere, failed))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(details))
             .setSubText(label)
             .setAutoCancel(true)
             .build()

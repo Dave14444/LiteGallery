@@ -43,6 +43,7 @@ object SmbThumbnailCache {
     private const val MAX_PARALLEL_CREATIONS = 3
 
     private val creationPermits = java.util.concurrent.Semaphore(MAX_PARALLEL_CREATIONS)
+    private const val MAX_PERMIT_WAIT_SECONDS = 120L
 
     // Two requests for the same thumbnail must not both create it. Different thumbnails are made
     // in parallel: a fixed set of locks, picked by the thumbnail's key, keeps this simple.
@@ -53,11 +54,16 @@ object SmbThumbnailCache {
         synchronized(stripeLocks[(key.hashCode() and Int.MAX_VALUE) % LOCK_STRIPES]) { block() }
 
     private fun <T> limitedCreation(block: () -> T): T {
-        creationPermits.acquire()
+        // A creation that hangs (e.g. in the video decoder) keeps its permit. Waiting for a
+        // permit is therefore limited, so such a file can never block all others for good.
+        val acquired = creationPermits.tryAcquire(MAX_PERMIT_WAIT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+        if (!acquired) {
+            android.util.Log.w("SmbThumbnailCache", "No free slot after $MAX_PERMIT_WAIT_SECONDS s; going ahead anyway")
+        }
         try {
             return block()
         } finally {
-            creationPermits.release()
+            if (acquired) creationPermits.release()
         }
     }
 

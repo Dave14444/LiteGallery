@@ -65,5 +65,6 @@
     <string name="thumb_prepare_stopped">Preparing the previews was stopped</string>
     <string name="thumb_prepare_running">The previews are already being prepared</string>
     <string name="thumb_prepare_progress">%1$d checked · %2$d new</string>
+    <string name="thumb_prepare_too_slow">Skipped because they took too long: %s</string>
     <string name="thumb_prepare_done">Done: %1$d new, %2$d already there, %3$d failed</string>
 </resources>
