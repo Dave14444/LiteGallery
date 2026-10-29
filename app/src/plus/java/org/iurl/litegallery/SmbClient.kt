@@ -41,6 +41,9 @@ object SmbClient {
 
     private const val SOCKET_TIMEOUT_SECONDS = 300L
 
+    // Cannot collide with a real user name (a NUL character cannot be typed into the field).
+    private const val GUEST_LOGIN_KEY = "\u0000guest"
+
     // Cache: host -> Connection
     private val connections = ConcurrentHashMap<String, Connection>()
     // Cache: "host|user" -> Session
@@ -627,6 +630,11 @@ object SmbClient {
         return NetworkConfigStore.getServerByHost(context, host, NetworkServerConfig.PROTOCOL_SMB)
     }
 
+    /** The login for [shareName] on [host]: the connection saved for that share, see NetworkConfigStore. */
+    private fun resolveConfig(context: Context, host: String, shareName: String): NetworkServerConfig? {
+        return NetworkConfigStore.getSmbServerForShare(context, host, shareName)
+    }
+
     @Synchronized
     private fun getOrCreateConnection(config: NetworkServerConfig): Connection {
         val existing = connections[config.host]
@@ -645,9 +653,16 @@ object SmbClient {
         return connection
     }
 
+    /**
+     * Who logs in, as part of the cache keys. A guest connection keeps whatever was typed in the
+     * (disabled) user name field, so it must not share a session with that user's real login.
+     */
+    internal fun loginKey(config: NetworkServerConfig): String =
+        if (config.isGuest) GUEST_LOGIN_KEY else config.username
+
     @Synchronized
     private fun getOrCreateSession(config: NetworkServerConfig): Session {
-        val key = "${config.host}|${config.username}"
+        val key = "${config.host}|${loginKey(config)}"
         val existing = sessions[key]
         if (existing != null) {
             try {
@@ -678,13 +693,15 @@ object SmbClient {
 
     @Synchronized
     private fun getOrCreateShare(context: Context, host: String, shareName: String): DiskShare {
-        val config = resolveConfig(context, host) ?: throw SmbException("No config for host: $host")
+        // Each share with its own login: e.g. "Public" as guest, a personal share as its user.
+        val config = resolveConfig(context, host, shareName)
+            ?: throw SmbException("No config for host: $host")
         return getOrCreateShareWithConfig(config, shareName)
     }
 
     @Synchronized
     private fun getOrCreateShareWithConfig(config: NetworkServerConfig, shareName: String): DiskShare {
-        val key = "${config.host}|${config.username}|$shareName"
+        val key = "${config.host}|${loginKey(config)}|$shareName"
         val existing = shares[key]
         if (existing != null) {
             try {

@@ -299,6 +299,64 @@ class NetworkConfigStoreTest {
         )
     }
 
+    @Test
+    fun severalLoginsOnOneNas_eachShareUsesItsOwnConnection() {
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "u1", displayName = "David", host = "192.168.1.10", share = "David",
+                path = "Bilder", username = "david", password = "a"
+            )
+        )
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "u2", displayName = "Anna", host = "192.168.1.10", share = "Anna",
+                username = "anna", password = "b"
+            )
+        )
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "pub", displayName = "Public", host = "192.168.1.10", share = "Public",
+                isGuest = true
+            )
+        )
+
+        assertEquals("u1", NetworkConfigStore.getSmbServerForShare(context, "192.168.1.10", "David")?.id)
+        assertEquals("u2", NetworkConfigStore.getSmbServerForShare(context, "192.168.1.10", "anna")?.id)
+        assertEquals("pub", NetworkConfigStore.getSmbServerForShare(context, "192.168.1.10", "Public")?.id)
+    }
+
+    @Test
+    fun shareWithoutOwnConnection_usesAnyConnectionToTheHost() {
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "nfs", displayName = "", host = "nas.local",
+                protocol = NetworkServerConfig.PROTOCOL_NFS, export = "/volume1/photo"
+            )
+        )
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(
+                id = "smb", displayName = "", host = "nas.local", share = "Photos", username = "arthur"
+            )
+        )
+
+        assertEquals("smb", NetworkConfigStore.getSmbServerForShare(context, "NAS.local", "Videos")?.id)
+        assertNull(NetworkConfigStore.getSmbServerForShare(context, "other.local", "Photos"))
+    }
+
+    @Test
+    fun guestConnection_neverSharesTheLoginOfTheUserNameLeftInTheField() {
+        val user = NetworkServerConfig(id = "u", displayName = "", host = "nas", username = "david")
+        val guest = user.copy(id = "g", isGuest = true)
+
+        assertNotEquals(SmbClient.loginKey(user), SmbClient.loginKey(guest))
+        assertEquals("david", SmbClient.loginKey(user))
+    }
+
     private fun clearStore() {
         context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
             .edit()

@@ -58,6 +58,18 @@ object NetworkConfigStore {
         }
     }
 
+    /**
+     * The saved SMB connection to use for [share] on [host]. Several connections to one NAS may
+     * log in as different users (e.g. one per person, and a guest connection to "Public"), so
+     * the connection made for that share decides. Without one, any connection to the host.
+     */
+    fun getSmbServerForShare(context: Context, host: String, share: String): NetworkServerConfig? {
+        val onHost = getAllServers(context).filter {
+            it.protocol == NetworkServerConfig.PROTOCOL_SMB && it.host.equals(host, ignoreCase = true)
+        }
+        return onHost.firstOrNull { it.share.equals(share, ignoreCase = true) } ?: onHost.firstOrNull()
+    }
+
     fun getServerById(context: Context, id: String): NetworkServerConfig? {
         return getAllServers(context).find { it.id == id }
     }

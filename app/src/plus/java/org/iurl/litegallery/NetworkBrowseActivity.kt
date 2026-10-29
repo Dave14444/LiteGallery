@@ -369,10 +369,9 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 // Not saved -> Add it
                 val defaultName = smbPath.host + if (smbPath.path.isNotBlank()) " - " + smbPath.path.substringAfterLast('/') else if (smbPath.share.isNotBlank()) " - " + smbPath.share else ""
 
-                // If we already have credentials for this host, reuse them
-                val hostConfig = allServers.find {
-                    !it.isNfs && it.host.equals(smbPath.host, ignoreCase = true)
-                }
+                // If we already have credentials for this host, reuse them: preferably the login
+                // of a connection to the same share, since each user may have their own.
+                val hostConfig = NetworkConfigStore.getSmbServerForShare(this, smbPath.host, smbPath.share)
                 if (hostConfig != null && hostConfig.isAuthenticated) {
                     val newConfig = hostConfig.copy(
                         id = "", // generate new id
