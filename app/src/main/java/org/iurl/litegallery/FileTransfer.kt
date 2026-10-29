@@ -29,6 +29,9 @@ object FileTransfer {
 
         /** The copy is fine, but the original could not be deleted. */
         DELETE_FAILED,
+
+        /** Changing the date: the file has no date taken in its EXIF data. */
+        NO_DATE_TAKEN,
         OTHER
     }
 

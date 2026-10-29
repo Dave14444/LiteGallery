@@ -96,6 +96,9 @@ interface MediaSource {
     /** Size of the file at [path] in bytes, asked from the source itself; -1 if unknown. */
     fun fileSize(context: Context, path: String): Long = -1L
 
+    /** Sets the modification date of [path] (what the gallery sorts by). Returns true on success. */
+    fun setLastModified(context: Context, path: String, millis: Long): Boolean = false
+
     /** Size of the file at [path] if known without network access (e.g. from a listing); else -1. */
     fun cachedFileSize(path: String): Long = -1L
 

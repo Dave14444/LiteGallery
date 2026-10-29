@@ -47,6 +47,12 @@
         app:showAsAction="ifRoom|withText" />
 
     <item
+        android:id="@+id/action_date_selection"
+        android:title="@string/date_edit_title"
+        android:visible="false"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_exif_selection"
         android:title="@string/exif_title"
         android:visible="false"

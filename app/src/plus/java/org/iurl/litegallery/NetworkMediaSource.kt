@@ -158,6 +158,16 @@ object NetworkMediaSource : MediaSource {
         return modified.coerceAtLeast(0L)
     }
 
+    override fun setLastModified(context: Context, path: String, millis: Long): Boolean {
+        val smb = SmbPath.parse(path) ?: return false
+        val changed = SmbClient.setLastModified(context, smb.host, smb.share, smb.path, millis)
+        if (changed) {
+            // The list shows the new date before the folder is read again.
+            SmbFileMetaCache.get(path)?.let { SmbFileMetaCache.put(path, it.size, millis) }
+        }
+        return changed
+    }
+
     override fun cachedFileSize(path: String): Long = SmbFileMetaCache.get(path)?.size ?: -1L
 
     /** Asks the server (not the list cache), so a half-written file is noticed. */

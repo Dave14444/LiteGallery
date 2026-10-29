@@ -608,5 +608,13 @@
     <string name="exif_location">Ort</string>
     <string name="exif_altitude">Höhe</string>
     <string name="folder_sub_folders">Ordner (%d)</string>
+    <string name="date_edit_title">Datum ändern</string>
+    <string name="date_edit_hint">Die Galerie sortiert nach dem Datum der Datei. „Aus EXIF“ setzt es auf das Aufnahmedatum des Bildes, falls es eines hat. Bei Bildern ohne Aufnahmedatum (z. B. aus Snapchat) wählst du Datum und Uhrzeit selbst.</string>
+    <string name="date_edit_hint_multiple">Die Galerie sortiert nach dem Datum der Datei. „Aus EXIF“ setzt jede Datei auf das Aufnahmedatum ihres Bildes, falls es eines hat. Ein selbst gewähltes Datum bekommen alle ausgewählten Dateien, im Abstand von je einer Sekunde in der Reihenfolge deiner Auswahl.</string>
+    <string name="date_edit_write_exif">Auch als Aufnahmedatum in der Datei speichern (nur JPEG), damit es beim Kopieren in andere Apps oder eine Cloud erhalten bleibt</string>
+    <string name="date_edit_pick">Datum wählen…</string>
+    <string name="date_edit_from_exif">Aus EXIF</string>
+    <string name="date_edit_running">Ändere Datum…</string>
+    <string name="file_op_reason_no_date">Kein Aufnahmedatum in den EXIF-Daten</string>
 </resources>
 

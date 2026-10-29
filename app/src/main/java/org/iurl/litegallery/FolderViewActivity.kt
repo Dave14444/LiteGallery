@@ -121,6 +121,7 @@ class FolderViewActivity : AppCompatActivity() {
     private var copyMenuItem: MenuItem? = null
     private var moveMenuItem: MenuItem? = null
     private var deleteMenuItem: MenuItem? = null
+    private var dateMenuItem: MenuItem? = null
     private var selectAllMenuItem: MenuItem? = null
 
     private lateinit var subFolderAdapter: FolderAdapter
@@ -248,6 +249,7 @@ class FolderViewActivity : AppCompatActivity() {
         copyMenuItem = menu.findItem(R.id.action_copy_selection)
         moveMenuItem = menu.findItem(R.id.action_move_selection)
         deleteMenuItem = menu.findItem(R.id.action_delete_selection)
+        dateMenuItem = menu.findItem(R.id.action_date_selection)
         selectAllMenuItem = menu.findItem(R.id.action_select_all)
         addFolderActions(menu)
         setupSearchMenuItem(searchMenuItem)
@@ -268,8 +270,18 @@ class FolderViewActivity : AppCompatActivity() {
             }
             R.id.action_exif_selection -> {
                 selectedItems().firstOrNull()?.let {
-                    ExifDialog.show(this, it.path, it.name, it.size, it.dateModified)
+                    ExifDialog.show(this, it.path, it.name, it.size, it.dateModified) {
+                        onDatesChanged(listOf(it.path))
+                    }
                 }
+                true
+            }
+            R.id.action_date_selection -> {
+                val items = selectedItems()
+                DateEditDialog.show(
+                    this,
+                    items.map { DateEditDialog.Target(it.path, it.dateModified) }
+                ) { onDatesChanged(items.map { it.path }) }
                 true
             }
             R.id.action_share_selection -> {
@@ -355,6 +367,7 @@ class FolderViewActivity : AppCompatActivity() {
         copyMenuItem?.isVisible = selecting
         moveMenuItem?.isVisible = selecting
         deleteMenuItem?.isVisible = selecting
+        dateMenuItem?.isVisible = selecting
         selectAllMenuItem?.isVisible = selecting
         folderActionItems.forEach { it.isVisible = !selecting }
         selectionBackCallback.isEnabled = selecting
@@ -590,6 +603,20 @@ class FolderViewActivity : AppCompatActivity() {
         ) {
             reloadAfterScan(result.createdPaths)
         }
+    }
+
+    /** After dates were changed: the files move to their new place in the list. */
+    private fun onDatesChanged(paths: List<String>) {
+        clearSelection()
+        FolderMediaRepository.invalidate(folderPath)
+        setResult(
+            RESULT_OK,
+            Intent().apply {
+                putExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, true)
+                putExtra(MediaViewerActivity.RESULT_FOLDER_PATH, folderPath)
+            }
+        )
+        reloadAfterScan(paths)
     }
 
     private fun reloadAfterScan(createdPaths: List<String>) {

@@ -34,7 +34,18 @@ object ExifDialog {
 
     private class Info(val rows: List<Row>, val hasExif: Boolean, val latitude: Double?, val longitude: Double?)
 
-    fun show(activity: AppCompatActivity, path: String, name: String, sizeBytes: Long, modifiedMs: Long) {
+    /**
+     * [onDateChanged]: if given (and the file can be changed), the dialog offers "Change date";
+     * it is called after the date was changed.
+     */
+    fun show(
+        activity: AppCompatActivity,
+        path: String,
+        name: String,
+        sizeBytes: Long,
+        modifiedMs: Long,
+        onDateChanged: (() -> Unit)? = null
+    ) {
         val isRemote = MediaSourceRegistry.forPath(path) != null
         val progressDialog = if (isRemote) {
             AlertDialog.Builder(activity)
@@ -58,7 +69,10 @@ object ExifDialog {
             if (info == null) {
                 Toast.makeText(activity, R.string.exif_failed, Toast.LENGTH_LONG).show()
             } else {
-                display(activity, info)
+                val changeDate = onDateChanged?.takeIf { MediaDates.canChange(path) }?.let { callback ->
+                    { DateEditDialog.show(activity, listOf(DateEditDialog.Target(path, modifiedMs)), callback) }
+                }
+                display(activity, info, changeDate)
             }
         }
     }
@@ -185,7 +199,7 @@ object ExifDialog {
 
     // ---------------------------------------------------------------- display
 
-    private fun display(activity: AppCompatActivity, info: Info) {
+    private fun display(activity: AppCompatActivity, info: Info, onChangeDate: (() -> Unit)?) {
         val density = activity.resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
         val primary = ThemeColorResolver.resolveColor(activity, com.google.android.material.R.attr.colorOnSurface)
@@ -246,6 +260,9 @@ object ExifDialog {
                     Toast.makeText(activity, R.string.exif_failed, Toast.LENGTH_LONG).show()
                 }
             }
+        }
+        if (onChangeDate != null) {
+            builder.setNegativeButton(R.string.date_edit_title) { _, _ -> onChangeDate() }
         }
         val dialog = builder.create()
         dialog.show()

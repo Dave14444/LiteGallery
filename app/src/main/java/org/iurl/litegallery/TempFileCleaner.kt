@@ -20,6 +20,7 @@ object TempFileCleaner {
     internal val RULES: List<Pair<String, Long>> = listOf(
         "share" to HOUR_MS,
         "photo_edit" to HOUR_MS,
+        "date_edit" to HOUR_MS,
         // The other app may take long to save its result.
         "external_edit" to 24 * HOUR_MS
     )

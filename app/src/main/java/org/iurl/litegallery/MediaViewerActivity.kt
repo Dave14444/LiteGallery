@@ -493,7 +493,10 @@ class MediaViewerActivity : AppCompatActivity() {
 
         binding.exifButton.setOnClickListener {
             val item = getCurrentMediaItem() ?: return@setOnClickListener
-            ExifDialog.show(this, item.path, item.name, item.size, item.dateModified)
+            ExifDialog.show(this, item.path, item.name, item.size, item.dateModified) {
+                // The picture has a new place in the folder: the list is updated on return.
+                hasMediaCollectionChanged = true
+            }
         }
         
         binding.renameButton.setOnClickListener {

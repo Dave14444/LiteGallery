@@ -447,6 +447,46 @@ object SmbClient {
     }
 
     /**
+     * Gives the file at [filePath] the modification time [epochMillis] (e.g. the date a picture
+     * was taken). Only the times change, not the content. Returns true if the server kept it.
+     */
+    fun setLastModified(
+        context: Context,
+        host: String,
+        shareName: String,
+        filePath: String,
+        epochMillis: Long
+    ): Boolean {
+        val smbPath = filePath.replace('/', '\\')
+        return try {
+            executeWithRetry(context, host, shareName) { share ->
+                val file = share.openFile(
+                    smbPath,
+                    EnumSet.of(AccessMask.FILE_WRITE_ATTRIBUTES),
+                    null,
+                    EnumSet.of(
+                        SMB2ShareAccess.FILE_SHARE_READ,
+                        SMB2ShareAccess.FILE_SHARE_WRITE,
+                        SMB2ShareAccess.FILE_SHARE_DELETE
+                    ),
+                    SMB2CreateDisposition.FILE_OPEN,
+                    null
+                )
+                try {
+                    applyLastModified(file, epochMillis)
+                } finally {
+                    file.close()
+                }
+                val actual = share.getFileInformation(smbPath).basicInformation.lastWriteTime.toEpochMillis()
+                kotlin.math.abs(actual - epochMillis) <= 2000L
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SmbClient", "Failed to set the date of $smbPath", e)
+            false
+        }
+    }
+
+    /**
      * Sets the modification time of an open file. Failing to do so never fails the copy.
      * Nothing is read first (the handle may not be allowed to read attributes); attributes = 0
      * means "unchanged".

@@ -607,4 +607,12 @@
     <string name="exif_location">Location</string>
     <string name="exif_altitude">Altitude</string>
     <string name="folder_sub_folders">Folders (%d)</string>
+    <string name="date_edit_title">Change date</string>
+    <string name="date_edit_hint">The gallery sorts by the date of the file. “From EXIF” sets it to the date the picture was taken, if the picture has one. For pictures without it (e.g. saved from Snapchat) choose the date and time yourself.</string>
+    <string name="date_edit_hint_multiple">The gallery sorts by the date of the file. “From EXIF” sets each file to the date its picture was taken, if it has one. A date chosen yourself is given to all selected files, one second apart in the order you selected them.</string>
+    <string name="date_edit_write_exif">Also store it as date taken in the file (JPEG only), so it is kept when copying to other apps or a cloud</string>
+    <string name="date_edit_pick">Choose date…</string>
+    <string name="date_edit_from_exif">From EXIF</string>
+    <string name="date_edit_running">Changing dates…</string>
+    <string name="file_op_reason_no_date">No date taken in the EXIF data</string>
 </resources>
