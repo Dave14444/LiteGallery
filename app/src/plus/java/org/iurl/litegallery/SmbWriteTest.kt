@@ -2,6 +2,7 @@ package org.iurl.litegallery
 
 import android.app.AlertDialog
 import android.content.Context
+import android.text.format.Formatter
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -63,9 +64,35 @@ object SmbWriteTest {
             )
         }
         lines += ""
-        lines += context.getString(R.string.smb_write_test_create, stepText(context, result.create))
+        lines += context.getString(R.string.smb_write_test_write, stepText(context, result.write))
+        result.sizeRead?.let { size ->
+            val text = when {
+                size < 0L -> context.getString(R.string.smb_write_test_unreadable)
+                size == result.expectedSize -> context.getString(R.string.smb_write_test_ok)
+                else -> context.getString(
+                    R.string.smb_write_test_size_wrong,
+                    Formatter.formatShortFileSize(context, size),
+                    Formatter.formatShortFileSize(context, result.expectedSize)
+                )
+            }
+            lines += context.getString(R.string.smb_write_test_size, text)
+        }
+        if (result.write.tried && result.write.error == null) {
+            val kept = when (result.dateKept) {
+                true -> R.string.smb_write_test_yes
+                false -> R.string.smb_write_test_no
+                null -> R.string.smb_write_test_unreadable
+            }
+            lines += context.getString(R.string.smb_write_test_date, context.getString(kept))
+        }
         lines += context.getString(R.string.smb_write_test_rename, stepText(context, result.rename))
         lines += context.getString(R.string.smb_write_test_delete, stepText(context, result.delete))
+        lines += context.getString(R.string.smb_write_test_folder_create, stepText(context, result.folder))
+        lines += if (result.existingName == null) {
+            context.getString(R.string.smb_write_test_existing_none)
+        } else {
+            context.getString(R.string.smb_write_test_existing, result.existingName, stepText(context, result.existing))
+        }
         return lines.joinToString("\n")
     }
 

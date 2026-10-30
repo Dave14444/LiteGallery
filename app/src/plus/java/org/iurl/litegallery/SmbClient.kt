@@ -596,10 +596,12 @@ object SmbClient {
             true
         } catch (e: Exception) {
             android.util.Log.e("SmbClient", "Failed to write: $smbPath", e)
-            lastError.set(describeError(e))
+            val reason = describeError(e)
             if (created) {
                 deleteFile(context, host, shareName, filePath)
             }
+            // After the clean-up: why writing failed, not how removing the half file went.
+            lastError.set(reason)
             false
         }
     }
@@ -733,44 +735,54 @@ object SmbClient {
         }
     }
 
-    /** One step of [writeTest]: [error] is null if it worked; not [tried] if an earlier step failed. */
+    /** One step of [writeTest]: [error] is null if it worked; not [tried] if it could not be tried. */
     class TestStep(val tried: Boolean, val error: String?)
 
     /** What [writeTest] found out. */
     class WriteTestResult(
         /** Name of the saved connection whose login is used for the share; null if there is none. */
         val connectionName: String?,
-        val configuredAsGuest: Boolean,
-        val userName: String,
-        /** Whether the server took the login as a guest; null if the login failed. */
-        val serverTookGuest: Boolean?,
-        val loginError: String?,
-        val create: TestStep,
-        val rename: TestStep,
-        val delete: TestStep
+        val configuredAsGuest: Boolean = false,
+        val userName: String = "",
+        /** Whether the server took the login as a guest; null if unknown. */
+        val serverTookGuest: Boolean? = null,
+        val loginError: String? = null,
+        /** A picture written exactly the way copying writes one (size, date). */
+        val write: TestStep = NOT_TRIED,
+        val expectedSize: Long = TEST_FILE_SIZE.toLong(),
+        /** The size the server reports afterwards; -1 if it cannot be read, null if not tried. */
+        val sizeRead: Long? = null,
+        /** Whether the server kept the picture's date; null if unknown. */
+        val dateKept: Boolean? = null,
+        val rename: TestStep = NOT_TRIED,
+        val delete: TestStep = NOT_TRIED,
+        /** A new folder (copying a whole folder). */
+        val folder: TestStep = NOT_TRIED,
+        /** Whether a picture already in the folder may be moved or deleted (asked without changing it). */
+        val existing: TestStep = NOT_TRIED,
+        val existingName: String? = null
     )
 
+    internal val NOT_TRIED = TestStep(false, null)
+    private const val TEST_FILE_SIZE = 4 * 1024 * 1024
+
     /**
-     * Checks write access in [folderPath]: logs in the way all other operations do, then
-     * creates a small hidden test file, renames it and deletes it again. Blocking.
+     * Checks write access in [folderPath] with the same functions that copy, move and delete
+     * use: writes a picture-sized test file with a date, reads its size, renames and deletes it,
+     * creates and removes a folder, and asks (without changing anything) whether a picture that
+     * is already there may be moved or deleted. Blocking.
      */
     fun writeTest(context: Context, host: String, shareName: String, folderPath: String): WriteTestResult {
-        val notTried = TestStep(false, null)
-        val config = resolveConfig(context, host, shareName)
-            ?: return WriteTestResult(null, false, "", null, null, notTried, notTried, notTried)
+        val config = resolveConfig(context, host, shareName) ?: return WriteTestResult(null)
+        val dir = folderPath.trim('/')
 
-        val dir = folderPath.replace('/', '\\').trim('\\')
-        val share = try {
+        try {
             // Also checks that the connection still works (and makes a new one if not).
             executeWithRetry(context, host, shareName) { share ->
-                if (dir.isNotEmpty()) share.folderExists(dir)
-                share
+                if (dir.isNotEmpty()) share.folderExists(dir.replace('/', '\\'))
             }
         } catch (e: Exception) {
-            return WriteTestResult(
-                config.displayName, config.isGuest, config.username, null, describeError(e),
-                notTried, notTried, notTried
-            )
+            return WriteTestResult(config.displayName, config.isGuest, config.username, loginError = describeError(e))
         }
         val serverTookGuest = try {
             getOrCreateSession(config).isGuest
@@ -778,64 +790,67 @@ object SmbClient {
             null
         }
 
-        fun attempt(block: () -> Unit): TestStep = try {
-            block()
-            TestStep(true, null)
+        fun inDir(name: String) = if (dir.isEmpty()) name else "$dir/$name"
+        fun step(ok: Boolean) = TestStep(true, if (ok) null else (takeLastError() ?: "?"))
+        val stamp = System.currentTimeMillis()
+        val testFile = inDir("LiteGallery-Schreibtest-$stamp.jpg")
+        val renamedFile = inDir("LiteGallery-Schreibtest-$stamp-2.jpg")
+        val testFolder = inDir("LiteGallery-Schreibtest-$stamp")
+
+        // 1. A picture as copying writes it: data in several pieces, then its date.
+        val date = stamp - 24L * 60 * 60 * 1000
+        val write = step(writeStream(context, host, shareName, testFile, ByteArray(TEST_FILE_SIZE).inputStream(), date))
+        var sizeRead: Long? = null
+        var dateKept: Boolean? = null
+        var renameStep = NOT_TRIED
+        var deleteStep = NOT_TRIED
+        if (write.error == null) {
+            val (size, modified) = getFileSizeAndLastModified(context, host, shareName, testFile)
+            sizeRead = size
+            dateKept = if (modified > 0L) kotlin.math.abs(modified - date) <= 2000L else null
+            renameStep = step(rename(context, host, shareName, testFile, renamedFile))
+            val current = if (renameStep.error == null) renamedFile else testFile
+            deleteStep = step(deleteFile(context, host, shareName, current))
+        }
+
+        // 2. A new folder, as when a whole folder is copied.
+        val folder = step(createDirectory(context, host, shareName, testFolder))
+        if (folder.error == null) {
+            try {
+                executeWithRetry(context, host, shareName) { share -> share.rmdir(testFolder.replace('/', '\\'), false) }
+            } catch (e: Exception) {
+                android.util.Log.w("SmbClient", "Could not remove the test folder $testFolder", e)
+            }
+        }
+
+        // 3. Pictures that are already there: may this login move or delete them?
+        var existingName: String? = null
+        val existing = try {
+            val picture = listFiles(context, host, shareName, dir).firstOrNull { !it.isDirectory && it.isMedia }
+            if (picture == null) {
+                NOT_TRIED
+            } else {
+                existingName = picture.name
+                executeWithRetry(context, host, shareName) { share ->
+                    // Opened with the right to move or delete it, then closed again unchanged.
+                    share.openFile(
+                        picture.path.replace('/', '\\'),
+                        RENAME_ACCESS,
+                        null,
+                        EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE, SMB2ShareAccess.FILE_SHARE_DELETE),
+                        SMB2CreateDisposition.FILE_OPEN,
+                        null
+                    ).close()
+                }
+                TestStep(true, null)
+            }
         } catch (e: Exception) {
-            android.util.Log.w("SmbClient", "Write test step failed", e)
             TestStep(true, describeError(e))
         }
 
-        fun inDir(name: String) = if (dir.isEmpty()) name else "$dir\\$name"
-        val stamp = System.currentTimeMillis()
-        val testPath = inDir(".litegallery-test-$stamp.tmp")
-        val renamedPath = inDir(".litegallery-test-$stamp-2.tmp")
-
-        // The same requests as when a picture is copied, moved and deleted.
-        val create = attempt {
-            val file = share.openFile(
-                testPath,
-                EnumSet.of(AccessMask.GENERIC_WRITE),
-                null,
-                EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ),
-                SMB2CreateDisposition.FILE_CREATE,
-                null
-            )
-            try {
-                file.outputStream.use { it.write(byteArrayOf(1)) }
-            } finally {
-                file.close()
-            }
-        }
-        if (create.error != null) {
-            return WriteTestResult(
-                config.displayName, config.isGuest, config.username, serverTookGuest, null,
-                create, notTried, notTried
-            )
-        }
-
-        var current = testPath
-        val rename = attempt {
-            val file = share.openFile(
-                testPath,
-                RENAME_ACCESS,
-                null,
-                EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE, SMB2ShareAccess.FILE_SHARE_DELETE),
-                SMB2CreateDisposition.FILE_OPEN,
-                null
-            )
-            try {
-                file.rename(renamedPath)
-            } finally {
-                file.close()
-            }
-            current = renamedPath
-        }
-        val delete = attempt { share.rm(current) }
-
         return WriteTestResult(
             config.displayName, config.isGuest, config.username, serverTookGuest, null,
-            create, rename, delete
+            write, TEST_FILE_SIZE.toLong(), sizeRead, dateKept, renameStep, deleteStep, folder, existing, existingName
         )
     }
 

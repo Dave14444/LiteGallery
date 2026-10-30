@@ -80,7 +80,16 @@
     <string name="smb_write_test_login_failed">Login failed: %s</string>
     <string name="smb_write_test_server_guest">The server accepted the login as a guest.</string>
     <string name="smb_write_test_server_user">The server accepted the login as a user.</string>
-    <string name="smb_write_test_create">Create a file: %s</string>
+    <string name="smb_write_test_write">Write a picture (4 MB, like copying): %s</string>
+    <string name="smb_write_test_size">Size afterwards: %s</string>
+    <string name="smb_write_test_size_wrong">%1$s instead of %2$s</string>
+    <string name="smb_write_test_date">Date kept: %s</string>
+    <string name="smb_write_test_folder_create">Create a folder: %s</string>
+    <string name="smb_write_test_existing">Move or delete the picture “%1$s” that is there: %2$s</string>
+    <string name="smb_write_test_existing_none">Move or delete pictures that are there: no picture in this folder</string>
+    <string name="smb_write_test_unreadable">cannot be read</string>
+    <string name="smb_write_test_yes">yes</string>
+    <string name="smb_write_test_no">no</string>
     <string name="smb_write_test_rename">Rename: %s</string>
     <string name="smb_write_test_delete">Delete: %s</string>
     <string name="smb_write_test_ok">OK</string>
