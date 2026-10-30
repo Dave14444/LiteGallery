@@ -240,6 +240,8 @@ object NetworkMediaSource : MediaSource {
         return true
     }
 
+    override fun lastError(): String? = SmbClient.takeLastError()
+
     override fun deleteFile(context: Context, path: String): Boolean {
         val smb = SmbPath.parse(path) ?: return false
         val deleted = SmbClient.deleteFile(context, smb.host, smb.share, smb.path)
@@ -375,6 +377,11 @@ object NetworkMediaSource : MediaSource {
         actions.add(
             FolderAction(context.getString(R.string.thumb_cleanup_menu)) { activity ->
                 ThumbnailCleanup.start(activity, folderPath)
+            }
+        )
+        actions.add(
+            FolderAction(context.getString(R.string.smb_write_test_menu)) { activity ->
+                SmbWriteTest.start(activity, folderPath)
             }
         )
         return actions

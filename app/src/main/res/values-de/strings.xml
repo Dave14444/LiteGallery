@@ -617,6 +617,10 @@
     <string name="date_edit_running">Ändere Datum…</string>
     <string name="file_op_reason_no_date">Kein Aufnahmedatum in den EXIF-Daten</string>
     <!-- Ganze Ordner: kopieren, verschieben, löschen -->
+    <string name="folder_op_rename">Ordner umbenennen…</string>
+    <string name="folder_op_rename_title">Ordner umbenennen</string>
+    <string name="folder_op_name_taken">Diesen Namen gibt es dort schon</string>
+    <string name="folder_op_invalid_name">Dieser Name ist nicht möglich: kein / \\ : * ? \" &lt; &gt; | und kein Punkt am Anfang oder Ende</string>
     <string name="folder_op_copy">Ordner kopieren…</string>
     <string name="folder_op_move">Ordner verschieben…</string>
     <string name="folder_op_delete">Ordner löschen…</string>

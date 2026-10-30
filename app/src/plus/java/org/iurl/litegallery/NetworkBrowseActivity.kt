@@ -167,6 +167,10 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 ThumbnailCleanup.start(this, currentPath)
                 true
             }
+            R.id.action_write_test -> {
+                SmbWriteTest.start(this, currentPath)
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -181,6 +185,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
         menu.findItem(R.id.action_network_trash)?.isVisible = SmbPath.isSmb(currentPath)
         menu.findItem(R.id.action_prepare_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
         menu.findItem(R.id.action_cleanup_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
+        menu.findItem(R.id.action_write_test)?.isVisible = SmbPath.parse(currentPath) != null
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -369,9 +374,13 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 // Not saved -> Add it
                 val defaultName = smbPath.host + if (smbPath.path.isNotBlank()) " - " + smbPath.path.substringAfterLast('/') else if (smbPath.share.isNotBlank()) " - " + smbPath.share else ""
 
-                // If we already have credentials for this host, reuse them: preferably the login
-                // of a connection to the same share, since each user may have their own.
-                val hostConfig = NetworkConfigStore.getSmbServerForShare(this, smbPath.host, smbPath.share)
+                // Reuse the login of a saved connection to the same share. Another share of the
+                // NAS may belong to another user (or be a guest share): then ask for the login.
+                val hostConfig = allServers.find {
+                    !it.isNfs &&
+                        it.host.equals(smbPath.host, ignoreCase = true) &&
+                        it.share.equals(smbPath.share, ignoreCase = true)
+                }
                 if (hostConfig != null && hostConfig.isAuthenticated) {
                     val newConfig = hostConfig.copy(
                         id = "", // generate new id

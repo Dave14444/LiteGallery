@@ -6,6 +6,8 @@ import android.content.DialogInterface
 import android.media.MediaScannerConnection
 import android.view.View
 import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -19,8 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * The long-press menu of a folder: copy, move or delete the whole folder with everything in it
- * (see [FolderTransfer]), plus entries of the screen that shows it (e.g. hide on the home screen).
+ * The long-press menu of a folder: rename, copy, move or delete the whole folder with everything
+ * in it (see [FolderTransfer]), plus entries of the screen that shows it (e.g. hide on the home screen).
  */
 object FolderActions {
 
@@ -48,6 +50,9 @@ object FolderActions {
     ): Boolean {
         val entries = mutableListOf<Pair<String, () -> Unit>>()
         if (FolderTransfer.canHandle(path)) {
+            entries.add(activity.getString(R.string.folder_op_rename) to {
+                startRename(activity, path, onChanged)
+            })
             entries.add(activity.getString(R.string.folder_op_copy) to {
                 startTransfer(activity, path, FileTransfer.Mode.COPY, onChanged)
             })
@@ -146,6 +151,49 @@ object FolderActions {
             },
             onDone = { result -> afterChange(activity, result, onChanged) }
         )
+    }
+
+    // ---------------------------------------------------------------- rename
+
+    private fun startRename(activity: AppCompatActivity, path: String, onChanged: () -> Unit) {
+        if (FileTransfer.isLocalPath(path) && !StorageAccess.ensure(activity)) return
+        val folder = path.trimEnd('/')
+        val parent = FolderTransfer.parentOf(folder) ?: return
+        val oldName = FolderTransfer.nameOf(folder)
+
+        val input = EditText(activity).apply {
+            setSingleLine()
+            setText(oldName)
+            selectAll()
+        }
+        val padding = (20 * activity.resources.displayMetrics.density).toInt()
+        val container = FrameLayout(activity).apply {
+            setPadding(padding, padding / 2, padding, 0)
+            addView(input)
+        }
+
+        AlertDialog.Builder(activity)
+            .setTitle(R.string.folder_op_rename_title)
+            .setView(container)
+            .setPositiveButton(R.string.rename) { _, _ ->
+                val newName = input.text.toString().trim()
+                when {
+                    newName == oldName -> Unit
+                    !FolderTransfer.isValidFolderName(newName) -> toast(activity, R.string.folder_op_invalid_name)
+                    else -> readFolder(activity, folder, parent) { tree, taken ->
+                        // Also a change of upper and lower case only: on the phone and on a NAS
+                        // that is the same name, so the files would be renamed one by one.
+                        if (newName.lowercase() in taken) {
+                            toast(activity, R.string.folder_op_name_taken)
+                        } else {
+                            // Renaming is moving into the same folder under the new name.
+                            runTransfer(activity, tree, parent, newName, false, FileTransfer.Mode.MOVE, onChanged)
+                        }
+                    }
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .showThemed()
     }
 
     // ---------------------------------------------------------------- delete

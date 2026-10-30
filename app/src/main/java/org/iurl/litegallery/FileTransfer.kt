@@ -38,8 +38,8 @@ object FileTransfer {
         OTHER
     }
 
-    /** A file that could not be processed, and why. */
-    class Failure(val path: String, val reason: Reason)
+    /** A file that could not be processed, and why ([detail]: e.g. the server's answer). */
+    class Failure(val path: String, val reason: Reason, val detail: String? = null)
 
     class Result(
         /** Number of files processed successfully. */
@@ -89,6 +89,7 @@ object FileTransfer {
                 cancelled = true
                 break
             }
+            var error: Exception? = null
             val ok = try {
                 transferOne(
                     context, sourcePath, destFolder, destSource, mode,
@@ -96,6 +97,7 @@ object FileTransfer {
                 )
             } catch (e: Exception) {
                 android.util.Log.e("FileTransfer", "Transfer failed: $sourcePath", e)
+                error = e
                 false
             }
             if (ok) {
@@ -106,7 +108,7 @@ object FileTransfer {
                 cancelled = true
                 break
             } else if (failures.none { it.path == sourcePath }) {
-                failures.add(Failure(sourcePath, Reason.OTHER))
+                failures.add(Failure(sourcePath, Reason.OTHER, error?.let { errorText(it) }))
             }
             onProgress(index + 1, sourcePaths.size)
         }
@@ -179,7 +181,7 @@ object FileTransfer {
             }
         }
         if (newPath == null) {
-            failures.add(Failure(sourcePath, Reason.COPY_FAILED))
+            failures.add(Failure(sourcePath, Reason.COPY_FAILED, destSource?.lastError()))
             return false
         }
 
@@ -199,7 +201,7 @@ object FileTransfer {
                 sourceSource.deleteFile(context, sourcePath)
             }
             if (!deleted) {
-                failures.add(Failure(sourcePath, Reason.DELETE_FAILED))
+                failures.add(Failure(sourcePath, Reason.DELETE_FAILED, sourceSource?.lastError()))
                 return false
             }
             removed.add(sourcePath)
@@ -267,17 +269,20 @@ object FileTransfer {
                 cancelled = true
                 break
             }
+            var error: String? = null
             val ok = try {
                 deleteOne(context, item, moveToTrash)
             } catch (e: Exception) {
                 android.util.Log.e("FileTransfer", "Delete failed: ${item.path}", e)
+                error = errorText(e)
                 false
             }
             if (ok) {
                 done++
                 removed.add(item.path)
             } else {
-                failures.add(Failure(item.path, Reason.DELETE_FAILED))
+                val detail = MediaSourceRegistry.forPath(item.path)?.lastError() ?: error
+                failures.add(Failure(item.path, Reason.DELETE_FAILED, detail))
             }
             onProgress(index + 1, items.size)
         }
@@ -353,6 +358,12 @@ object FileTransfer {
     }
 
     // ---------------------------------------------------------------- local helpers
+
+    /** The first line of the first message in [e] or its causes, for the list of failed files. */
+    internal fun errorText(e: Throwable): String =
+        generateSequence(e) { it.cause }.mapNotNull { it.message }.firstOrNull()
+            ?.lineSequence()?.first()?.take(120)
+            ?: e.javaClass.simpleName
 
     fun isLocalPath(path: String): Boolean = MediaSourceRegistry.forPath(path) == null
 

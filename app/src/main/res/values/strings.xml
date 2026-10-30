@@ -616,6 +616,10 @@
     <string name="date_edit_running">Changing dates…</string>
     <string name="file_op_reason_no_date">No date taken in the EXIF data</string>
     <!-- Whole folders: copy, move, delete -->
+    <string name="folder_op_rename">Rename folder…</string>
+    <string name="folder_op_rename_title">Rename folder</string>
+    <string name="folder_op_name_taken">There is something with this name there already</string>
+    <string name="folder_op_invalid_name">This name is not possible: no / \\ : * ? \" &lt; &gt; | and no dot at the start or end</string>
     <string name="folder_op_copy">Copy folder…</string>
     <string name="folder_op_move">Move folder…</string>
     <string name="folder_op_delete">Delete folder…</string>

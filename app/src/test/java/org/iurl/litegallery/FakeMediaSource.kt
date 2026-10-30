@@ -27,6 +27,12 @@ class FakeMediaSource : MediaSource {
     /** Called when [writeNew] starts, before any data is read. */
     var beforeWrite: (() -> Unit)? = null
 
+    /** [writeNew] fails the way a share refuses a file: [lastError] then tells why. */
+    var refuseWrites = false
+    private var nextError: String? = null
+
+    override fun lastError(): String? = nextError.also { nextError = null }
+
     override fun handles(path: String): Boolean = path.startsWith("fake://")
 
     override fun homeEntry(context: Context): MediaFolder? = null
@@ -74,6 +80,10 @@ class FakeMediaSource : MediaSource {
         lastModified: Long
     ): String? {
         beforeWrite?.invoke()
+        if (refuseWrites) {
+            nextError = "STATUS_ACCESS_DENIED"
+            return null
+        }
         val data = try {
             input.readBytes()
         } catch (e: java.io.IOException) {

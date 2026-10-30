@@ -80,6 +80,9 @@ object SmbCoverImages {
                 }
             )
         }
+        if (SmbPath.parse(server.rootUrl()) != null) {
+            entries.add(activity.getString(R.string.smb_write_test_menu) to { SmbWriteTest.start(activity, server.rootUrl()) })
+        }
         entries.add(activity.getString(R.string.hide_folder) to { onHide() })
 
         AlertDialog.Builder(activity)

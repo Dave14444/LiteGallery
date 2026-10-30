@@ -1,6 +1,10 @@
 package org.iurl.litegallery
 
+import com.hierynomus.mserref.NtStatus
 import com.hierynomus.msfscc.FileAttributes
+import com.hierynomus.mssmb2.SMB2MessageCommandCode
+import com.hierynomus.mssmb2.SMBApiException
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,5 +35,12 @@ class SmbFolderLeftoversTest {
         assertTrue(SmbClient.isHiddenEntry(".wdmc", 0L))
         assertTrue(SmbClient.isHiddenEntry("Bild.jpg", FileAttributes.FILE_ATTRIBUTE_HIDDEN.value))
         assertFalse(SmbClient.isHiddenEntry("Bild.jpg", FileAttributes.FILE_ATTRIBUTE_ARCHIVE.value))
+    }
+
+    @Test
+    fun errors_showTheServersAnswer() {
+        val denied = SMBApiException(NtStatus.STATUS_ACCESS_DENIED.value, SMB2MessageCommandCode.SMB2_CREATE, null)
+        assertEquals("STATUS_ACCESS_DENIED", SmbClient.describeError(RuntimeException("wrapped", denied)))
+        assertEquals("Connection reset", SmbClient.describeError(java.io.IOException("x", java.io.IOException("Connection reset"))))
     }
 }

@@ -117,6 +117,15 @@ object FolderTransfer {
         return names.map { it.lowercase() }.toSet()
     }
 
+    /**
+     * Whether [name] can be a folder's new name: not empty, none of the characters Windows and
+     * NAS systems refuse, no dot at the start (the folder would be hidden) or at the end.
+     */
+    internal fun isValidFolderName(name: String): Boolean =
+        name.isNotBlank() && name == name.trim() &&
+            !name.startsWith(".") && !name.endsWith(".") &&
+            name.none { it in "/\\:*?\"<>|" || it < ' ' }
+
     /** [name], or "name (1)", "name (2)", ... whichever is not in [taken] (lower case). */
     internal fun freeName(name: String, taken: Set<String>): String {
         if (name.lowercase() !in taken) return name
@@ -169,7 +178,7 @@ object FolderTransfer {
         val targetRoot = createFolder(context, destParent, targetName, destSource)
             ?: return FileTransfer.Result(
                 0, 1, emptyList(), emptyList(),
-                listOf(FileTransfer.Failure(tree.root, FileTransfer.Reason.COPY_FAILED))
+                listOf(FileTransfer.Failure(tree.root, FileTransfer.Reason.COPY_FAILED, destSource?.lastError()))
             )
         val targets = mutableMapOf("" to targetRoot)
         for (relative in tree.subFolders) {

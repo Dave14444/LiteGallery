@@ -67,4 +67,23 @@
     <string name="thumb_prepare_progress">%1$d checked · %2$d new</string>
     <string name="thumb_prepare_too_slow">Skipped because they took too long: %s</string>
     <string name="thumb_prepare_done">Done: %1$d new, %2$d already there, %3$d failed</string>
+    <!-- Write test for a share -->
+    <string name="smb_write_test_menu">Test write access</string>
+    <string name="smb_write_test_title">Write access</string>
+    <string name="smb_write_test_running">Testing…</string>
+    <string name="smb_write_test_failed">The test failed: %s</string>
+    <string name="smb_write_test_no_connection">No connection is saved for the share “%s”.</string>
+    <string name="smb_write_test_connection">Connection: %s</string>
+    <string name="smb_write_test_login_guest">Login: as guest</string>
+    <string name="smb_write_test_login_user">Login: as user “%s”</string>
+    <string name="smb_write_test_folder">Folder: %s</string>
+    <string name="smb_write_test_login_failed">Login failed: %s</string>
+    <string name="smb_write_test_server_guest">The server accepted the login as a guest.</string>
+    <string name="smb_write_test_server_user">The server accepted the login as a user.</string>
+    <string name="smb_write_test_create">Create a file: %s</string>
+    <string name="smb_write_test_rename">Rename: %s</string>
+    <string name="smb_write_test_delete">Delete: %s</string>
+    <string name="smb_write_test_ok">OK</string>
+    <string name="smb_write_test_skipped">not tested</string>
+    <string name="smb_write_test_error">failed (%s)</string>
 </resources>

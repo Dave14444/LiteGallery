@@ -172,6 +172,8 @@ object FileOperationDialogs {
             val name = Uri.decode(failure.path.trimEnd('/').substringAfterLast('/'))
             builder.append("\n• ").append(name)
                 .append("\n   ").append(context.getString(reasonText(failure.reason)))
+            // E.g. the server's answer: tells missing rights apart from a lost connection.
+            failure.detail?.let { builder.append(" (").append(it).append(")") }
         }
         val more = failures.size - MAX_LISTED_FAILURES
         if (more > 0) {

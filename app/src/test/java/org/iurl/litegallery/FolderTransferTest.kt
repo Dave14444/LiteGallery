@@ -102,6 +102,20 @@ class FolderTransferTest {
     }
 
     @Test
+    fun folderNames_thatNasAndPhoneRefuse_areNotAccepted() {
+        assertTrue(FolderTransfer.isValidFolderName("Urlaub 2024"))
+        assertTrue(FolderTransfer.isValidFolderName("Grüße & Co (alt)"))
+        assertFalse(FolderTransfer.isValidFolderName(""))
+        assertFalse(FolderTransfer.isValidFolderName(" Urlaub"))
+        assertFalse(FolderTransfer.isValidFolderName(".versteckt"))
+        assertFalse(FolderTransfer.isValidFolderName("Ende."))
+        assertFalse(FolderTransfer.isValidFolderName("a/b"))
+        assertFalse(FolderTransfer.isValidFolderName("a\\b"))
+        assertFalse(FolderTransfer.isValidFolderName("Was?"))
+        assertFalse(FolderTransfer.isValidFolderName("\"Zitat\""))
+    }
+
+    @Test
     fun shareItself_hasNoFolderOperations() {
         assertFalse(FolderTransfer.canHandle("fake://share"))
         assertTrue(FolderTransfer.canHandle("fake://share/Urlaub"))
@@ -196,6 +210,20 @@ class FolderTransferTest {
         assertTrue(result.cancelled)
         assertEquals(0, result.done)
         assertTrue(File(folder, "a.jpg").isFile)
+    }
+
+    @Test
+    fun rename_onThePhone_isAMoveIntoTheSameParent() {
+        val folder = holidayFolder(withTrash = false)
+        val parent = folder.parentFile!!
+
+        val result = FolderTransfer.transfer(
+            context, scan(folder.path), parent.path, "Urlaub 2024", false, FileTransfer.Mode.MOVE
+        ) { _, _ -> }
+
+        assertEquals(0, result.failed)
+        assertFalse(folder.exists())
+        assertTrue(File(parent, "Urlaub 2024/Tag 2/Abend/c.mp4").isFile)
     }
 
     // ---------------------------------------------------------------- delete on the phone
@@ -294,6 +322,35 @@ class FolderTransferTest {
         assertTrue(fake.files.isEmpty())
         assertTrue(fake.folders.none { it.startsWith("fake://share/Urlaub") })
         assertTrue(File(dest, "Urlaub/a.jpg").isFile)
+    }
+
+    @Test
+    fun share_rename_inOneStep() {
+        shareFolder()
+
+        val result = FolderTransfer.transfer(
+            context, scan("fake://share/Urlaub"), "fake://share", "Urlaub 2024", false,
+            FileTransfer.Mode.MOVE
+        ) { _, _ -> }
+
+        assertEquals(0, result.failed)
+        assertTrue("fake://share/Urlaub 2024/Tag 2/b.jpg" in fake.files)
+        assertFalse(fake.files.keys.any { it.startsWith("fake://share/Urlaub/") })
+    }
+
+    @Test
+    fun share_refusesWrites_theServersAnswerIsShown() {
+        val folder = holidayFolder(withTrash = false)
+        fake.refuseWrites = true
+
+        val result = FolderTransfer.transfer(
+            context, scan(folder.path), "fake://share", "Urlaub", false, FileTransfer.Mode.COPY
+        ) { _, _ -> }
+
+        assertEquals(4, result.failed)
+        assertEquals("STATUS_ACCESS_DENIED", result.failures.first().detail)
+        val message = FileOperationDialogs.failureMessage(context, "summary", result.failures)
+        assertTrue(message.contains("(STATUS_ACCESS_DENIED)"))
     }
 
     @Test

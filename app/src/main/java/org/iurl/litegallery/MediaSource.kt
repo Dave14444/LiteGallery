@@ -121,6 +121,12 @@ interface MediaSource {
     /** Deletes the file at [path]. Returns true once it is gone. */
     fun deleteFile(context: Context, path: String): Boolean = false
 
+    /**
+     * Why the last write, rename or delete of the calling thread failed, e.g. the server's
+     * answer "STATUS_ACCESS_DENIED"; null if unknown. Reading it clears it.
+     */
+    fun lastError(): String? = null
+
     /** True if files at [path] can be moved to a trash that belongs to the source instead of being erased. */
     fun supportsTrash(path: String): Boolean = false
 

@@ -9,6 +9,7 @@ import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation
 import com.hierynomus.mssmb2.SMB2CreateDisposition
 import com.hierynomus.mssmb2.SMB2CreateOptions
 import com.hierynomus.mssmb2.SMB2ShareAccess
+import com.hierynomus.mssmb2.SMBApiException
 import com.hierynomus.smbj.SMBClient
 import com.hierynomus.smbj.SmbConfig as SmbjConfig
 import com.hierynomus.smbj.auth.AuthenticationContext
@@ -43,6 +44,28 @@ object SmbClient {
 
     // Cannot collide with a real user name (a NUL character cannot be typed into the field).
     private const val GUEST_LOGIN_KEY = "\u0000guest"
+
+    /** What renaming (moving) a file or folder needs, and nothing more. */
+    private val RENAME_ACCESS: Set<AccessMask> =
+        EnumSet.of(AccessMask.DELETE, AccessMask.FILE_READ_ATTRIBUTES, AccessMask.SYNCHRONIZE)
+
+    // Why the last write, rename or delete of this thread failed: the server's answer, shown in
+    // the list of files that could not be copied, moved or deleted.
+    private val lastError = ThreadLocal<String?>()
+
+    /** Why the last write, rename or delete of this thread failed (e.g. "STATUS_ACCESS_DENIED"), or null. Clears it. */
+    fun takeLastError(): String? = lastError.get().also { lastError.remove() }
+
+    /** A short text for what went wrong: the server's answer (e.g. "STATUS_ACCESS_DENIED") if there is one. */
+    internal fun describeError(e: Throwable): String {
+        var current: Throwable? = e
+        while (current != null) {
+            if (current is SMBApiException) return current.status.name
+            current = current.cause
+        }
+        val root = generateSequence(e) { it.cause }.last()
+        return (root.message ?: root.javaClass.simpleName).lineSequence().first().take(120)
+    }
 
     // Cache: host -> Connection
     private val connections = ConcurrentHashMap<String, Connection>()
@@ -234,6 +257,7 @@ object SmbClient {
             }
         } catch (e: Exception) {
             android.util.Log.e("SmbClient", "Failed to write: $smbPath", e)
+            lastError.set(describeError(e))
             throw e
         }
     }
@@ -341,12 +365,16 @@ object SmbClient {
     ): Boolean {
         val oldSmbPath = oldPath.replace('/', '\\')
         val newSmbPath = newPath.replace('/', '\\')
+        lastError.remove()
 
         return try {
             executeWithRetry(context, host, shareName) { share ->
+                // Only what a rename needs (like Windows asks for). "Full control" would include
+                // changing permissions and owner, which a server refuses to anyone but the owner
+                // of the file, e.g. to a guest on a public share.
                 val file = share.openFile(
                     oldSmbPath,
-                    EnumSet.of(AccessMask.GENERIC_ALL, AccessMask.DELETE),
+                    RENAME_ACCESS,
                     null,
                     EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE, SMB2ShareAccess.FILE_SHARE_DELETE),
                     SMB2CreateDisposition.FILE_OPEN,
@@ -361,6 +389,7 @@ object SmbClient {
             }
         } catch (e: Exception) {
             android.util.Log.e("SmbClient", "Failed to rename: $oldSmbPath -> $newSmbPath", e)
+            lastError.set(describeError(e))
             false
         }
     }
@@ -370,6 +399,7 @@ object SmbClient {
      */
     fun deleteFile(context: Context, host: String, shareName: String, filePath: String): Boolean {
         val smbPath = filePath.replace('/', '\\')
+        lastError.remove()
         try {
             val stillThere = executeWithRetry(context, host, shareName) { share ->
                 share.rm(smbPath)
@@ -380,9 +410,12 @@ object SmbClient {
             // The server keeps a file that is still open somewhere "delete pending". Dropping our
             // connection closes every handle we may still hold; then check again.
             disconnect(host)
-            return !fileExists(context, host, shareName, filePath)
+            val gone = !fileExists(context, host, shareName, filePath)
+            if (!gone) lastError.set("STATUS_DELETE_PENDING")
+            return gone
         } catch (e: Exception) {
             android.util.Log.e("SmbClient", "Failed to delete: $smbPath", e)
+            lastError.set(describeError(e))
             return false
         }
     }
@@ -390,6 +423,7 @@ object SmbClient {
     /** Create a folder (and nothing else) on the share. An already existing folder counts as success. */
     fun createDirectory(context: Context, host: String, shareName: String, folderPath: String): Boolean {
         val smbPath = folderPath.replace('/', '\\')
+        lastError.remove()
         return try {
             executeWithRetry(context, host, shareName) { share ->
                 if (!share.folderExists(smbPath)) {
@@ -399,6 +433,7 @@ object SmbClient {
             }
         } catch (e: Exception) {
             android.util.Log.e("SmbClient", "Failed to create folder: $smbPath", e)
+            lastError.set(describeError(e))
             false
         }
     }
@@ -419,7 +454,7 @@ object SmbClient {
             executeWithRetry(context, host, shareName) { share ->
                 val folder = share.openDirectory(
                     oldSmbPath,
-                    EnumSet.of(AccessMask.DELETE, AccessMask.FILE_READ_ATTRIBUTES, AccessMask.SYNCHRONIZE),
+                    RENAME_ACCESS,
                     null,
                     EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE, SMB2ShareAccess.FILE_SHARE_DELETE),
                     SMB2CreateDisposition.FILE_OPEN,
@@ -436,6 +471,7 @@ object SmbClient {
         } catch (e: Exception) {
             // E.g. a file in it is open somewhere: the caller then moves the files one by one.
             android.util.Log.w("SmbClient", "Could not rename folder: $oldSmbPath -> $newSmbPath", e)
+            lastError.set(describeError(e))
             false
         }
     }
@@ -530,6 +566,7 @@ object SmbClient {
     ): Boolean {
         val smbPath = filePath.replace('/', '\\')
         var created = false
+        lastError.remove()
         return try {
             executeWithRetry(context, host, shareName) { share ->
                 val file = share.openFile(
@@ -559,6 +596,7 @@ object SmbClient {
             true
         } catch (e: Exception) {
             android.util.Log.e("SmbClient", "Failed to write: $smbPath", e)
+            lastError.set(describeError(e))
             if (created) {
                 deleteFile(context, host, shareName, filePath)
             }
@@ -693,6 +731,112 @@ object SmbClient {
             android.util.Log.e("SmbClient", "Connection test failed for ${config.host}", e)
             false
         }
+    }
+
+    /** One step of [writeTest]: [error] is null if it worked; not [tried] if an earlier step failed. */
+    class TestStep(val tried: Boolean, val error: String?)
+
+    /** What [writeTest] found out. */
+    class WriteTestResult(
+        /** Name of the saved connection whose login is used for the share; null if there is none. */
+        val connectionName: String?,
+        val configuredAsGuest: Boolean,
+        val userName: String,
+        /** Whether the server took the login as a guest; null if the login failed. */
+        val serverTookGuest: Boolean?,
+        val loginError: String?,
+        val create: TestStep,
+        val rename: TestStep,
+        val delete: TestStep
+    )
+
+    /**
+     * Checks write access in [folderPath]: logs in the way all other operations do, then
+     * creates a small hidden test file, renames it and deletes it again. Blocking.
+     */
+    fun writeTest(context: Context, host: String, shareName: String, folderPath: String): WriteTestResult {
+        val notTried = TestStep(false, null)
+        val config = resolveConfig(context, host, shareName)
+            ?: return WriteTestResult(null, false, "", null, null, notTried, notTried, notTried)
+
+        val dir = folderPath.replace('/', '\\').trim('\\')
+        val share = try {
+            // Also checks that the connection still works (and makes a new one if not).
+            executeWithRetry(context, host, shareName) { share ->
+                if (dir.isNotEmpty()) share.folderExists(dir)
+                share
+            }
+        } catch (e: Exception) {
+            return WriteTestResult(
+                config.displayName, config.isGuest, config.username, null, describeError(e),
+                notTried, notTried, notTried
+            )
+        }
+        val serverTookGuest = try {
+            getOrCreateSession(config).isGuest
+        } catch (e: Exception) {
+            null
+        }
+
+        fun attempt(block: () -> Unit): TestStep = try {
+            block()
+            TestStep(true, null)
+        } catch (e: Exception) {
+            android.util.Log.w("SmbClient", "Write test step failed", e)
+            TestStep(true, describeError(e))
+        }
+
+        fun inDir(name: String) = if (dir.isEmpty()) name else "$dir\\$name"
+        val stamp = System.currentTimeMillis()
+        val testPath = inDir(".litegallery-test-$stamp.tmp")
+        val renamedPath = inDir(".litegallery-test-$stamp-2.tmp")
+
+        // The same requests as when a picture is copied, moved and deleted.
+        val create = attempt {
+            val file = share.openFile(
+                testPath,
+                EnumSet.of(AccessMask.GENERIC_WRITE),
+                null,
+                EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ),
+                SMB2CreateDisposition.FILE_CREATE,
+                null
+            )
+            try {
+                file.outputStream.use { it.write(byteArrayOf(1)) }
+            } finally {
+                file.close()
+            }
+        }
+        if (create.error != null) {
+            return WriteTestResult(
+                config.displayName, config.isGuest, config.username, serverTookGuest, null,
+                create, notTried, notTried
+            )
+        }
+
+        var current = testPath
+        val rename = attempt {
+            val file = share.openFile(
+                testPath,
+                RENAME_ACCESS,
+                null,
+                EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE, SMB2ShareAccess.FILE_SHARE_DELETE),
+                SMB2CreateDisposition.FILE_OPEN,
+                null
+            )
+            try {
+                file.rename(renamedPath)
+            } finally {
+                file.close()
+            }
+            current = renamedPath
+        }
+        val delete = attempt { share.rm(current) }
+
+        return WriteTestResult(
+            config.displayName, config.isGuest, config.username, serverTookGuest, null,
+            create, rename, delete
+        )
     }
 
     /**
