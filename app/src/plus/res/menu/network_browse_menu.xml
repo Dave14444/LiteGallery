@@ -16,9 +16,4 @@
         android:id="@+id/action_cleanup_thumbnails"
         android:title="@string/thumb_cleanup_menu"
         app:showAsAction="never" />
-
-    <item
-        android:id="@+id/action_write_test"
-        android:title="@string/smb_write_test_menu"
-        app:showAsAction="never" />
 </menu>

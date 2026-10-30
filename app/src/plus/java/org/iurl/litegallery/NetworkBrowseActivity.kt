@@ -167,10 +167,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 ThumbnailCleanup.start(this, currentPath)
                 true
             }
-            R.id.action_write_test -> {
-                SmbWriteTest.start(this, currentPath)
-                true
-            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -185,7 +181,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
         menu.findItem(R.id.action_network_trash)?.isVisible = SmbPath.isSmb(currentPath)
         menu.findItem(R.id.action_prepare_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
         menu.findItem(R.id.action_cleanup_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
-        menu.findItem(R.id.action_write_test)?.isVisible = SmbPath.parse(currentPath) != null
         return super.onPrepareOptionsMenu(menu)
     }
 

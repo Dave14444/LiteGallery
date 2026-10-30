@@ -304,16 +304,20 @@ object NetworkMediaSource : MediaSource {
     /** [fileName] inside [folder], or "name (1).ext", ... if the name is already taken. */
     private fun uniqueRelativePath(context: Context, folder: SmbPath, fileName: String): String? {
         fun pathFor(name: String) = if (folder.path.isEmpty()) name else "${folder.path}/$name"
-
-        if (!SmbClient.fileExists(context, folder.host, folder.share, pathFor(fileName))) {
-            return pathFor(fileName)
-        }
         val base = fileName.substringBeforeLast('.', fileName)
         val extension = fileName.substringAfterLast('.', "")
-        for (i in 1..999) {
-            val name = if (extension.isEmpty()) "$base ($i)" else "$base ($i).$extension"
-            if (!SmbClient.fileExists(context, folder.host, folder.share, pathFor(name))) {
-                return pathFor(name)
+        val candidates = sequenceOf(fileName) + (1..999).asSequence().map { i ->
+            if (extension.isEmpty()) "$base ($i)" else "$base ($i).$extension"
+        }
+
+        var refused = 0
+        for (name in candidates) {
+            when (SmbClient.checkName(context, folder.host, folder.share, pathFor(name))) {
+                SmbClient.NameCheck.FREE -> return pathFor(name)
+                SmbClient.NameCheck.TAKEN -> Unit
+                // A name the server will not tell about counts as taken; if that keeps happening,
+                // the folder itself is the problem (SmbClient.takeLastError says why).
+                SmbClient.NameCheck.REFUSED -> if (++refused >= 3) return null
             }
         }
         return null
@@ -377,11 +381,6 @@ object NetworkMediaSource : MediaSource {
         actions.add(
             FolderAction(context.getString(R.string.thumb_cleanup_menu)) { activity ->
                 ThumbnailCleanup.start(activity, folderPath)
-            }
-        )
-        actions.add(
-            FolderAction(context.getString(R.string.smb_write_test_menu)) { activity ->
-                SmbWriteTest.start(activity, folderPath)
             }
         )
         return actions

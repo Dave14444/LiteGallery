@@ -66,32 +66,11 @@
     <string name="nfs_error_unreachable">NFS-Dienst nicht erreichbar. Prüfe, ob NFS auf dem Server aktiviert ist und die Firewall die Ports 111 und 2049 erlaubt.</string>
     <string name="nfs_error_mount_denied">Einbinden verweigert. Prüfe die IP-Freigabeliste und die Berechtigungen des Exports und erlaube in den NFS-Einstellungen des NAS Verbindungen von nicht privilegierten Ports.</string>
     <string name="nfs_error_access">Leseberechtigung verweigert. Passe die erweiterten UID/GID-Werte oder die Squash-Einstellung des Exports an.</string>
-    <!-- Schreibtest für eine Freigabe -->
-    <string name="smb_write_test_menu">Schreibzugriff testen</string>
-    <string name="smb_write_test_title">Schreibzugriff</string>
-    <string name="smb_write_test_running">Teste…</string>
-    <string name="smb_write_test_failed">Der Test ist fehlgeschlagen: %s</string>
-    <string name="smb_write_test_no_connection">Für die Freigabe „%s“ ist keine Verbindung gespeichert.</string>
-    <string name="smb_write_test_connection">Verbindung: %s</string>
-    <string name="smb_write_test_login_guest">Anmeldung: als Gast</string>
-    <string name="smb_write_test_login_user">Anmeldung: als Benutzer „%s“</string>
-    <string name="smb_write_test_folder">Ordner: %s</string>
-    <string name="smb_write_test_login_failed">Anmeldung fehlgeschlagen: %s</string>
-    <string name="smb_write_test_server_guest">Der Server hat die Anmeldung als Gast angenommen.</string>
-    <string name="smb_write_test_server_user">Der Server hat die Anmeldung als Benutzer angenommen.</string>
-    <string name="smb_write_test_write">Bild schreiben (4 MB, wie beim Kopieren): %s</string>
-    <string name="smb_write_test_size">Größe danach: %s</string>
-    <string name="smb_write_test_size_wrong">%1$s statt %2$s</string>
-    <string name="smb_write_test_date">Datum übernommen: %s</string>
-    <string name="smb_write_test_folder_create">Ordner anlegen: %s</string>
-    <string name="smb_write_test_existing">Vorhandenes Bild „%1$s“ verschieben/löschen: %2$s</string>
-    <string name="smb_write_test_existing_none">Vorhandene Bilder verschieben/löschen: kein Bild in diesem Ordner</string>
-    <string name="smb_write_test_unreadable">nicht lesbar</string>
-    <string name="smb_write_test_yes">ja</string>
-    <string name="smb_write_test_no">nein</string>
-    <string name="smb_write_test_rename">Umbenennen: %s</string>
-    <string name="smb_write_test_delete">Löschen: %s</string>
-    <string name="smb_write_test_ok">OK</string>
-    <string name="smb_write_test_skipped">nicht getestet</string>
-    <string name="smb_write_test_error">fehlgeschlagen (%s)</string>
+    <!-- Warum das Schreiben auf eine Freigabe fehlschlug (in der Liste der nicht kopierten Dateien) -->
+    <string name="smb_error_creating">%1$s beim Anlegen von „%2$s“ %3$s</string>
+    <string name="smb_error_writing">%1$s beim Schreiben von „%2$s“ %3$s</string>
+    <string name="smb_error_checking_name">%1$s beim Prüfen des Namens „%2$s“ %3$s</string>
+    <string name="smb_error_reading_original">%s beim Lesen des Originals</string>
+    <string name="smb_error_as_guest">als Gast</string>
+    <string name="smb_error_as_user">als „%s“</string>
 </resources>
