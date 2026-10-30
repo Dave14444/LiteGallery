@@ -45,6 +45,8 @@ class FolderViewActivity : AppCompatActivity() {
         const val EXTRA_FOLDER_PATH = "extra_folder_path"
         const val EXTRA_FOLDER_NAME = "extra_folder_name"
         private const val SWIPE_REFRESH_THROTTLE_MS = 1_200L
+        /** How many pictures from the top of the screen on are remembered to find the place again. */
+        private const val SCROLL_ANCHOR_CANDIDATES = 300
         private const val PREF_DEFAULT_SORT_ORDER = "default_sort_order"
         private const val PREF_REMEMBER_FOLDER_SORT_ORDER = "remember_folder_sort_order"
         private const val PREF_LAST_FOLDER_SORT_ORDER = "last_folder_sort_order"
@@ -1702,8 +1704,17 @@ class FolderViewActivity : AppCompatActivity() {
     private fun submitDisplayResult(
         result: FolderDisplayResult,
         scrollToTop: Boolean = false,
-        bypassDiff: Boolean = false
+        bypassDiff: Boolean = false,
+        keepPlace: ScrollAnchor? = null
     ) {
+        // A replaced list (bypassDiff) starts at the top: unless asked to, come back to the place
+        // the list was scrolled to, e.g. after pictures were moved or deleted.
+        val anchor = when {
+            scrollToTop -> null
+            keepPlace != null -> keepPlace
+            bypassDiff -> captureScrollAnchor()
+            else -> null
+        }
         disableFastScrollerForListMutation()
         bindFolderStats(result.stats)
         if (result.isGrouped) {
@@ -1713,6 +1724,7 @@ class FolderViewActivity : AppCompatActivity() {
             groupedMediaAdapter.viewMode = currentViewMode
             groupedMediaAdapter.submitList(result.displayItems, bypassDiff = bypassDiff) {
                 if (scrollToTop) binding.recyclerView.scrollToPosition(0)
+                anchor?.let { restoreScrollAnchor(it) }
                 applyFastScrollSectionsAfterCommit(result.fastScrollSections)
             }
         } else {
@@ -1722,9 +1734,77 @@ class FolderViewActivity : AppCompatActivity() {
             mediaAdapter.viewMode = currentViewMode
             mediaAdapter.submitList(result.sortedMediaItems, bypassDiff = bypassDiff) {
                 if (scrollToTop) binding.recyclerView.scrollToPosition(0)
+                anchor?.let { restoreScrollAnchor(it) }
                 applyFastScrollSectionsAfterCommit(result.fastScrollSections)
             }
         }
+    }
+
+    // ---- Keeping the place in the list when it is rebuilt ----
+
+    /**
+     * Where the list is scrolled to: the pictures from the top of the screen on, in order, and
+     * how far the first of them is scrolled out of view. Afterwards the first of them that still
+     * exists is shown at the top again (the next one if the top picture was moved or deleted).
+     */
+    private class ScrollAnchor(val paths: List<String>, val offset: Int)
+
+    private fun displayedPathAt(position: Int): String? = when (binding.recyclerView.adapter) {
+        mediaAdapter -> mediaAdapter.currentList.getOrNull(position)?.path
+        groupedMediaAdapter ->
+            (groupedMediaAdapter.currentList.getOrNull(position) as? FolderDisplayItem.Media)?.skeleton?.path
+        else -> null
+    }
+
+    /** The current place, or null at the very top (nothing to come back to). */
+    private fun captureScrollAnchor(): ScrollAnchor? {
+        if (!::mediaAdapter.isInitialized || !::groupedMediaAdapter.isInitialized) return null
+        val layoutManager = binding.recyclerView.layoutManager as? LinearLayoutManager ?: return null
+        val first = layoutManager.findFirstVisibleItemPosition()
+        if (first == RecyclerView.NO_POSITION) return null
+        if (first == 0 && !binding.recyclerView.canScrollVertically(-1)) return null
+
+        val paths = ArrayList<String>()
+        var offset = 0
+        var position = first
+        val count = displayedItemCount
+        while (position < count && paths.size < SCROLL_ANCHOR_CANDIDATES) {
+            val path = displayedPathAt(position)
+            if (path != null) {
+                if (paths.isEmpty()) {
+                    // Measured at the picture itself (not at a date header above it).
+                    val top = layoutManager.findViewByPosition(position)?.top ?: binding.recyclerView.paddingTop
+                    offset = top - binding.recyclerView.paddingTop
+                }
+                paths.add(path)
+            }
+            position++
+        }
+        return if (paths.isEmpty()) null else ScrollAnchor(paths, offset)
+    }
+
+    private fun restoreScrollAnchor(anchor: ScrollAnchor) {
+        val layoutManager = binding.recyclerView.layoutManager as? LinearLayoutManager ?: return
+        val rank = HashMap<String, Int>(anchor.paths.size * 2)
+        anchor.paths.forEachIndexed { index, path -> rank[path] = index }
+
+        // The remembered picture that comes first, and where it is now.
+        var bestRank = Int.MAX_VALUE
+        var bestPosition = RecyclerView.NO_POSITION
+        val count = displayedItemCount
+        for (position in 0 until count) {
+            val path = displayedPathAt(position) ?: continue
+            val r = rank[path] ?: continue
+            if (r < bestRank) {
+                bestRank = r
+                bestPosition = position
+                if (r == 0) break
+            }
+        }
+        if (bestPosition == RecyclerView.NO_POSITION) return
+        // The top picture keeps how far it was scrolled; a following one is shown at the top.
+        layoutManager.scrollToPositionWithOffset(bestPosition, if (bestRank == 0) anchor.offset else 0)
+        binding.recyclerView.post { syncFastScrollerFromRecyclerView(showForScroll = false) }
     }
 
     private fun submitLoadingSkeletons(
@@ -1842,6 +1922,9 @@ class FolderViewActivity : AppCompatActivity() {
             binding.swipeRefresh.isRefreshing = true
         }
 
+        // Reading the folder again (e.g. after dates were changed) keeps the place in the list.
+        val placeBeforeReload = if (!showBlockingLoading) captureScrollAnchor() else null
+
         isLoadingMediaItems = true
         deferFastScrollerUntilFinalLoad = true
         
@@ -1900,7 +1983,7 @@ class FolderViewActivity : AppCompatActivity() {
                                     deferFastScrollerUntilFinalLoad = false
                                     mediaItems = displayResult.sortedMediaItems
                                     cacheCurrentFolderMedia(mediaItems, isComplete = currentSearchQuery == null)
-                                    submitDisplayResult(displayResult, bypassDiff = true)
+                                    submitDisplayResult(displayResult, bypassDiff = true, keepPlace = placeBeforeReload)
 
                                     binding.progressBar.visibility = View.GONE
                                     bindFolderContentVisibility()
