@@ -579,6 +579,7 @@
     <string name="backup_pair_unreadable">(Ordner nicht lesbar)</string>
     <string name="backup_pair_exists">Dieses Ordnerpaar ist schon in der Liste</string>
     <string name="backup_nothing_chosen">Bitte hake mindestens ein Ordnerpaar an</string>
+    <string name="backup_thumbnails_label">Gesicherte Bilder</string>
     <string name="backup_nothing_to_move">Nichts zu verschieben: In den gewählten Ordnern ist höchstens das neueste Foto oder Video übrig.</string>
     <string name="exif_title">EXIF-Daten</string>
     <string name="exif_loading">Lese EXIF-Daten…</string>

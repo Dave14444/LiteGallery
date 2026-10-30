@@ -578,6 +578,7 @@
     <string name="backup_pair_unreadable">(folder cannot be read)</string>
     <string name="backup_pair_exists">This pair of folders is already in the list</string>
     <string name="backup_nothing_chosen">Please tick at least one pair of folders</string>
+    <string name="backup_thumbnails_label">Backed-up pictures</string>
     <string name="backup_nothing_to_move">Nothing to move: only the newest picture or video (or none) is left in the chosen folders.</string>
     <string name="exif_title">EXIF data</string>
     <string name="exif_loading">Reading EXIF data…</string>

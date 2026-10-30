@@ -102,6 +102,13 @@ interface MediaSource {
     /** Size of the file at [path] if known without network access (e.g. from a listing); else -1. */
     fun cachedFileSize(path: String): Long = -1L
 
+    /**
+     * Prepares the thumbnails of [paths] (new files of this source, e.g. pictures that were just
+     * backed up) in the background, so they show up quickly later. [label] names the job in its
+     * notification. Does nothing where thumbnails need no preparing. Must not throw.
+     */
+    fun prepareThumbnails(context: Context, paths: List<String>, label: String) {}
+
     /** Length of the video at [path] in milliseconds, or 0 if it cannot be determined. */
     fun videoDurationMs(context: Context, path: String): Long = 0L
 

@@ -123,6 +123,7 @@ object QuickBackup {
                         break
                     }
                 }
+                prepareThumbnails(activity.applicationContext, created)
                 FileTransfer.Result(done, failures.size, created, removed, failures, cancelled)
             },
             onDone = { result ->
@@ -141,6 +142,17 @@ object QuickBackup {
                 }
             }
         )
+    }
+
+    /**
+     * The pictures that arrived on a network share get their thumbnails right away, in the
+     * background: the destination folder then shows them quickly, also later over a slow connection.
+     */
+    private fun prepareThumbnails(context: Context, createdPaths: List<String>) {
+        val label = context.getString(R.string.backup_thumbnails_label)
+        createdPaths.groupBy { MediaSourceRegistry.forPath(it) }.forEach { (source, paths) ->
+            source?.prepareThumbnails(context, paths, label)
+        }
     }
 
     // ---------------------------------------------------------------- managing the pairs

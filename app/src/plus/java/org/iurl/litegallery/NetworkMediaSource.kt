@@ -176,6 +176,18 @@ object NetworkMediaSource : MediaSource {
         return SmbClient.getFileSizeAndLastModified(context, smb.host, smb.share, smb.path).first
     }
 
+    override fun prepareThumbnails(context: Context, paths: List<String>, label: String) {
+        val files = paths.filter { SmbPath.isSmb(it) && RemoteFileTypes.isMedia(it) }
+        if (files.isEmpty()) return
+        try {
+            ThumbnailPrepareService.startForFiles(context, files, label)
+        } catch (e: Exception) {
+            // E.g. the app is in the background: Android does not allow starting the service then.
+            // The thumbnails are made when the folder is opened, as before.
+            android.util.Log.w("NetworkMediaSource", "Could not start preparing thumbnails", e)
+        }
+    }
+
     override fun videoDurationMs(context: Context, path: String): Long =
         SmbThumbnailCache.videoDuration(context, path)
 

@@ -40,6 +40,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  * background, so they are on the share (and quick to show) before they are needed - for
  * example before going on a trip with a slow connection. Thumbnails that already exist are
  * skipped, so a run can be stopped and started again at any time.
+ *
+ * It also takes single files (e.g. pictures that were just backed up to the share). Files
+ * handed in while a run is going are added to it.
  */
 class ThumbnailPrepareService : Service() {
 
@@ -48,6 +51,7 @@ class ThumbnailPrepareService : Service() {
         private const val NOTIFICATION_ID = 4711
         private const val ACTION_STOP = "org.iurl.litegallery.action.STOP_PREPARE_THUMBNAILS"
         private const val EXTRA_FOLDER_URL = "folder_url"
+        private const val EXTRA_FILE_URLS = "file_urls"
         private const val EXTRA_LABEL = "label"
 
         /** Pictures processed at the same time (see also SmbThumbnailCache.MAX_PARALLEL_CREATIONS). */
@@ -69,6 +73,19 @@ class ThumbnailPrepareService : Service() {
         fun start(context: Context, folderUrl: String, label: String) {
             val intent = Intent(context, ThumbnailPrepareService::class.java)
                 .putExtra(EXTRA_FOLDER_URL, folderUrl)
+                .putExtra(EXTRA_LABEL, label)
+            ContextCompat.startForegroundService(context, intent)
+        }
+
+        /**
+         * Prepares the thumbnails of [fileUrls] (pictures and videos on a share). If a run is
+         * going already, the files are added to it. Throws if Android does not allow starting
+         * the service right now (e.g. while the app is in the background).
+         */
+        fun startForFiles(context: Context, fileUrls: List<String>, label: String) {
+            if (fileUrls.isEmpty()) return
+            val intent = Intent(context, ThumbnailPrepareService::class.java)
+                .putStringArrayListExtra(EXTRA_FILE_URLS, ArrayList(fileUrls))
                 .putExtra(EXTRA_LABEL, label)
             ContextCompat.startForegroundService(context, intent)
         }
@@ -96,6 +113,25 @@ class ThumbnailPrepareService : Service() {
     @Volatile
     private var stopping = false
 
+    // Files handed in that still need their thumbnails, and whether a run is going (both
+    // guarded by [lock]): a run takes along what arrives while it is going.
+    private val lock = Any()
+    private val pendingFiles = ArrayDeque<String>()
+    private var running = false
+    private var runId = 0
+
+    // The last numbers shown, so the notification keeps them when more files are handed in.
+    @Volatile
+    private var shownChecked = 0
+    @Volatile
+    private var shownCreated = 0
+
+    private fun takePendingFiles(): List<String> = synchronized(lock) {
+        val files = pendingFiles.toList()
+        pendingFiles.clear()
+        files
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -106,18 +142,39 @@ class ThumbnailPrepareService : Service() {
             return START_NOT_STICKY
         }
 
-        label = intent?.getStringExtra(EXTRA_LABEL).orEmpty()
+        val folderUrl = intent?.getStringExtra(EXTRA_FOLDER_URL)
+        val files = intent?.getStringArrayListExtra(EXTRA_FILE_URLS)
+        val newLabel = intent?.getStringExtra(EXTRA_LABEL).orEmpty()
+        val newRun: Int? = synchronized(lock) {
+            if (files != null) pendingFiles.addAll(files)
+            when {
+                // The run that is going takes the files along. A second folder is not started
+                // while one runs (ThumbnailPreparer offers to stop the first one instead).
+                running -> null
+                folderUrl == null && pendingFiles.isEmpty() -> null
+                else -> {
+                    running = true
+                    ++runId
+                }
+            }
+        }
+        val startRun = newRun != null
+        if (startRun) {
+            label = newLabel
+            shownChecked = 0
+            shownCreated = 0
+        }
+
         // Must be called promptly after startForegroundService().
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
-            progressNotification(0, 0),
+            progressNotification(shownChecked, shownCreated),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         )
 
-        val folderUrl = intent?.getStringExtra(EXTRA_FOLDER_URL)
-        if (folderUrl == null || job?.isActive == true) {
-            if (job?.isActive != true) stopSelf()
+        if (!startRun) {
+            if (!synchronized(lock) { running }) stopSelf()
             return START_NOT_STICKY
         }
 
@@ -132,8 +189,20 @@ class ThumbnailPrepareService : Service() {
             } catch (e: Exception) {
                 android.util.Log.e("ThumbnailPrepare", "Preparing thumbnails failed", e)
             } finally {
+                // Normally the run ended with nothing left to do (see prepareAll); after a
+                // failure or the time limit, files handed in are dropped. If a new run started
+                // meanwhile, it owns the service and its notification now.
+                val stillCurrent = synchronized(lock) {
+                    if (runId == newRun) {
+                        running = false
+                        pendingFiles.clear()
+                        true
+                    } else {
+                        false
+                    }
+                }
                 // After "Cancel" everything was cleaned up already (see stopNow).
-                if (!stopping) {
+                if (!stopping && stillCurrent) {
                     isRunning = false
                     ServiceCompat.stopForeground(this@ThumbnailPrepareService, ServiceCompat.STOP_FOREGROUND_DETACH)
                     if (summary != null) {
@@ -156,6 +225,10 @@ class ThumbnailPrepareService : Service() {
     private fun stopNow() {
         stopping = true
         isRunning = false
+        synchronized(lock) {
+            pendingFiles.clear()
+            running = false
+        }
         job?.cancel()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
@@ -178,87 +251,171 @@ class ThumbnailPrepareService : Service() {
         val tooSlow: List<String>
     )
 
-    private suspend fun prepareAll(folderUrl: String): Summary {
+    /** What a run counts while it goes. */
+    private class Counters {
         val created = AtomicInteger()
         val alreadyThere = AtomicInteger()
         val failed = AtomicInteger()
         val checked = AtomicInteger()
-        val tooSlow = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val tooSlow: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf<String>())
+
+        fun summary() = Summary(created.get(), alreadyThere.get(), failed.get(), tooSlow.toList())
+    }
+
+    /**
+     * Prepares everything below [folderUrl] (if given), then the files handed in, also those
+     * that arrive meanwhile. Ends when nothing is left; from then on a new start begins a new run.
+     */
+    private suspend fun prepareAll(folderUrl: String?): Summary {
+        val counters = Counters()
         val cachedNamesByShare = HashMap<String, Set<String>>()
-        val queue = ArrayDeque<String>()
-        queue.add(folderUrl)
 
         // Several pictures are processed at the same time: most of the time is spent waiting
         // for the network, so this is much faster than one picture after the other.
         val permits = Semaphore(PARALLEL_FILES)
 
-        coroutineScope {
-            while (queue.isNotEmpty()) {
-                ensureActive()
-                val folder = queue.removeFirst()
-
-                val entries = try {
-                    SmbFileClient.listFiles(applicationContext, folder)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    android.util.Log.w("ThumbnailPrepare", "Could not list $folder", e)
-                    failed.incrementAndGet()
-                    continue
-                }
-                entries.filter { it.isDirectory }.forEach { queue.add(it.url) }
-
-                val media = entries.filter { !it.isDirectory && it.isMedia }
-                if (media.isEmpty()) continue
-
-                val smb = SmbPath.parse(folder) ?: continue
-                val cachedNames = cachedNamesByShare.getOrPut("${smb.host}/${smb.share}") {
-                    SmbThumbnailCache.listCachedNames(applicationContext, folder)
-                }
-
-                for (file in media) {
-                    ensureActive()
-                    permits.acquire()
-                    launch(Dispatchers.IO) {
-                        try {
-                            // A file that hangs must not stop the whole run. Reading a video
-                            // frame can hang inside Android's video decoder, where it cannot be
-                            // interrupted: the work runs on its own and is only waited for a
-                            // limited time. If it takes too long, the run goes on without it.
-                            val work = detachedScope.async {
-                                SmbThumbnailCache.prepare(applicationContext, file.url, cachedNames)
-                            }
-                            val result = try {
-                                withTimeoutOrNull(FILE_TIMEOUT_MS) { work.await() }
-                            } catch (e: CancellationException) {
-                                work.cancel()
-                                throw e
-                            }
-                            when (result) {
-                                SmbThumbnailCache.PrepareResult.CREATED -> created.incrementAndGet()
-                                SmbThumbnailCache.PrepareResult.ALREADY_THERE -> alreadyThere.incrementAndGet()
-                                null -> {
-                                    android.util.Log.w("ThumbnailPrepare", "Gave up on ${file.url}: took too long")
-                                    work.cancel()
-                                    tooSlow.add(file.name)
-                                    failed.incrementAndGet()
-                                }
-                            }
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            android.util.Log.w("ThumbnailPrepare", "No thumbnail for ${file.url}", e)
-                            failed.incrementAndGet()
-                        } finally {
-                            permits.release()
-                        }
-                        val total = checked.incrementAndGet()
-                        if (total % 5 == 0) updateNotification(total, created.get())
-                    }
+        var folder = folderUrl
+        while (true) {
+            coroutineScope {
+                folder?.let { prepareFolder(it, counters, permits, cachedNamesByShare) }
+                folder = null
+                var files = takePendingFiles()
+                while (files.isNotEmpty()) {
+                    prepareFiles(files, counters, permits, cachedNamesByShare)
+                    files = takePendingFiles()
                 }
             }
+            // All started work is finished here. Files handed in meanwhile: one more round.
+            val done = synchronized(lock) {
+                if (pendingFiles.isEmpty()) {
+                    running = false
+                    true
+                } else {
+                    false
+                }
+            }
+            if (done) break
         }
-        return Summary(created.get(), alreadyThere.get(), failed.get(), tooSlow.toList())
+        return counters.summary()
+    }
+
+    /** All pictures and videos in [folderUrl] and its sub folders. */
+    private suspend fun CoroutineScope.prepareFolder(
+        folderUrl: String,
+        counters: Counters,
+        permits: Semaphore,
+        cachedNamesByShare: HashMap<String, Set<String>>
+    ) {
+        val queue = ArrayDeque<String>()
+        queue.add(folderUrl)
+        while (queue.isNotEmpty()) {
+            ensureActive()
+            val folder = queue.removeFirst()
+
+            val entries = try {
+                SmbFileClient.listFiles(applicationContext, folder)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("ThumbnailPrepare", "Could not list $folder", e)
+                counters.failed.incrementAndGet()
+                continue
+            }
+            entries.filter { it.isDirectory }.forEach { queue.add(it.url) }
+
+            val media = entries.filter { !it.isDirectory && it.isMedia }
+            if (media.isEmpty()) continue
+
+            val smb = SmbPath.parse(folder) ?: continue
+            val cachedNames = cachedNamesByShare.getOrPut("${smb.host}/${smb.share}") {
+                SmbThumbnailCache.listCachedNames(applicationContext, folder)
+            }
+            for (file in media) {
+                prepareFile(file.url, file.name, cachedNames, counters, permits)
+            }
+        }
+    }
+
+    /** Single files, e.g. pictures that were just backed up to the share. */
+    private suspend fun CoroutineScope.prepareFiles(
+        fileUrls: List<String>,
+        counters: Counters,
+        permits: Semaphore,
+        cachedNamesByShare: HashMap<String, Set<String>>
+    ) {
+        // Reading each folder once tells size and date of its new files: the name of a
+        // thumbnail is made from them.
+        for ((folder, urls) in fileUrls.distinct().groupBy { it.substringBeforeLast('/') }) {
+            ensureActive()
+            val listed = try {
+                SmbFileClient.listFiles(applicationContext, folder)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("ThumbnailPrepare", "Could not list $folder", e)
+                counters.failed.addAndGet(urls.size)
+                continue
+            }
+            val media = listed.filter { !it.isDirectory && it.isMedia }.associateBy { it.url }
+
+            val smb = SmbPath.parse(folder) ?: continue
+            val cachedNames = cachedNamesByShare.getOrPut("${smb.host}/${smb.share}") {
+                SmbThumbnailCache.listCachedNames(applicationContext, folder)
+            }
+            for (url in urls) {
+                // Gone meanwhile (moved or deleted again): nothing to do.
+                val file = media[url] ?: continue
+                prepareFile(file.url, file.name, cachedNames, counters, permits)
+            }
+        }
+    }
+
+    /** Starts making the thumbnail of one file; waits only while [PARALLEL_FILES] are being made. */
+    private suspend fun CoroutineScope.prepareFile(
+        url: String,
+        name: String,
+        cachedNames: Set<String>,
+        counters: Counters,
+        permits: Semaphore
+    ) {
+        ensureActive()
+        permits.acquire()
+        launch(Dispatchers.IO) {
+            try {
+                // A file that hangs must not stop the whole run. Reading a video
+                // frame can hang inside Android's video decoder, where it cannot be
+                // interrupted: the work runs on its own and is only waited for a
+                // limited time. If it takes too long, the run goes on without it.
+                val work = detachedScope.async {
+                    SmbThumbnailCache.prepare(applicationContext, url, cachedNames)
+                }
+                val result = try {
+                    withTimeoutOrNull(FILE_TIMEOUT_MS) { work.await() }
+                } catch (e: CancellationException) {
+                    work.cancel()
+                    throw e
+                }
+                when (result) {
+                    SmbThumbnailCache.PrepareResult.CREATED -> counters.created.incrementAndGet()
+                    SmbThumbnailCache.PrepareResult.ALREADY_THERE -> counters.alreadyThere.incrementAndGet()
+                    null -> {
+                        android.util.Log.w("ThumbnailPrepare", "Gave up on $url: took too long")
+                        work.cancel()
+                        counters.tooSlow.add(name)
+                        counters.failed.incrementAndGet()
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("ThumbnailPrepare", "No thumbnail for $url", e)
+                counters.failed.incrementAndGet()
+            } finally {
+                permits.release()
+            }
+            val total = counters.checked.incrementAndGet()
+            if (total % 5 == 0) updateNotification(total, counters.created.get())
+        }
     }
 
     // ---------------------------------------------------------------- notifications
@@ -299,6 +456,8 @@ class ThumbnailPrepareService : Service() {
     }
 
     private fun updateNotification(checked: Int, created: Int) {
+        shownChecked = checked
+        shownCreated = created
         if (stopping) return
         try {
             NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, progressNotification(checked, created))
