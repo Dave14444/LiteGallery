@@ -265,6 +265,40 @@ object NetworkMediaSource : MediaSource {
         return SmbPath.toUrl(folder.host, folder.share, relative)
     }
 
+    // ---- Whole folders ----
+
+    // A folder inside a share; the share itself (empty path) can be neither moved nor deleted.
+    override fun supportsFolderOperations(path: String): Boolean =
+        SmbPath.parse(path)?.path?.isNotEmpty() == true
+
+    override fun listFolder(context: Context, folderPath: String): List<FolderChild> =
+        SmbFileClient.listFiles(context, folderPath).map {
+            FolderChild(it.name, it.url, it.isDirectory, if (it.isDirectory) 0L else it.size)
+        }
+
+    override fun moveFolderWithin(
+        context: Context,
+        path: String,
+        destFolderPath: String,
+        name: String
+    ): String? {
+        val source = SmbPath.parse(path) ?: return null
+        val folder = SmbPath.parse(destFolderPath) ?: return null
+        val sameShare = source.host.equals(folder.host, ignoreCase = true) &&
+            source.share.equals(folder.share, ignoreCase = true)
+        if (!sameShare || source.path.isEmpty()) return null
+
+        val relative = if (folder.path.isEmpty()) name else "${folder.path}/$name"
+        if (!SmbClient.renameFolder(context, source.host, source.share, source.path, relative)) return null
+        return SmbPath.toUrl(folder.host, folder.share, relative)
+    }
+
+    override fun removeEmptiedFolder(context: Context, path: String): Boolean {
+        val smb = SmbPath.parse(path) ?: return false
+        if (smb.path.isEmpty()) return false
+        return SmbClient.removeFolderIfOnlyLeftovers(context, smb.host, smb.share, smb.path)
+    }
+
     /** [fileName] inside [folder], or "name (1).ext", ... if the name is already taken. */
     private fun uniqueRelativePath(context: Context, folder: SmbPath, fileName: String): String? {
         fun pathFor(name: String) = if (folder.path.isEmpty()) name else "${folder.path}/$name"

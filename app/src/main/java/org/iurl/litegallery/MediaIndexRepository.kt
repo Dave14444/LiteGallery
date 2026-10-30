@@ -150,6 +150,17 @@ class MediaIndexRepository(context: Context) {
         }
     }
 
+    /** Like [removePath] for many files at once (e.g. a whole folder): the folder list is rebuilt once. */
+    suspend fun removePaths(paths: Collection<String>) = withContext(Dispatchers.IO) {
+        val valid = paths.filter { it.isNotBlank() }
+        if (valid.isEmpty()) return@withContext
+        database.withTransaction {
+            var removed = 0
+            for (path in valid) removed += dao.deleteMediaByPath(path)
+            if (removed > 0) rebuildFolderIndexLocked(System.currentTimeMillis())
+        }
+    }
+
     suspend fun updateMediaItem(oldPath: String, item: MediaItem) = withContext(Dispatchers.IO) {
         if (oldPath.isBlank() || item.path.isBlank() || item.isRemote) return@withContext
         val folderPath = folderPathForMediaItem(item) ?: return@withContext

@@ -165,6 +165,33 @@ interface MediaSource {
         onChanged: () -> Unit
     ): Boolean = false
 
+    // ---- Whole folders (copy / move / delete) ----
+
+    /** True if the folder at [path] can be copied, moved and deleted as a whole (not a share itself). */
+    fun supportsFolderOperations(path: String): Boolean = false
+
+    /** Files and folders directly inside [folderPath], without hidden ones. Blocking; throws if unreadable. */
+    fun listFolder(context: Context, folderPath: String): List<FolderChild> = emptyList()
+
+    /**
+     * Moves the folder [path] with everything in it into [destFolderPath] as [name] without
+     * transferring data (a rename on the same share). Returns the new path, or null if that is
+     * not possible and the caller should move the files one by one. Blocking.
+     */
+    fun moveFolderWithin(
+        context: Context,
+        path: String,
+        destFolderPath: String,
+        name: String
+    ): String? = null
+
+    /**
+     * Removes the folder [path] after its files were moved or deleted, but only if nothing is
+     * left in it except empty folders and what the NAS keeps there on its own (thumbnails it
+     * made, Thumbs.db, ...). Returns true once the folder is gone. Blocking.
+     */
+    fun removeEmptiedFolder(context: Context, path: String): Boolean = false
+
     // ---- Folder screen (sub folders, extra menu entries) ----
 
     /**
@@ -215,6 +242,9 @@ class TrashLocation(
 
 /** A folder offered by [MediaSource.destinationRoots] / [MediaSource.listSubFolders]. */
 data class FolderEntry(val name: String, val path: String)
+
+/** An entry of [MediaSource.listFolder]: a file (with its size) or a folder. */
+data class FolderChild(val name: String, val path: String, val isDirectory: Boolean, val size: Long)
 
 /** Result of a [MediaSource.rename] attempt. */
 sealed class RenameOutcome {

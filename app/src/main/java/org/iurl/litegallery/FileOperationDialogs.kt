@@ -185,6 +185,7 @@ object FileOperationDialogs {
         FileTransfer.Reason.SIZE_MISMATCH -> R.string.file_op_reason_size
         FileTransfer.Reason.DELETE_FAILED -> R.string.file_op_reason_delete
         FileTransfer.Reason.NO_DATE_TAKEN -> R.string.file_op_reason_no_date
+        FileTransfer.Reason.FOLDER_NOT_REMOVED -> R.string.folder_op_reason_not_removed
         FileTransfer.Reason.OTHER -> R.string.file_op_reason_other
     }
 }

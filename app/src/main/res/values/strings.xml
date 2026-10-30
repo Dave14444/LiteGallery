@@ -615,4 +615,21 @@
     <string name="date_edit_from_exif">From EXIF</string>
     <string name="date_edit_running">Changing dates…</string>
     <string name="file_op_reason_no_date">No date taken in the EXIF data</string>
+    <!-- Whole folders: copy, move, delete -->
+    <string name="folder_op_copy">Copy folder…</string>
+    <string name="folder_op_move">Move folder…</string>
+    <string name="folder_op_delete">Delete folder…</string>
+    <string name="folder_op_reading">Reading folder…</string>
+    <string name="folder_op_read_failed">The folder could not be read</string>
+    <string name="folder_op_into_itself">A folder cannot be copied or moved into itself</string>
+    <string name="folder_op_already_there">The folder is already there</string>
+    <string name="folder_op_exists_title">Folder exists already</string>
+    <string name="folder_op_exists_message">There is a folder “%1$s” at the destination already. Merge both (files with the same name get a number), or create the folder as “%2$s”?</string>
+    <string name="folder_op_merge">Merge</string>
+    <string name="folder_op_new_name">New name</string>
+    <string name="folder_op_delete_title">Delete folder</string>
+    <string name="folder_op_delete_confirmation">Delete the folder “%1$s” with %2$d file(s)?</string>
+    <string name="folder_op_delete_confirmation_sub">Delete the folder “%1$s” with %2$d file(s) in it and %3$d sub folder(s)?</string>
+    <string name="folder_op_trash_phone_note">Pictures and videos go to the trash and the folder disappears from the gallery. Other files stay in the folder on the phone.</string>
+    <string name="folder_op_reason_not_removed">The folder could not be removed, there are still (possibly hidden) files in it</string>
 </resources>

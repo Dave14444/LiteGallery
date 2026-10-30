@@ -105,12 +105,10 @@ object SmbClient {
                 val listing = share.list(dirPath)
                 for (info in listing) {
                     val name = info.fileName
-                    // Skip . and .. entries
-                    if (name == "." || name == ".." || name.startsWith(".")) continue
+                    // Skip ".", ".." and hidden entries
+                    if (isHiddenEntry(name, info.fileAttributes)) continue
 
                     val isDir = info.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value != 0L
-                    val isHidden = info.fileAttributes and FileAttributes.FILE_ATTRIBUTE_HIDDEN.value != 0L
-                    if (isHidden) continue
 
                     val ext = name.substringAfterLast('.', "").lowercase()
                     val isVideoFile = videoExtensions.contains(ext)
@@ -404,6 +402,118 @@ object SmbClient {
             false
         }
     }
+
+    /** Renames (moves) the folder [oldPath] to [newPath] on the same share, with all its content. */
+    fun renameFolder(
+        context: Context,
+        host: String,
+        shareName: String,
+        oldPath: String,
+        newPath: String
+    ): Boolean {
+        val oldSmbPath = oldPath.replace('/', '\\').trimEnd('\\')
+        val newSmbPath = newPath.replace('/', '\\').trimEnd('\\')
+        if (oldSmbPath.isEmpty() || newSmbPath.isEmpty()) return false
+
+        return try {
+            executeWithRetry(context, host, shareName) { share ->
+                val folder = share.openDirectory(
+                    oldSmbPath,
+                    EnumSet.of(AccessMask.DELETE, AccessMask.FILE_READ_ATTRIBUTES, AccessMask.SYNCHRONIZE),
+                    null,
+                    EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE, SMB2ShareAccess.FILE_SHARE_DELETE),
+                    SMB2CreateDisposition.FILE_OPEN,
+                    null
+                )
+                try {
+                    // Never replaces an existing folder: the server refuses if the name is taken.
+                    folder.rename(newSmbPath)
+                } finally {
+                    folder.close()
+                }
+                true
+            }
+        } catch (e: Exception) {
+            // E.g. a file in it is open somewhere: the caller then moves the files one by one.
+            android.util.Log.w("SmbClient", "Could not rename folder: $oldSmbPath -> $newSmbPath", e)
+            false
+        }
+    }
+
+    /**
+     * Deletes the folder [folderPath] after its pictures were moved or deleted, but only if
+     * nothing is left in it except empty folders and what NAS and computers keep there on their
+     * own (see [isDisposable]). Anything else, hidden or not, keeps the folder. Never touches
+     * the share itself. True once the folder is gone.
+     */
+    fun removeFolderIfOnlyLeftovers(
+        context: Context,
+        host: String,
+        shareName: String,
+        folderPath: String
+    ): Boolean {
+        val smbPath = folderPath.replace('/', '\\').trimEnd('\\')
+        if (smbPath.isEmpty()) return false
+
+        fun attempt(): Boolean = executeWithRetry(context, host, shareName) { share ->
+            when {
+                !share.folderExists(smbPath) -> true
+                hasContentToKeep(share, smbPath) -> false
+                else -> {
+                    share.rmdir(smbPath, true)
+                    !share.folderExists(smbPath)
+                }
+            }
+        }
+
+        return try {
+            attempt()
+        } catch (e: Exception) {
+            // Files we deleted a moment ago may still be "delete pending" while a handle of ours
+            // is open: dropping the connection closes every handle, then try once more.
+            android.util.Log.w("SmbClient", "Could not remove folder $smbPath, retrying", e)
+            disconnect(host)
+            try {
+                attempt()
+            } catch (e2: Exception) {
+                android.util.Log.e("SmbClient", "Could not remove folder $smbPath", e2)
+                false
+            }
+        }
+    }
+
+    /** Whether anything except empty folders and [isDisposable] leftovers is inside [dirPath]. */
+    private fun hasContentToKeep(share: DiskShare, dirPath: String): Boolean {
+        for (info in share.list(dirPath)) {
+            val name = info.fileName
+            if (name == "." || name == "..") continue
+            val isDir = info.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value != 0L
+            if (isDisposable(name, isDir)) continue
+            if (!isDir) return true
+            if (hasContentToKeep(share, "$dirPath\\$name")) return true
+        }
+        return false
+    }
+
+    // What NAS systems and computers put into picture folders on their own: thumbnails (WD,
+    // Synology, QNAP), folder settings of Windows and macOS. Only these may go with a folder.
+    private val DISPOSABLE_FOLDERS = setOf(".wdmc", "@eadir", ".@__thumb", ".thumbnails", ".appledouble")
+    private val DISPOSABLE_FILES = setOf(".ds_store", "thumbs.db", "desktop.ini", ".picasa.ini", "picasa.ini", ".nomedia")
+
+    /** True for thumbnails and settings a NAS or computer keeps in a folder (never a picture). */
+    internal fun isDisposable(name: String, isDirectory: Boolean): Boolean {
+        val lower = name.lowercase()
+        return if (isDirectory) {
+            lower in DISPOSABLE_FOLDERS
+        } else {
+            // "._name": what a Mac stores next to a file on a share.
+            lower in DISPOSABLE_FILES || lower.startsWith("._")
+        }
+    }
+
+    /** Entries [listFiles] leaves out: names starting with a dot and entries marked hidden. */
+    internal fun isHiddenEntry(name: String, attributes: Long): Boolean =
+        name.startsWith(".") || attributes and FileAttributes.FILE_ATTRIBUTE_HIDDEN.value != 0L
 
     /**
      * Stream [input] into a NEW file on the share (fails if it already exists). A partial file is

@@ -616,5 +616,22 @@
     <string name="date_edit_from_exif">Aus EXIF</string>
     <string name="date_edit_running">Ändere Datum…</string>
     <string name="file_op_reason_no_date">Kein Aufnahmedatum in den EXIF-Daten</string>
+    <!-- Ganze Ordner: kopieren, verschieben, löschen -->
+    <string name="folder_op_copy">Ordner kopieren…</string>
+    <string name="folder_op_move">Ordner verschieben…</string>
+    <string name="folder_op_delete">Ordner löschen…</string>
+    <string name="folder_op_reading">Lese Ordner…</string>
+    <string name="folder_op_read_failed">Der Ordner konnte nicht gelesen werden</string>
+    <string name="folder_op_into_itself">Ein Ordner kann nicht in sich selbst kopiert oder verschoben werden</string>
+    <string name="folder_op_already_there">Der Ordner liegt bereits dort</string>
+    <string name="folder_op_exists_title">Ordner gibt es schon</string>
+    <string name="folder_op_exists_message">Im Ziel gibt es schon einen Ordner „%1$s“. Beide zusammenführen (gleichnamige Dateien bekommen eine Nummer) oder den Ordner als „%2$s“ anlegen?</string>
+    <string name="folder_op_merge">Zusammenführen</string>
+    <string name="folder_op_new_name">Neuer Name</string>
+    <string name="folder_op_delete_title">Ordner löschen</string>
+    <string name="folder_op_delete_confirmation">Den Ordner „%1$s“ mit %2$d Datei(en) löschen?</string>
+    <string name="folder_op_delete_confirmation_sub">Den Ordner „%1$s“ mit %2$d Datei(en) und %3$d Unterordner(n) löschen?</string>
+    <string name="folder_op_trash_phone_note">Bilder und Videos kommen in den Papierkorb, der Ordner verschwindet aus der Galerie. Andere Dateien bleiben im Ordner auf dem Handy.</string>
+    <string name="folder_op_reason_not_removed">Der Ordner ließ sich nicht entfernen, es sind noch (eventuell versteckte) Dateien darin</string>
 </resources>
 

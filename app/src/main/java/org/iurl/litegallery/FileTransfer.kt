@@ -32,6 +32,9 @@ object FileTransfer {
 
         /** Changing the date: the file has no date taken in its EXIF data. */
         NO_DATE_TAKEN,
+
+        /** Moving or deleting a folder: its files are done, but files are left in the folder. */
+        FOLDER_NOT_REMOVED,
         OTHER
     }
 
@@ -68,7 +71,9 @@ object FileTransfer {
         mode: Mode,
         onProgress: (done: Int, total: Int) -> Unit,
         /** If > 0, the new files get this modification time instead of the source file's. */
-        overrideLastModified: Long = 0L
+        overrideLastModified: Long = 0L,
+        /** False if the caller already counted these files for the progress in MB. */
+        countBytes: Boolean = true
     ): Result {
         val destSource = MediaSourceRegistry.forPath(destFolder)
         val created = mutableListOf<String>()
@@ -77,7 +82,7 @@ object FileTransfer {
         var done = 0
         var cancelled = false
         // For the progress in MB: the sizes that are known without asking the network.
-        OperationProgress.addTotal(sourcePaths.sumOf { knownSizeOf(it).coerceAtLeast(0L) })
+        if (countBytes) OperationProgress.addTotal(sourcePaths.sumOf { knownSizeOf(it).coerceAtLeast(0L) })
 
         for ((index, sourcePath) in sourcePaths.withIndex()) {
             if (OperationCancel.isRequested()) {
@@ -213,7 +218,7 @@ object FileTransfer {
     }
 
     /** Size of [path] if it is known without network access (files on the phone, listed files). */
-    private fun knownSizeOf(path: String): Long {
+    internal fun knownSizeOf(path: String): Long {
         val source = MediaSourceRegistry.forPath(path)
         if (source != null) return source.cachedFileSize(path)
         val file = File(path)

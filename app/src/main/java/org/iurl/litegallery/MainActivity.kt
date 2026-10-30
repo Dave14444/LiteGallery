@@ -270,15 +270,29 @@ class MainActivity : AppCompatActivity() {
                 }
             },
             onFolderLongClick = { folder ->
-                // A source (e.g. a network connection) may offer its own actions first.
-                val handledBySource = MediaSourceRegistry.forPath(folder.path)?.showHomeEntryOptions(
-                    activity = this,
-                    folder = folder,
-                    onHide = { showHideFolderDialog(folder) },
-                    onChanged = { loadMediaFolders(showBlockingLoading = false) }
-                ) == true
-                if (!handledBySource) {
-                    showHideFolderDialog(folder)
+                val source = MediaSourceRegistry.forPath(folder.path)
+                if (source == null) {
+                    // A folder on the phone: copy, move, delete, hide.
+                    FolderActions.showMenu(
+                        activity = this,
+                        path = folder.path,
+                        name = folder.name,
+                        extras = listOf(
+                            FolderActions.Extra(getString(R.string.hide_folder)) { showHideFolderDialog(folder) }
+                        ),
+                        onChanged = { loadMediaFolders(showBlockingLoading = false) }
+                    )
+                } else {
+                    // A source (e.g. a network connection) may offer its own actions first.
+                    val handledBySource = source.showHomeEntryOptions(
+                        activity = this,
+                        folder = folder,
+                        onHide = { showHideFolderDialog(folder) },
+                        onChanged = { loadMediaFolders(showBlockingLoading = false) }
+                    )
+                    if (!handledBySource) {
+                        showHideFolderDialog(folder)
+                    }
                 }
             }
         )

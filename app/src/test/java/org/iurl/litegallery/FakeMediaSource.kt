@@ -90,6 +90,73 @@ class FakeMediaSource : MediaSource {
         return true
     }
 
+    // ---- Whole folders: a folder exists if it was created or holds a file ----
+
+    /** Folders that were created (folders holding a file exist anyway). */
+    val folders = LinkedHashSet<String>()
+
+    /** [moveFolderWithin] moves a folder in one step (like a rename on a share). */
+    var movesFoldersInOneStep = true
+
+    // "fake://share" is the share itself: no folder operations on it.
+    override fun supportsFolderOperations(path: String): Boolean =
+        handles(path) && path.removePrefix("fake://").trimEnd('/').contains('/')
+
+    override fun createFolder(context: Context, parentPath: String, name: String): String? {
+        val path = parentPath.trimEnd('/') + "/" + name
+        folders.add(path)
+        return path
+    }
+
+    private fun allFolders(): Set<String> {
+        val result = LinkedHashSet(folders)
+        for (file in files.keys) {
+            var parent = file.substringBeforeLast('/')
+            while (parent.removePrefix("fake://").contains('/')) {
+                result.add(parent)
+                parent = parent.substringBeforeLast('/')
+            }
+        }
+        return result
+    }
+
+    override fun listFolder(context: Context, folderPath: String): List<FolderChild> {
+        val prefix = folderPath.trimEnd('/') + "/"
+        fun isChild(path: String) = path.startsWith(prefix) && !path.removePrefix(prefix).contains('/')
+        val childFolders = allFolders().filter { isChild(it) }
+            .map { FolderChild(it.substringAfterLast('/'), it, true, 0L) }
+        val childFiles = files.filterKeys { isChild(it) }
+            .map { (path, data) -> FolderChild(path.substringAfterLast('/'), path, false, data.size.toLong()) }
+        return childFolders + childFiles
+    }
+
+    override fun moveFolderWithin(
+        context: Context,
+        path: String,
+        destFolderPath: String,
+        name: String
+    ): String? {
+        if (!movesFoldersInOneStep || !handles(destFolderPath)) return null
+        val oldRoot = path.trimEnd('/')
+        val newRoot = destFolderPath.trimEnd('/') + "/" + name
+        fun moved(p: String) = if (p == oldRoot || p.startsWith("$oldRoot/")) newRoot + p.removePrefix(oldRoot) else p
+        val renamed = files.entries.map { moved(it.key) to it.value }
+        files.clear()
+        renamed.forEach { (p, data) -> files[p] = data }
+        val renamedFolders = folders.map { moved(it) }
+        folders.clear()
+        folders.addAll(renamedFolders)
+        folders.add(newRoot)
+        return newRoot
+    }
+
+    override fun removeEmptiedFolder(context: Context, path: String): Boolean {
+        val root = path.trimEnd('/')
+        if (files.keys.any { it.startsWith("$root/") }) return false
+        folders.removeAll { it == root || it.startsWith("$root/") }
+        return true
+    }
+
     /** What [exportSettings] returns, and what [importSettings] received last. */
     var exportedSettings: org.json.JSONObject? = null
     var importedSettings: org.json.JSONObject? = null

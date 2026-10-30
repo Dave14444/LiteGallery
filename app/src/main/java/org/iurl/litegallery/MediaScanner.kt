@@ -411,6 +411,10 @@ class MediaScanner(private val context: Context) {
         mediaIndexRepository.removePath(path)
     }
 
+    suspend fun removeIndexedMediaPaths(paths: Collection<String>) {
+        mediaIndexRepository.removePaths(paths)
+    }
+
     suspend fun updateIndexedMediaItem(oldPath: String, item: MediaItem) {
         mediaIndexRepository.updateMediaItem(oldPath, item)
     }

@@ -425,7 +425,12 @@ class NetworkBrowseActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         browseAdapter = FolderAdapter(
             onFolderClick = { folder -> onFolderCardClick(folder) },
-            onFolderLongClick = { }
+            // Copy, move or delete the folder (not a whole share); afterwards the list is read again.
+            onFolderLongClick = { folder ->
+                FolderActions.showMenu(this, folder.path, folder.name) {
+                    if (currentPath.isNotBlank()) navigateTo(currentPath, restoreScroll = true)
+                }
+            }
         )
 
         fileListAdapter = RemoteListAdapter { item ->

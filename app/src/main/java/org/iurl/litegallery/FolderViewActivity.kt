@@ -707,7 +707,10 @@ class FolderViewActivity : AppCompatActivity() {
     private fun setupSubFolders() {
         subFolderAdapter = FolderAdapter(
             onFolderClick = { folder -> openSubFolder(folder) },
-            onFolderLongClick = { }
+            // Copy, move or delete the sub folder; afterwards the cards are read again.
+            onFolderLongClick = { folder ->
+                FolderActions.showMenu(this, folder.path, folder.name) { loadSubFolders() }
+            }
         )
         // All cards in a grid above the pictures; the grid scrolls away with the list.
         binding.subFolderRecyclerView.layoutManager = GridLayoutManager(this, SUB_FOLDER_COLUMNS)
