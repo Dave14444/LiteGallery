@@ -1,5 +1,9 @@
 package org.iurl.litegallery
 
+import android.graphics.drawable.Drawable
+import android.os.SystemClock
+import android.text.format.DateUtils
+import android.text.format.Formatter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -7,6 +11,11 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.signature.ObjectKey
 import org.iurl.litegallery.databinding.ItemMediaViewerBinding
 
@@ -124,6 +133,7 @@ class MediaViewerAdapter(
             private set
 
         fun bind(mediaItem: MediaItem, shouldActivateVideo: Boolean) {
+            stopLoadingProgress()
             if (mediaItem.isVideo) {
                 // Hide image view, show video container
                 binding.photoImageView.visibility = View.GONE
@@ -177,11 +187,27 @@ class MediaViewerAdapter(
                 // Load image with Glide
                 val context = binding.root.context
                 if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
-                    Glide.with(context)
+                    val signature = ObjectKey("${mediaItem.path}_${mediaItem.dateModified}_${mediaItem.size}")
+                    // From a network share: show how much has arrived (before the request starts,
+                    // a picture from the cache is ready at once).
+                    if (mediaItem.isRemote) startLoadingProgress(mediaItem)
+                    var request = Glide.with(context)
                         .load(mediaItem.path)
-                        .signature(ObjectKey("${mediaItem.path}_${mediaItem.dateModified}_${mediaItem.size}"))
+                        .signature(signature)
                         .fitCenter()
-                        .into(binding.photoImageView)
+                        .listener(loadListener(mediaItem))
+                    if (mediaItem.path.startsWith("smb://")) {
+                        // The small preview from the share (usually on the phone already, from
+                        // the grid) is shown at once, until the picture itself has arrived.
+                        request = request.thumbnail(
+                            Glide.with(context)
+                                .load(SmbThumbnailModel.of(mediaItem.path))
+                                .signature(signature)
+                                .diskCacheStrategy(DiskCacheStrategy.DATA)
+                                .fitCenter()
+                        )
+                    }
+                    request.into(binding.photoImageView)
                 }
 
                 // Set click listener for photos using ZoomImageView's method
@@ -311,7 +337,97 @@ class MediaViewerAdapter(
             return binding.photoImageView as? org.iurl.litegallery.ZoomImageView
         }
         
+        // ---- Pictures read over the network: progress ----
+
+        private var progressPath: String? = null
+        private var progressListener: RemoteLoadProgress.Listener? = null
+        private var progressStartedAt = 0L
+        private val showLoadingPanel = Runnable { binding.imageLoadingPanel.visibility = View.VISIBLE }
+
+        private fun startLoadingProgress(mediaItem: MediaItem) {
+            stopLoadingProgress()
+            val path = mediaItem.path
+            progressStartedAt = SystemClock.elapsedRealtime()
+            binding.imageLoadingProgress.visibility = View.VISIBLE
+            binding.imageLoadingProgress.isIndeterminate = true
+            binding.imageLoadingText.setText(R.string.viewer_loading)
+            // Only shown if it takes a moment, so a quick picture does not flash it.
+            binding.root.postDelayed(showLoadingPanel, LOADING_PANEL_DELAY_MS)
+
+            val listener = RemoteLoadProgress.Listener { bytesRead, totalBytes ->
+                val total = if (totalBytes > 0L) totalBytes else mediaItem.size
+                binding.root.post {
+                    if (progressPath == path) showLoadingProgress(bytesRead, total)
+                }
+            }
+            progressPath = path
+            progressListener = listener
+            RemoteLoadProgress.listen(path, listener)
+        }
+
+        /** "45 % · 1.2 MB of 2.7 MB · about 00:05 left", or how much arrived if the size is unknown. */
+        private fun showLoadingProgress(bytesRead: Long, total: Long) {
+            val context = binding.root.context
+            val read = Formatter.formatShortFileSize(context, bytesRead)
+            if (total > 0L && bytesRead <= total) {
+                val permille = (bytesRead * 1000L / total).toInt()
+                binding.imageLoadingProgress.isIndeterminate = false
+                binding.imageLoadingProgress.progress = permille
+                val parts = mutableListOf(
+                    "${permille / 10} %",
+                    context.getString(R.string.file_op_bytes_progress, read, Formatter.formatShortFileSize(context, total))
+                )
+                val elapsed = SystemClock.elapsedRealtime() - progressStartedAt
+                OperationProgress.estimateSecondsLeft(bytesRead, total, elapsed)?.let { seconds ->
+                    parts += context.getString(R.string.file_op_time_left, DateUtils.formatElapsedTime(seconds))
+                }
+                binding.imageLoadingText.text = parts.joinToString(" · ")
+            } else {
+                binding.imageLoadingProgress.isIndeterminate = true
+                binding.imageLoadingText.text = context.getString(R.string.viewer_loading_bytes, read)
+            }
+        }
+
+        private fun stopLoadingProgress() {
+            binding.root.removeCallbacks(showLoadingPanel)
+            binding.imageLoadingPanel.visibility = View.GONE
+            val path = progressPath
+            val listener = progressListener
+            if (path != null && listener != null) RemoteLoadProgress.stopListening(path, listener)
+            progressPath = null
+            progressListener = null
+        }
+
+        private fun loadListener(mediaItem: MediaItem) = object : RequestListener<Drawable> {
+            override fun onLoadFailed(
+                e: GlideException?,
+                model: Any?,
+                target: Target<Drawable>?,
+                isFirstResource: Boolean
+            ): Boolean {
+                if (!mediaItem.isRemote || progressPath != mediaItem.path) return false
+                stopLoadingProgress()
+                // Say so instead of a black screen; the preview (if there is one) stays.
+                binding.imageLoadingProgress.visibility = View.GONE
+                binding.imageLoadingText.setText(R.string.viewer_load_failed)
+                binding.imageLoadingPanel.visibility = View.VISIBLE
+                return true
+            }
+
+            override fun onResourceReady(
+                resource: Drawable?,
+                model: Any?,
+                target: Target<Drawable>?,
+                dataSource: DataSource?,
+                isFirstResource: Boolean
+            ): Boolean {
+                if (progressPath == mediaItem.path) stopLoadingProgress()
+                return false
+            }
+        }
+
         fun clearGlideCache() {
+            stopLoadingProgress()
             val context = binding.root.context
             if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
                 com.bumptech.glide.Glide.with(context).clear(binding.photoImageView)
@@ -443,5 +559,8 @@ class MediaViewerAdapter(
 
     companion object {
         private const val PAYLOAD_ACTIVE_STATE = "payload_active_state"
+
+        /** A picture that takes longer than this shows its progress. */
+        private const val LOADING_PANEL_DELAY_MS = 400L
     }
 }

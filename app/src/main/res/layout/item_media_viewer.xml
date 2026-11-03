@@ -59,4 +59,38 @@
 
     </FrameLayout>
 
+    <!-- Shown while a picture is read over the network: how much has arrived. Not clickable,
+         so swiping and zooming work as usual. -->
+    <LinearLayout
+        android:id="@+id/imageLoadingPanel"
+        android:layout_width="260dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/image_loading_background"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="14dp"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:id="@+id/imageLoadingProgress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            android:max="1000" />
+
+        <TextView
+            android:id="@+id/imageLoadingText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:textColor="@color/white"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+
 </FrameLayout>

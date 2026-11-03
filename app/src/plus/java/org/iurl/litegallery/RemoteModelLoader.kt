@@ -91,7 +91,9 @@ class RemoteImageFetcher(
                     client.openInputStream(context, imageUrl)
                 }
             } else {
-                client.openInputStream(context, imageUrl)
+                // A whole picture: the viewer shows how much of it has arrived.
+                val size = MediaSourceRegistry.forPath(imageUrl)?.cachedFileSize(imageUrl) ?: -1L
+                RemoteLoadProgress.ProgressStream(client.openInputStream(context, imageUrl), imageUrl, size)
             }
 
             inputStream = stream
