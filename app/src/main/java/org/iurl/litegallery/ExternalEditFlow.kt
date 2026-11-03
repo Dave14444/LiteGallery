@@ -3,6 +3,11 @@ package org.iurl.litegallery
 import android.app.AlertDialog
 import android.content.ClipData
 import android.content.Intent
+import android.os.SystemClock
+import android.text.format.DateUtils
+import android.text.format.Formatter
+import android.widget.FrameLayout
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
@@ -12,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Opening a file from a network share in another app (e.g. Snapseed), and what happens after
@@ -21,6 +27,12 @@ import java.io.File
 object ExternalEditFlow {
 
     private var isChecking = false
+
+    /** How often the download progress is shown. */
+    private const val PROGRESS_REFRESH_MS = 200L
+
+    /** Thrown when the user cancels the download. */
+    private class DownloadCancelled : Exception()
 
     /**
      * Downloads [path] to the app cache and opens the copy with [action] (e.g. ACTION_EDIT or
@@ -35,32 +47,95 @@ object ExternalEditFlow {
         chooser: Boolean
     ) {
         val source = MediaSourceRegistry.forPath(path) ?: return
+        val cancelled = AtomicBoolean(false)
+
+        // "Loading photo… 45 %", a bar, and "12 MB of 27 MB · about 00:08 left": big RAW files
+        // take a while over a slow connection.
+        val bar = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply {
+            isIndeterminate = true
+            max = 1000
+        }
+        val padding = (24 * activity.resources.displayMetrics.density).toInt()
+        val barContainer = FrameLayout(activity).apply {
+            setPadding(padding, padding / 3, padding, 0)
+            addView(bar)
+        }
         val progressDialog = AlertDialog.Builder(activity)
             .setMessage(R.string.external_edit_downloading)
+            .setView(barContainer)
             .setCancelable(false)
+            .setNegativeButton(R.string.cancel) { _, _ -> cancelled.set(true) }
             .create()
         progressDialog.show()
+        ThemeHelper.applyRuntimeCustomColors(progressDialog)
+        val startedAt = SystemClock.elapsedRealtime()
+
+        fun showProgress(done: Long, total: Long) {
+            if (!progressDialog.isShowing) return
+            val loaded = Formatter.formatShortFileSize(activity, done)
+            if (total <= 0L) {
+                progressDialog.setMessage(
+                    activity.getString(R.string.external_edit_downloading) + "\n" +
+                        activity.getString(R.string.viewer_loading_bytes, loaded)
+                )
+                return
+            }
+            val permille = (done * 1000L / total).coerceIn(0L, 1000L).toInt()
+            bar.isIndeterminate = false
+            bar.progress = permille
+            var details = activity.getString(
+                R.string.file_op_bytes_progress, loaded, Formatter.formatShortFileSize(activity, total)
+            )
+            OperationProgress.estimateSecondsLeft(done, total, SystemClock.elapsedRealtime() - startedAt)
+                ?.let { details += " · " + activity.getString(R.string.file_op_time_left, DateUtils.formatElapsedTime(it)) }
+            progressDialog.setMessage(
+                activity.getString(R.string.external_edit_downloading_percent, permille / 10) + "\n" + details
+            )
+        }
 
         activity.lifecycleScope.launch {
             val appContext = activity.applicationContext
+            val directory = File(activity.cacheDir, "external_edit")
             val file = try {
                 withContext(Dispatchers.IO) {
-                    val directory = File(activity.cacheDir, "external_edit")
                     directory.deleteRecursively()
                     directory.mkdirs()
                     val target = File(directory, name)
+                    // The size from the folder listing, or asked from the share.
+                    val total = source.cachedFileSize(path).takeIf { it > 0L } ?: source.fileSize(appContext, path)
+                    var done = 0L
+                    var shownAt = 0L
                     source.openInput(appContext, path).use { input ->
-                        target.outputStream().use { output -> input.copyTo(output, 256 * 1024) }
+                        target.outputStream().use { output ->
+                            val buffer = ByteArray(256 * 1024)
+                            while (true) {
+                                if (cancelled.get()) throw DownloadCancelled()
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                output.write(buffer, 0, count)
+                                done += count
+                                val now = SystemClock.elapsedRealtime()
+                                if (now - shownAt >= PROGRESS_REFRESH_MS) {
+                                    shownAt = now
+                                    val snapshot = done
+                                    activity.runOnUiThread { showProgress(snapshot, total) }
+                                }
+                            }
+                        }
                     }
                     val modified = source.lastModified(appContext, path)
                     if (modified > 0L) target.setLastModified(modified)
                     target
                 }
+            } catch (e: DownloadCancelled) {
+                withContext(Dispatchers.IO) { directory.deleteRecursively() }
+                return@launch
             } catch (e: Exception) {
                 android.util.Log.e("ExternalEditFlow", "Download for editing failed", e)
                 null
             }
             progressDialog.dismiss()
+            if (cancelled.get()) return@launch
 
             if (file == null) {
                 Toast.makeText(activity, R.string.external_edit_failed, Toast.LENGTH_LONG).show()

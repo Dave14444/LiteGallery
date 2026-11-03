@@ -559,6 +559,7 @@
     <string name="photo_editor_crop_here">Crop in LiteGallery</string>
     <string name="photo_editor_other_app">Edit in another app</string>
     <string name="external_edit_downloading">Loading picture…</string>
+    <string name="external_edit_downloading_percent">Loading picture… %d %%</string>
     <string name="external_edit_found_title">Move new pictures into the folder “snapseed”?</string>
     <string name="external_edit_move">Move</string>
     <string name="external_edit_skip">Not now</string>

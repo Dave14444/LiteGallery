@@ -560,6 +560,7 @@
     <string name="photo_editor_crop_here">In LiteGallery zuschneiden</string>
     <string name="photo_editor_other_app">In anderer App bearbeiten</string>
     <string name="external_edit_downloading">Lade Foto…</string>
+    <string name="external_edit_downloading_percent">Lade Foto… %d %%</string>
     <string name="external_edit_found_title">Neue Fotos in den Ordner „snapseed“ verschieben?</string>
     <string name="external_edit_move">Verschieben</string>
     <string name="external_edit_skip">Nicht verschieben</string>
