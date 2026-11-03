@@ -43,6 +43,7 @@ class ZoomImageView @JvmOverloads constructor(
     private var isDragging = false
     private var lastTouchX = 0f
     private var lastTouchY = 0f
+    private var activePointerId = MotionEvent.INVALID_POINTER_ID
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
     // A two-finger zoom must not become a swipe to the next picture.
@@ -161,52 +162,87 @@ class ZoomImageView @JvmOverloads constructor(
         
         // Handle scale gestures first
         handled = scaleGestureDetector.onTouchEvent(event) || handled
-        
-        // Handle single tap and drag gestures if not scaling
-        if (!scaleGestureDetector.isInProgress) {
+        val scaling = scaleGestureDetector.isInProgress
+
+        // Handle single tap gestures if not scaling
+        if (!scaling) {
             handled = gestureDetector.onTouchEvent(event) || handled
-            handled = handleDragGesture(event) || handled
         }
+        // Always told about the fingers (also while zooming), so moving never starts from an old position.
+        handled = handleDragGesture(event, scaling) || handled
         
         return handled || super.onTouchEvent(event)
     }
     
-    private fun handleDragGesture(event: MotionEvent): Boolean {
-        when (event.action) {
+    /**
+     * Moving the zoomed picture with one finger. It always follows the finger that is down:
+     * after a two-finger zoom it goes on from where the remaining finger is, so the picture does
+     * not jump towards it. While zooming, only the positions are remembered.
+     */
+    private fun handleDragGesture(event: MotionEvent, scaling: Boolean): Boolean {
+        when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                activePointerId = event.getPointerId(0)
                 lastTouchX = event.x
                 lastTouchY = event.y
                 isDragging = false
                 return true
             }
-            
-            MotionEvent.ACTION_MOVE -> {
-                if (currentScale > minScale) {
-                    val dx = event.x - lastTouchX
-                    val dy = event.y - lastTouchY
-                    
-                    if (!isDragging && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
-                        isDragging = true
-                    }
-                    
-                    if (isDragging) {
-                        transformMatrix.postTranslate(dx, dy)
-                        constrainImageBounds()
-                        // Apply to the actual ImageView
-                        this.imageMatrix = transformMatrix
-                        
-                        lastTouchX = event.x
-                        lastTouchY = event.y
-                        return true
-                    }
-                }
-            }
-            
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                // A second finger: zooming. Moving with one finger starts anew afterwards.
                 isDragging = false
             }
+
+            MotionEvent.ACTION_POINTER_UP -> {
+                // If the finger that moved the picture was lifted, go on with one that is still down.
+                val liftedIndex = event.actionIndex
+                if (event.getPointerId(liftedIndex) == activePointerId) {
+                    activePointerId = event.getPointerId(if (liftedIndex == 0) 1 else 0)
+                }
+                val index = event.findPointerIndex(activePointerId)
+                if (index >= 0) {
+                    lastTouchX = event.getX(index)
+                    lastTouchY = event.getY(index)
+                }
+                isDragging = false
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                val index = event.findPointerIndex(activePointerId)
+                if (index < 0) return false
+                val x = event.getX(index)
+                val y = event.getY(index)
+                if (scaling || event.pointerCount > 1 || currentScale <= minScale) {
+                    // Zooming, or nothing to move: only keep up with the finger.
+                    lastTouchX = x
+                    lastTouchY = y
+                    return false
+                }
+
+                val dx = x - lastTouchX
+                val dy = y - lastTouchY
+                if (!isDragging && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
+                    isDragging = true
+                }
+                if (isDragging) {
+                    transformMatrix.postTranslate(dx, dy)
+                    constrainImageBounds()
+                    // Apply to the actual ImageView
+                    this.imageMatrix = transformMatrix
+
+                    lastTouchX = x
+                    lastTouchY = y
+                    return true
+                }
+            }
+
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isDragging = false
+                activePointerId = MotionEvent.INVALID_POINTER_ID
+            }
         }
-        
+
         return false
     }
     

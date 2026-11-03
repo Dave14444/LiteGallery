@@ -41,6 +41,9 @@ class ZoomablePlayerView @JvmOverloads constructor(
     private var isZooming = false
     private var isDragging = false
     private var lastTouchX = 0f
+    private var activePointerId = MotionEvent.INVALID_POINTER_ID
+    /** The touch had two fingers at some point: it is a zoom, not a swipe for brightness or volume. */
+    private var hadMultiTouch = false
     private var lastTouchY = 0f
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
@@ -389,6 +392,10 @@ class ZoomablePlayerView @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // Swiping up and down (brightness, volume) and moving a zoomed video keep the pager out.
         pagerTouchGuard.onTouchEvent(event, keepHolding = currentScale > minScale || isVerticalSwipeInProgress)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> hadMultiTouch = false
+            MotionEvent.ACTION_POINTER_DOWN -> hadMultiTouch = true
+        }
         // Prevent parent (e.g., ViewPager2) from intercepting when zooming/dragging
         if (currentScale > minScale || scaleGestureDetector.isInProgress || isDragging) {
             parent?.requestDisallowInterceptTouchEvent(true)
@@ -398,52 +405,94 @@ class ZoomablePlayerView @JvmOverloads constructor(
         
         // Handle scale gestures first
         handled = scaleGestureDetector.onTouchEvent(event) || handled
-        
-        // Handle single tap and drag gestures if not scaling
-        if (!scaleGestureDetector.isInProgress) {
+        val scaling = scaleGestureDetector.isInProgress
+
+        // Handle single tap and swipe gestures if not scaling
+        if (!scaling) {
             handled = gestureDetector.onTouchEvent(event) || handled
-            handled = handleDragGesture(event) || handled
+        }
+        // Always told about the fingers (also while zooming), so moving never starts from an old position.
+        handled = handleDragGesture(event, scaling) || handled
+        // After a zoom the remaining finger does not start a swipe (it would measure from the
+        // start of the touch and change brightness or volume at once).
+        if (!scaling && !(hadMultiTouch && event.actionMasked == MotionEvent.ACTION_MOVE)) {
             handled = handleContinuousSwipe(event) || handled
         }
         
         return handled || super.onTouchEvent(event)
     }
     
-    private fun handleDragGesture(event: MotionEvent): Boolean {
-        when (event.action) {
+    /**
+     * Moving the zoomed video with one finger. It always follows the finger that is down: after
+     * a two-finger zoom it goes on from where the remaining finger is, so the video does not jump
+     * towards it. While zooming, only the positions are remembered.
+     */
+    private fun handleDragGesture(event: MotionEvent, scaling: Boolean): Boolean {
+        when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                activePointerId = event.getPointerId(0)
                 lastTouchX = event.x
                 lastTouchY = event.y
                 isDragging = false
                 return true
             }
-            
-            MotionEvent.ACTION_MOVE -> {
-                if (currentScale > minScale) {
-                    val dx = event.x - lastTouchX
-                    val dy = event.y - lastTouchY
-                    
-                    if (!isDragging && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
-                        isDragging = true
-                    }
-                    
-                    if (isDragging) {
-                        transformMatrix.postTranslate(dx, dy)
-                        constrainTransform()
-                        applyTransformToVideoSurface()
-                        
-                        lastTouchX = event.x
-                        lastTouchY = event.y
-                        return true
-                    }
-                }
-            }
-            
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                // A second finger: zooming. Moving with one finger starts anew afterwards.
                 isDragging = false
             }
+
+            MotionEvent.ACTION_POINTER_UP -> {
+                // If the finger that moved the video was lifted, go on with one that is still down.
+                val liftedIndex = event.actionIndex
+                if (event.getPointerId(liftedIndex) == activePointerId) {
+                    activePointerId = event.getPointerId(if (liftedIndex == 0) 1 else 0)
+                }
+                val index = event.findPointerIndex(activePointerId)
+                if (index >= 0) {
+                    lastTouchX = event.getX(index)
+                    lastTouchY = event.getY(index)
+                }
+                isDragging = false
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                val index = event.findPointerIndex(activePointerId)
+                if (index < 0) return false
+                val x = event.getX(index)
+                val y = event.getY(index)
+                if (scaling || event.pointerCount > 1 || currentScale <= minScale) {
+                    // Zooming, or nothing to move: keep up with the finger only while zooming
+                    // (the swipes for brightness and volume measure from the start).
+                    if (scaling || event.pointerCount > 1) {
+                        lastTouchX = x
+                        lastTouchY = y
+                    }
+                    return false
+                }
+
+                val dx = x - lastTouchX
+                val dy = y - lastTouchY
+                if (!isDragging && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
+                    isDragging = true
+                }
+                if (isDragging) {
+                    transformMatrix.postTranslate(dx, dy)
+                    constrainTransform()
+                    applyTransformToVideoSurface()
+
+                    lastTouchX = x
+                    lastTouchY = y
+                    return true
+                }
+            }
+
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isDragging = false
+                activePointerId = MotionEvent.INVALID_POINTER_ID
+            }
         }
-        
+
         return false
     }
 

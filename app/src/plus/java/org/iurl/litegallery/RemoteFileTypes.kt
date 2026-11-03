@@ -15,10 +15,7 @@ object RemoteFileTypes {
     fun isMedia(name: String): Boolean = isImage(name) || isVideo(name)
 
     /** Camera RAW files: not shown as pictures, but they can be opened in another app. */
-    val RAW_EXTENSIONS = setOf(
-        "cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "dng",
-        "orf", "rw2", "raf", "pef", "srw", "3fr", "erf", "kdc", "mrw", "x3f"
-    )
+    val RAW_EXTENSIONS = RawFileTypes.EXTENSIONS
 
     fun isRaw(name: String): Boolean = RAW_EXTENSIONS.contains(extensionOf(name))
 

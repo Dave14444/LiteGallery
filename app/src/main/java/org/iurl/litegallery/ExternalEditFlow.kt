@@ -210,8 +210,20 @@ object ExternalEditFlow {
     }
 
     /**
-     * Moves [localPaths] from the phone into the folder "snapseed" next to the original on the
-     * network share (created if needed). The original is never touched, files with the same name
+     * Where the folder "snapseed" is made for an edited copy of [originalPath]: next to the
+     * folder of a RAW file, because RAW files are usually kept in a sub folder of the folder
+     * with the JPGs (JPGs/RAW + JPGs/snapseed); next to other pictures in their own folder.
+     * At the top of a share it stays in the original's folder. [parentOf] gives a path's folder.
+     */
+    internal fun snapseedLocation(originalPath: String, parentOf: (String) -> String?): String? {
+        val folder = parentOf(originalPath) ?: return null
+        if (!RawFileTypes.isRaw(originalPath)) return folder
+        return parentOf(folder) ?: folder
+    }
+
+    /**
+     * Moves [localPaths] from the phone into the folder "snapseed" on the network share (created
+     * if needed, see [snapseedLocation]). The original is never touched, files with the same name
      * are kept side by side, and the new pictures take over the original's date.
      */
     private fun moveNextToOriginal(
@@ -230,8 +242,8 @@ object ExternalEditFlow {
             total = localPaths.size,
             work = { onProgress ->
                 val context = activity.applicationContext
-                val parent = source.parentFolder(originalPath)
-                val destFolder = parent?.let { source.createFolder(context, it, "snapseed") }
+                val location = snapseedLocation(originalPath) { source.parentFolder(it) }
+                val destFolder = location?.let { source.createFolder(context, it, "snapseed") }
                 if (destFolder == null) {
                     FileTransfer.Result(0, localPaths.size, emptyList(), emptyList())
                 } else {
@@ -248,6 +260,8 @@ object ExternalEditFlow {
             onDone = { result ->
                 if (result.done > 0) {
                     source.parentFolder(originalPath)?.let { FolderMediaRepository.invalidate(it) }
+                    snapseedLocation(originalPath) { source.parentFolder(it) }
+                        ?.let { FolderMediaRepository.invalidate(it) }
                     onMoved()
                 }
             }
