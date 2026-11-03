@@ -43,6 +43,9 @@ class ZoomablePlayerView @JvmOverloads constructor(
     private var lastTouchX = 0f
     private var lastTouchY = 0f
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+
+    // A two-finger zoom must not become a swipe to the next video.
+    private val pagerTouchGuard = PagerTouchGuard(this)
     
     // Transform matrix
     private val transformMatrix = Matrix()
@@ -384,6 +387,8 @@ class ZoomablePlayerView @JvmOverloads constructor(
     }
     
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // Swiping up and down (brightness, volume) and moving a zoomed video keep the pager out.
+        pagerTouchGuard.onTouchEvent(event, keepHolding = currentScale > minScale || isVerticalSwipeInProgress)
         // Prevent parent (e.g., ViewPager2) from intercepting when zooming/dragging
         if (currentScale > minScale || scaleGestureDetector.isInProgress || isDragging) {
             parent?.requestDisallowInterceptTouchEvent(true)

@@ -44,6 +44,9 @@ class ZoomImageView @JvmOverloads constructor(
     private var lastTouchX = 0f
     private var lastTouchY = 0f
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+
+    // A two-finger zoom must not become a swipe to the next picture.
+    private val pagerTouchGuard = PagerTouchGuard(this)
     
     // Image bounds
     private val imageRect = RectF()
@@ -153,6 +156,7 @@ class ZoomImageView @JvmOverloads constructor(
     }
     
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        pagerTouchGuard.onTouchEvent(event, keepHolding = currentScale > minScale)
         var handled = false
         
         // Handle scale gestures first
