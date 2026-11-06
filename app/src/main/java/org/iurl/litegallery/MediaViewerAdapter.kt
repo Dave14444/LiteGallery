@@ -1,6 +1,8 @@
 package org.iurl.litegallery
 
 import android.graphics.drawable.Drawable
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.text.format.DateUtils
 import android.text.format.Formatter
@@ -342,7 +344,16 @@ class MediaViewerAdapter(
         private var progressPath: String? = null
         private var progressListener: RemoteLoadProgress.Listener? = null
         private var progressStartedAt = 0L
-        private val showLoadingPanel = Runnable { binding.imageLoadingPanel.visibility = View.VISIBLE }
+
+        // Not the view's own post(): for a page that is off screen (not attached), a delayed call
+        // posted earlier can no longer be taken back through the view and would show the panel
+        // over a picture that has arrived long ago.
+        private val mainHandler = Handler(Looper.getMainLooper())
+
+        private val showLoadingPanel = Runnable {
+            // Only while the picture is still on its way.
+            if (progressPath != null) binding.imageLoadingPanel.visibility = View.VISIBLE
+        }
 
         private fun startLoadingProgress(mediaItem: MediaItem) {
             stopLoadingProgress()
@@ -352,11 +363,11 @@ class MediaViewerAdapter(
             binding.imageLoadingProgress.isIndeterminate = true
             binding.imageLoadingText.setText(R.string.viewer_loading)
             // Only shown if it takes a moment, so a quick picture does not flash it.
-            binding.root.postDelayed(showLoadingPanel, LOADING_PANEL_DELAY_MS)
+            mainHandler.postDelayed(showLoadingPanel, LOADING_PANEL_DELAY_MS)
 
             val listener = RemoteLoadProgress.Listener { bytesRead, totalBytes ->
                 val total = if (totalBytes > 0L) totalBytes else mediaItem.size
-                binding.root.post {
+                mainHandler.post {
                     if (progressPath == path) showLoadingProgress(bytesRead, total)
                 }
             }
@@ -389,7 +400,7 @@ class MediaViewerAdapter(
         }
 
         private fun stopLoadingProgress() {
-            binding.root.removeCallbacks(showLoadingPanel)
+            mainHandler.removeCallbacks(showLoadingPanel)
             binding.imageLoadingPanel.visibility = View.GONE
             val path = progressPath
             val listener = progressListener
@@ -560,7 +571,7 @@ class MediaViewerAdapter(
     companion object {
         private const val PAYLOAD_ACTIVE_STATE = "payload_active_state"
 
-        /** A picture that takes longer than this shows its progress. */
-        private const val LOADING_PANEL_DELAY_MS = 400L
+        /** A picture that takes longer than this shows its progress (quick ones while browsing at home do not). */
+        private const val LOADING_PANEL_DELAY_MS = 1_000L
     }
 }
