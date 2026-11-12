@@ -3,6 +3,7 @@ package org.iurl.litegallery
 import android.app.Application
 import com.bumptech.glide.Glide
 import com.bumptech.glide.GlideBuilder
+import com.bumptech.glide.load.engine.executor.GlideExecutor
 import com.bumptech.glide.load.engine.cache.InternalCacheDiskCacheFactory
 
 class LiteGalleryApplication : Application() {
@@ -44,7 +45,16 @@ class LiteGalleryApplication : Application() {
         try {
             Glide.init(
                 this,
-                GlideBuilder().setDiskCache(InternalCacheDiskCacheFactory(this, IMAGE_CACHE_BYTES))
+                GlideBuilder()
+                    .setDiskCache(InternalCacheDiskCacheFactory(this, IMAGE_CACHE_BYTES))
+                    // Thumbnails from a share mostly wait for the network (VPN): more of them
+                    // at the same time fill the first screen of a folder much sooner. Glide's
+                    // default is one per processor core, at most 4.
+                    .setSourceExecutor(
+                        GlideExecutor.newSourceBuilder()
+                            .setThreadCount(maxOf(GlideExecutor.calculateBestThreadCount(), SOURCE_THREADS))
+                            .build()
+                    )
             )
         } catch (e: Exception) {
             android.util.Log.w("LiteGalleryApplication", "Glide keeps its default cache size", e)
@@ -53,5 +63,6 @@ class LiteGalleryApplication : Application() {
 
     private companion object {
         const val IMAGE_CACHE_BYTES = 1024L * 1024L * 1024L
+        const val SOURCE_THREADS = 8
     }
 }

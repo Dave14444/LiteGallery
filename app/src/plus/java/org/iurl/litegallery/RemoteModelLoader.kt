@@ -46,7 +46,8 @@ class RemoteModelLoader(private val context: Context) : ModelLoader<String, Inpu
         if (!isRemoteImage(model)) {
             return null // Only handle remote image paths; videos can't be decoded as images
         }
-        return ModelLoader.LoadData(ObjectKey(model), RemoteImageFetcher(context, model))
+        val onlyExisting = options.get(SmbThumbnailModel.ONLY_EXISTING) == true
+        return ModelLoader.LoadData(ObjectKey(model), RemoteImageFetcher(context, model, onlyExisting))
     }
 
     override fun handles(model: String): Boolean = isRemoteImage(model)
@@ -57,7 +58,9 @@ class RemoteModelLoader(private val context: Context) : ModelLoader<String, Inpu
  */
 class RemoteImageFetcher(
     private val context: Context,
-    private val url: String
+    private val url: String,
+    /** A thumbnail is only read if it exists, never made (see SmbThumbnailModel.ONLY_EXISTING). */
+    private val onlyExistingThumbnail: Boolean = false
 ) : DataFetcher<InputStream> {
 
     private var inputStream: InputStream? = null
@@ -81,7 +84,11 @@ class RemoteImageFetcher(
                 return
             }
 
-            val stream = if (isThumbnail && SmbPath.isSmb(imageUrl)) {
+            val stream = if (isThumbnail && SmbPath.isSmb(imageUrl) && onlyExistingThumbnail) {
+                // Fetched ahead of time: a thumbnail that is missing stays missing (no download
+                // of the whole picture); the folder makes it when it is opened.
+                SmbThumbnailCache.openExistingThumbnailStream(context, imageUrl)
+            } else if (isThumbnail && SmbPath.isSmb(imageUrl)) {
                 try {
                     SmbThumbnailCache.openThumbnailStream(context, imageUrl)
                 } catch (e: Exception) {

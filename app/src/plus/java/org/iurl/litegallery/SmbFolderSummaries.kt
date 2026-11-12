@@ -34,6 +34,8 @@ object SmbFolderSummaries {
     fun refresh(context: Context, folderUrl: String): Summary? {
         val client = RemoteClients.forUrl(folderUrl) ?: return null
         val media = client.listFiles(context, folderUrl).filter { !it.isDirectory && it.isMedia }
+        // The card is shown now; if the folder is opened, its first pictures are there at once.
+        SmbThumbnailPrefetch.prefetchFirst(context, media)
         val cover = media.filter { !it.isVideo }.maxByOrNull { it.lastModified }
 
         val summary = Summary(

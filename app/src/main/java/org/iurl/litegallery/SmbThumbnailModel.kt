@@ -1,5 +1,7 @@
 package org.iurl.litegallery
 
+import com.bumptech.glide.load.Option
+
 /**
  * Glide model for the thumbnail of a picture on an SMB share. Such a thumbnail is not read from
  * the picture itself but from the thumbnail cache on the share (see SmbThumbnailCache).
@@ -18,4 +20,12 @@ object SmbThumbnailModel {
 
     /** The picture's URL inside a thumbnail model. */
     fun urlOf(model: String): String = model.removePrefix(PREFIX)
+
+    /**
+     * Set on a request: only a thumbnail that exists on the share already is read; a missing
+     * one is not made (that would download the whole picture). Used to fetch thumbnails ahead
+     * of time. Not part of Glide's disk cache key: what is fetched this way is found later by
+     * the normal requests.
+     */
+    val ONLY_EXISTING: Option<Boolean> = Option.memory("org.iurl.litegallery.SmbThumbnailModel.onlyExisting", false)
 }

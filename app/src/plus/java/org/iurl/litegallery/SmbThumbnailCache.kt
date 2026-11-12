@@ -70,6 +70,18 @@ object SmbThumbnailCache {
     fun openThumbnailStream(context: Context, imageUrl: String): InputStream =
         openThumbnailStreamImpl(context, imageUrl)
 
+    /**
+     * The thumbnail of [imageUrl] if it exists on the share; throws otherwise. Never makes one.
+     * Needs the picture's size and date from a folder listing (no extra request to the server).
+     */
+    fun openExistingThumbnailStream(context: Context, imageUrl: String): InputStream {
+        val path = SmbPath.parse(imageUrl) ?: throw IOException("Not on an SMB share: $imageUrl")
+        val meta = SmbFileMetaCache.get(imageUrl) ?: throw IOException("Not listed: $imageUrl")
+        val client = RemoteClients.forUrl(imageUrl) ?: throw IOException("No remote client for $imageUrl")
+        val key = cacheKey(imageUrl, meta.size, meta.lastModified)
+        return client.openInputStream(context, SmbPath.toUrl(path.host, path.share, "$CACHE_DIR/$key.jpg"))
+    }
+
     enum class PrepareResult { CREATED, ALREADY_THERE }
 
     /** File names of the thumbnails already stored on the share of [anyUrlOnShare]. */
