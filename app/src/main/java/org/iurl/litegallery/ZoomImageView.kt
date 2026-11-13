@@ -1,6 +1,7 @@
 package org.iurl.litegallery
 
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
@@ -13,6 +14,7 @@ import android.view.ViewConfiguration
 import android.view.WindowInsets
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.preference.PreferenceManager
+import java.io.File
 import kotlin.math.*
 
 class ZoomImageView @JvmOverloads constructor(
@@ -29,12 +31,20 @@ class ZoomImageView @JvmOverloads constructor(
     private var currentScale = 1f
     private var baseScale = 1f
 
-    // Get max scale from preferences
-    private val maxScale: Float
+    // Max zoom chosen in the settings (relative to the picture fitting the screen)
+    private val chosenMaxScale: Float
         get() {
             val prefs = PreferenceManager.getDefaultSharedPreferences(context)
             return prefs.getString("zoom_max_scale", "3")?.toFloatOrNull() ?: 3f
         }
+
+    // With sharp details, zooming goes at least as far as twice the camera picture's real size.
+    private val maxScale: Float
+        get() = max(chosenMaxScale, fullResolutionScale())
+
+    // Sharp details from the original file when zoomed in (see PictureDetails). Set in init:
+    // the base class may call into this view before the fields of this class are set.
+    private var pictureDetails: PictureDetails? = null
     
     // Touch handling
     private var scaleGestureDetector: ScaleGestureDetector
@@ -57,10 +67,10 @@ class ZoomImageView @JvmOverloads constructor(
     private var onImageClickListener: (() -> Unit)? = null
     private var onZoomChangeListener: ((Float) -> Unit)? = null
     
-    // Zoom levels for cycling (dynamically generated based on maxScale)
+    // Zoom levels for cycling (dynamically generated based on the chosen max zoom)
     private val zoomLevels: FloatArray
         get() {
-            val max = maxScale.toInt()
+            val max = chosenMaxScale.toInt()
             return (1..max).map { it.toFloat() }.toFloatArray()
         }
     private var currentZoomLevelIndex = 0
@@ -73,6 +83,35 @@ class ZoomImageView @JvmOverloads constructor(
         
         // Enable hardware acceleration for smooth scaling
         setLayerType(LAYER_TYPE_HARDWARE, null)
+
+        pictureDetails = PictureDetails(this)
+    }
+
+    /**
+     * Where the original picture can be read as a local file ([file] blocks; called off the main
+     * thread), for sharp details when zooming in. Null: only the loaded picture is zoomed.
+     */
+    fun setFullResolutionSource(file: (() -> File?)?) {
+        pictureDetails?.setSource(file)
+    }
+
+    /** The zoom at which the camera picture is shown at twice its real size; 0 if unknown. */
+    private fun fullResolutionScale(): Float {
+        val details = pictureDetails ?: return 0f
+        val loadedWidth = drawable?.intrinsicWidth ?: return 0f
+        if (details.originalWidth <= 0f || loadedWidth <= 0 || baseScale <= 0f) return 0f
+        return FULL_RESOLUTION_ZOOM * details.originalWidth / (loadedWidth * baseScale)
+    }
+
+    override fun setImageMatrix(matrix: Matrix?) {
+        super.setImageMatrix(matrix)
+        // Zoomed or moved: the sharp part may have to be read anew.
+        pictureDetails?.onViewChanged()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        pictureDetails?.draw(canvas)
     }
     
     fun setOnImageClickListener(listener: () -> Unit) {
@@ -387,5 +426,9 @@ class ZoomImageView @JvmOverloads constructor(
             return true
         }
     }
-}
 
+    private companion object {
+        /** With the original at hand, zooming goes up to twice its real size (200 %). */
+        const val FULL_RESOLUTION_ZOOM = 2f
+    }
+}

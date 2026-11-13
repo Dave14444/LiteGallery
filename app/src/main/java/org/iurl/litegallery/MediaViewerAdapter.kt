@@ -1,5 +1,6 @@
 package org.iurl.litegallery
 
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
@@ -19,6 +20,8 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.signature.ObjectKey
+import java.io.File
+import java.util.concurrent.TimeUnit
 import org.iurl.litegallery.databinding.ItemMediaViewerBinding
 
 class MediaViewerAdapter(
@@ -136,6 +139,8 @@ class MediaViewerAdapter(
 
         fun bind(mediaItem: MediaItem, shouldActivateVideo: Boolean) {
             stopLoadingProgress()
+            // Sharp details come with the loaded picture (see loadListener).
+            binding.photoImageView.setFullResolutionSource(null)
             if (mediaItem.isVideo) {
                 // Hide image view, show video container
                 binding.photoImageView.visibility = View.GONE
@@ -433,12 +438,45 @@ class MediaViewerAdapter(
                 isFirstResource: Boolean
             ): Boolean {
                 if (progressPath == mediaItem.path) stopLoadingProgress()
+                // A still picture (not an animation): zoomed in, its details come from the original.
+                if (resource is BitmapDrawable) {
+                    binding.photoImageView.setFullResolutionSource(originalFile(mediaItem))
+                }
                 return false
             }
         }
 
+        /**
+         * The original picture as a local file, for sharp details when zooming in. On the
+         * phone that is the file itself; a picture from a share was read completely to be shown
+         * and is kept in the image cache, so it is taken from there (not loaded again).
+         */
+        private fun originalFile(mediaItem: MediaItem): () -> File? {
+            if (!mediaItem.isRemote) {
+                return { File(mediaItem.path).takeIf { it.isFile && it.canRead() } }
+            }
+            val appContext = binding.root.context.applicationContext
+            val signature = ObjectKey("${mediaItem.path}_${mediaItem.dateModified}_${mediaItem.size}")
+            fun fetch(cacheOnly: Boolean): File? = try {
+                Glide.with(appContext)
+                    .downloadOnly()
+                    .load(mediaItem.path)
+                    .signature(signature)
+                    .onlyRetrieveFromCache(cacheOnly)
+                    .submit()
+                    .get(ORIGINAL_FILE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            } catch (e: Exception) {
+                if (!cacheOnly) android.util.Log.w("MediaViewerAdapter", "Original not at hand: ${mediaItem.path}", e)
+                null
+            }
+            // Called only once the picture is zoomed in. Normally it is in the image cache since it
+            // was shown; if not (cache full), it is read once more.
+            return { fetch(cacheOnly = true) ?: fetch(cacheOnly = false) }
+        }
+
         fun clearGlideCache() {
             stopLoadingProgress()
+            binding.photoImageView.setFullResolutionSource(null)
             val context = binding.root.context
             if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
                 com.bumptech.glide.Glide.with(context).clear(binding.photoImageView)
@@ -570,6 +608,9 @@ class MediaViewerAdapter(
 
     companion object {
         private const val PAYLOAD_ACTIVE_STATE = "payload_active_state"
+
+        /** How long to wait for the original of a picture from a share (normally in the image cache already). */
+        private const val ORIGINAL_FILE_TIMEOUT_SECONDS = 120L
 
         /** A picture that takes longer than this shows its progress (quick ones while browsing at home do not). */
         private const val LOADING_PANEL_DELAY_MS = 1_000L

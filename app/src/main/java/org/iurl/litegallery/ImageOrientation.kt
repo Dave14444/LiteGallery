@@ -8,6 +8,20 @@ import androidx.exifinterface.media.ExifInterface
 object ImageOrientation {
 
     fun apply(source: Bitmap, orientation: Int): Bitmap {
+        val matrix = matrixFor(orientation) ?: return source
+        return Bitmap.createBitmap(
+            source,
+            0,
+            0,
+            source.width,
+            source.height,
+            matrix,
+            true
+        )
+    }
+
+    /** How a picture stored with [orientation] is turned or mirrored for display; null if not at all. */
+    fun matrixFor(orientation: Int): Matrix? {
         val matrix = Matrix()
 
         when (orientation) {
@@ -38,17 +52,8 @@ object ImageOrientation {
             ExifInterface.ORIENTATION_ROTATE_270 ->
                 matrix.setRotate(-90f)
 
-            else -> return source
+            else -> return null
         }
-
-        return Bitmap.createBitmap(
-            source,
-            0,
-            0,
-            source.width,
-            source.height,
-            matrix,
-            true
-        )
+        return matrix
     }
 }
