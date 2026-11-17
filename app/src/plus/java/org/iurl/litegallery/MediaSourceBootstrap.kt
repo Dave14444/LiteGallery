@@ -9,9 +9,11 @@ import java.io.InputStream
  */
 object MediaSourceBootstrap {
     fun init(app: Application) {
+        // Before anything connects: the rule for when the NAS may be contacted (home Wi-Fi or VPN).
+        NetworkAccess.init(app)
         MediaSourceRegistry.register(NetworkMediaSource)
 
-        // Allow Glide to load image thumbnails from remote shares (smb:// and nfs:// models).
+        // Allow Glide to load image thumbnails from network shares (smb:// models).
         Glide.get(app).registry.prepend(
             String::class.java,
             InputStream::class.java,

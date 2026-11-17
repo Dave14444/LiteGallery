@@ -57,10 +57,17 @@
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
 
+        <!-- Not open to other apps: they come in through ExternalViewActivity, which only
+             passes on the file to view. -->
         <activity
             android:name=".MediaViewerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LiteGallery.Pack.FirstLight.FullScreen" />
+
+        <activity
+            android:name=".ExternalViewActivity"
             android:exported="true"
-            android:theme="@style/Theme.LiteGallery.Pack.FirstLight.FullScreen">
+            android:theme="@android:style/Theme.NoDisplay">
             <intent-filter android:priority="1000">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

@@ -11,6 +11,19 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Only to read the name of the Wi-Fi (Android hands it out with the location permission):
+         at home the NAS is used directly, anywhere else only through the VPN. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- The VPN app, to open it when the VPN is needed. -->
+    <queries>
+        <intent>
+            <action android:name="android.net.VpnService" />
+        </intent>
+    </queries>
+
     <application>
         <activity
             android:name=".NetworkBrowseActivity"

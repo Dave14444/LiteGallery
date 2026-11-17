@@ -90,6 +90,21 @@ class NetworkConfigStoreTest {
     }
 
     @Test
+    fun withoutAWorkingKeystore_thePasswordIsNotSavedAtAll() {
+        PasswordCipher.keyProvider = { throw java.security.KeyStoreException("no keystore") }
+
+        NetworkConfigStore.addServer(
+            context,
+            NetworkServerConfig(id = "a", displayName = "NAS", host = "nas.local", password = "geheim")
+        )
+
+        assertFalse(storedJson().contains("geheim"))
+        assertFalse(NetworkConfigStore.canSavePasswords())
+        // The connection itself is kept.
+        assertTrue(storedJson().contains("nas.local"))
+    }
+
+    @Test
     fun passwordThatCannotBeDecrypted_comesBackEmptyInsteadOfBreakingTheList() {
         NetworkConfigStore.addServer(
             context,
@@ -144,15 +159,6 @@ class NetworkConfigStoreTest {
 
     @Test
     fun getServerByHost_withProtocol_returnsConfigOfThatProtocolIgnoringCase() {
-        // NFS entry saved first, SMB entry second, on the same host. The SMB-filtered
-        // lookup must return the SMB config, not the NFS one that was stored earlier.
-        NetworkConfigStore.addServer(
-            context,
-            NetworkServerConfig(
-                id = "nfs", displayName = "NFS", host = "nas.local",
-                protocol = NetworkServerConfig.PROTOCOL_NFS, export = "/volume1/photo"
-            )
-        )
         val smb = NetworkConfigStore.addServer(
             context,
             NetworkServerConfig(
@@ -170,20 +176,22 @@ class NetworkConfigStoreTest {
     }
 
     @Test
-    fun getServerByHost_withProtocol_returnsNullWhenNoConfigOfThatProtocol() {
-        NetworkConfigStore.addServer(
-            context,
-            NetworkServerConfig(
-                id = "nfs", displayName = "NFS", host = "nas.local",
-                protocol = NetworkServerConfig.PROTOCOL_NFS, export = "/volume1/photo"
+    fun nfsEntriesOfEarlierVersions_areLeftOut() {
+        context.getSharedPreferences("smb_servers", Context.MODE_PRIVATE)
+            .edit()
+            .putString(
+                "servers_json",
+                """[{"id":"nfs","displayName":"NFS","host":"nas.local","protocol":"nfs",""" +
+                    """"export":"/volume1/photo","uid":0,"gid":0},""" +
+                    """{"id":"smb","displayName":"SMB","host":"nas.local","protocol":"smb",""" +
+                    """"share":"Photos","username":"bob","isGuest":false}]"""
             )
-        )
+            .commit()
 
-        assertNull(
-            NetworkConfigStore.getServerByHost(
-                context, "nas.local", NetworkServerConfig.PROTOCOL_SMB
-            )
-        )
+        val servers = NetworkConfigStore.getAllServers(context)
+
+        assertEquals(listOf("smb"), servers.map { it.id })
+        assertEquals("smb", NetworkConfigStore.getServerByHost(context, "nas.local", NetworkServerConfig.PROTOCOL_SMB)?.id)
     }
 
     @Test
@@ -249,44 +257,10 @@ class NetworkConfigStoreTest {
 
         assertEquals(1, servers.size)
         assertEquals(NetworkServerConfig.PROTOCOL_SMB, servers[0].protocol)
-        assertEquals("", servers[0].export)
-        assertEquals(0, servers[0].uid)
-        assertEquals(0, servers[0].gid)
     }
 
     @Test
-    fun addServer_roundTripsNfsFields() {
-        val saved = NetworkConfigStore.addServer(
-            context,
-            NetworkServerConfig(
-                id = "",
-                displayName = "NAS NFS",
-                host = "nas.local",
-                protocol = NetworkServerConfig.PROTOCOL_NFS,
-                export = "/volume1/photo",
-                uid = 1000,
-                gid = 100
-            )
-        )
-
-        val loaded = NetworkConfigStore.getServerById(context, saved.id)
-
-        assertEquals(NetworkServerConfig.PROTOCOL_NFS, loaded?.protocol)
-        assertEquals("/volume1/photo", loaded?.export)
-        assertEquals(1000, loaded?.uid)
-        assertEquals(100, loaded?.gid)
-        assertEquals(true, loaded?.isNfs)
-    }
-
-    @Test
-    fun rootUrl_buildsProtocolSpecificRoot() {
-        assertEquals(
-            "nfs://nas.local/volume1/photo",
-            NetworkServerConfig(
-                id = "a", displayName = "", host = "nas.local",
-                protocol = NetworkServerConfig.PROTOCOL_NFS, export = "/volume1/photo"
-            ).rootUrl()
-        )
+    fun rootUrl_buildsTheAddressOfTheConnection() {
         assertEquals(
             "smb://nas.local/Photos/Trips",
             NetworkServerConfig(
@@ -330,13 +304,6 @@ class NetworkConfigStoreTest {
 
     @Test
     fun shareWithoutOwnConnection_usesAnyConnectionToTheHost() {
-        NetworkConfigStore.addServer(
-            context,
-            NetworkServerConfig(
-                id = "nfs", displayName = "", host = "nas.local",
-                protocol = NetworkServerConfig.PROTOCOL_NFS, export = "/volume1/photo"
-            )
-        )
         NetworkConfigStore.addServer(
             context,
             NetworkServerConfig(

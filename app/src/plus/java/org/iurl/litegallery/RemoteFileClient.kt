@@ -8,7 +8,7 @@ import java.io.InputStream
 /** A file or folder entry on a remote share, addressed by its full URL. */
 data class RemoteFileInfo(
     val name: String,
-    val url: String,            // full URL, e.g. smb://host/share/dir/a.jpg or nfs://host/export/dir/a.jpg
+    val url: String,            // full URL, e.g. smb://host/share/dir/a.jpg
     val isDirectory: Boolean,
     val size: Long,
     val lastModified: Long,     // epoch millis
@@ -31,8 +31,7 @@ interface RemoteRandomAccessFile : Closeable {
 }
 
 /**
- * Protocol-agnostic client for a remote file share. Implementations: [SmbFileClient]
- * (wraps SmbClient/smbj) and NfsFileClient (wraps the EMC NFSv3 client). All methods
+ * Client for a remote file share. Implementation: [SmbFileClient] (wraps SmbClient/smbj). All methods
  * address files by their full remote URL and perform blocking I/O — call them from
  * Dispatchers.IO.
  */
@@ -65,23 +64,20 @@ object RemoteClients {
 
     fun forUrl(url: String): RemoteFileClient? = when {
         SmbPath.isSmb(url) -> SmbFileClient
-        NfsPath.isNfs(url) -> NfsFileClient
         else -> null
     }
 
     fun forProtocol(protocol: String): RemoteFileClient? = when (protocol) {
         NetworkServerConfig.PROTOCOL_SMB -> SmbFileClient
-        NetworkServerConfig.PROTOCOL_NFS -> NfsFileClient
         else -> null
     }
 
-    fun all(): List<RemoteFileClient> = listOf(SmbFileClient, NfsFileClient)
+    fun all(): List<RemoteFileClient> = listOf(SmbFileClient)
 }
 
 /** Path helpers shared by every remote protocol. */
 object RemotePath {
 
-    /** True if [path] belongs to any remote share protocol. */
-    fun isRemote(path: String): Boolean =
-        path.startsWith("smb://") || path.startsWith("nfs://")
+    /** True if [path] is on a network share. */
+    fun isRemote(path: String): Boolean = path.startsWith("smb://")
 }

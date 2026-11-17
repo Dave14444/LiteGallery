@@ -12,7 +12,3 @@
 
 # SLF4J
 -dontwarn org.slf4j.**
-
-# EMC nfs-client (pure-Java NFSv3)
--keep class com.emc.ecs.nfsclient.** { *; }
--dontwarn com.emc.ecs.nfsclient.**

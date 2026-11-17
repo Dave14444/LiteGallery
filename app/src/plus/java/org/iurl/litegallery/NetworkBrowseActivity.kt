@@ -1,15 +1,20 @@
 package org.iurl.litegallery
 
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ProgressBar
@@ -26,6 +31,7 @@ import com.bumptech.glide.Glide
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -35,7 +41,7 @@ import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 
 /**
- * Activity for browsing network shares (SMB and NFS). Provides an address bar for manual
+ * Activity for browsing network shares (SMB). Provides an address bar for manual
  * entry, saved-server bookmarks, and the folders of a share as cards - the same cards as on
  * the home screen. Pictures and videos open in the regular folder screen, exactly like local
  * folders.
@@ -47,6 +53,9 @@ class NetworkBrowseActivity : AppCompatActivity() {
 
         /** Folder summaries (cover, count) read at the same time. */
         private const val SUMMARY_PARALLEL = 3
+
+        /** While waiting for the VPN: how often to look whether the NAS may be contacted now. */
+        private const val ACCESS_CHECK_INTERVAL_MS = 1_500L
     }
 
     private lateinit var binding: ActivityNetworkBrowseBinding
@@ -63,6 +72,24 @@ class NetworkBrowseActivity : AppCompatActivity() {
     /** Opened from a sub folder card of the folder screen: back from [startPath] returns there. */
     private var openedFromFolderScreen = false
     private var startPath = ""
+
+    // Waiting until the NAS may be contacted (VPN on, or home Wi-Fi recognized).
+    private var accessDialog: AlertDialog? = null
+    private var accessRetry: (() -> Unit)? = null
+    private var accessWatch: Job? = null
+
+    private var afterLocationPermission: ((Boolean) -> Unit)? = null
+    private val locationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+            val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                NetworkAccess.hasLocationPermission(this)
+            val then = afterLocationPermission
+            afterLocationPermission = null
+            if (!granted) {
+                Toast.makeText(this, R.string.network_access_permission_denied, Toast.LENGTH_LONG).show()
+            }
+            then?.invoke(granted)
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         ThemeHelper.applyTheme(this)
@@ -167,6 +194,10 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 ThumbnailCleanup.start(this, currentPath)
                 true
             }
+            R.id.action_network_access -> {
+                showNetworkAccessDialog()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -232,7 +263,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
             }
 
             val normalized = when {
-                address.startsWith("smb://") || address.startsWith("nfs://") -> address
+                address.startsWith("smb://") -> address
                 address.startsWith("\\\\") || address.startsWith("//") ->
                     "smb://${address.removePrefix("\\\\").removePrefix("//").replace('\\', '/')}"
                 else -> "smb://$address"
@@ -243,30 +274,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 binding.addressEditText.setSelection(normalized.length)
             }
 
-            if (NfsPath.isNfs(normalized)) {
-                val nfsPath = NfsPath.parse(normalized)
-                if (nfsPath == null) {
-                    Toast.makeText(
-                        this,
-                        getString(R.string.smb_invalid_address),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@setOnClickListener
-                }
-                val hasConfig = NetworkConfigStore.getAllServers(this).any {
-                    it.isNfs && it.host.equals(nfsPath.host, ignoreCase = true) &&
-                        NfsPath.matchExport(listOf(it.export), nfsPath.fullPath) != null
-                }
-                if (hasConfig) {
-                    navigateTo(normalized)
-                } else {
-                    // No saved export covers this URL: collect one via the add dialog.
-                    showAddServerDialog(prefillNfsHost = nfsPath.host)
-                }
-                return@setOnClickListener
-            }
-
-            // SMB flow
             val smbPath = SmbPath.parse(normalized)
             if (smbPath == null) {
                 Toast.makeText(this, getString(R.string.smb_invalid_address), Toast.LENGTH_SHORT).show()
@@ -276,8 +283,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
             // Check if we have saved credentials for this exact path
             val allConfigs = NetworkConfigStore.getAllServers(this)
             val exactConfig = allConfigs.find {
-                !it.isNfs &&
-                    it.host.equals(smbPath.host, ignoreCase = true) &&
+                it.host.equals(smbPath.host, ignoreCase = true) &&
                 it.share.equals(smbPath.share, ignoreCase = true) &&
                 it.path.equals(smbPath.path, ignoreCase = true)
             }
@@ -288,7 +294,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
 
             // Otherwise, check if we have ANY credentials for this host
             val hostConfig = allConfigs.find {
-                !it.isNfs && it.host.equals(smbPath.host, ignoreCase = true)
+                it.host.equals(smbPath.host, ignoreCase = true)
             }
             if (hostConfig != null) {
                 navigateTo(normalized)
@@ -323,27 +329,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
             val address = binding.addressEditText.text.toString().trim()
             if (address.isBlank()) return@setOnClickListener
 
-            if (NfsPath.isNfs(address)) {
-                val nfsPath = NfsPath.parse(address) ?: return@setOnClickListener
-                val saved = NetworkConfigStore.getAllServers(this).find {
-                    it.isNfs && it.rootUrl().equals(address.trimEnd('/'), ignoreCase = true)
-                }
-                if (saved != null) {
-                    NetworkConfigStore.deleteServer(this, saved.id)
-                    SmbCoverImages.remove(this, saved.id)
-                    Toast.makeText(
-                        this,
-                        getString(R.string.smb_server_removed),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    updateStarButtonState()
-                    refreshSavedServers()
-                } else {
-                    showAddServerDialog(prefillNfsHost = nfsPath.host)
-                }
-                return@setOnClickListener
-            }
-
             val smbPath = SmbPath.parse(if (address.startsWith("smb://")) address else "smb://$address")
             if (smbPath == null) {
                 Toast.makeText(this, getString(R.string.smb_invalid_address), Toast.LENGTH_SHORT).show()
@@ -352,8 +337,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
 
             val allServers = NetworkConfigStore.getAllServers(this)
             val exactConfig = allServers.find {
-                !it.isNfs &&
-                    it.host.equals(smbPath.host, ignoreCase = true) &&
+                it.host.equals(smbPath.host, ignoreCase = true) &&
                 it.share.equals(smbPath.share, ignoreCase = true) &&
                 it.path.equals(smbPath.path, ignoreCase = true)
             }
@@ -372,8 +356,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 // Reuse the login of a saved connection to the same share. Another share of the
                 // NAS may belong to another user (or be a guest share): then ask for the login.
                 val hostConfig = allServers.find {
-                    !it.isNfs &&
-                        it.host.equals(smbPath.host, ignoreCase = true) &&
+                    it.host.equals(smbPath.host, ignoreCase = true) &&
                         it.share.equals(smbPath.share, ignoreCase = true)
                 }
                 if (hostConfig != null && hostConfig.isAuthenticated) {
@@ -522,38 +505,29 @@ class NetworkBrowseActivity : AppCompatActivity() {
 
             nameText.text = server.displayName.ifBlank { server.host }
             val badge = itemView.findViewById<TextView>(R.id.serverProtocolBadge)
-            badge.setText(if (server.isNfs) R.string.protocol_nfs else R.string.protocol_smb)
+            badge.setText(R.string.protocol_smb)
 
-            if (server.isNfs) {
-                hostText.text = "${server.host}${server.export} (uid ${server.uid})"
-            } else {
-                val sharePart = if (server.share.isNotBlank()) "/${server.share}" else ""
-                val pathPart = if (server.path.isNotBlank()) "/${server.path}" else ""
-                val connectionInfo = if (server.isGuest) "(Guest)" else "(${server.username})"
-                hostText.text = "${server.host}$sharePart$pathPart $connectionInfo"
-            }
+            val sharePart = if (server.share.isNotBlank()) "/${server.share}" else ""
+            val pathPart = if (server.path.isNotBlank()) "/${server.path}" else ""
+            val connectionInfo = if (server.isGuest) "(Guest)" else "(${server.username})"
+            hostText.text = "${server.host}$sharePart$pathPart $connectionInfo"
 
             itemView.setOnClickListener {
-                if (server.isNfs) {
-                    binding.addressEditText.setText(server.rootUrl())
-                    navigateTo(server.rootUrl())
+                val address = if (server.share.isNotBlank()) {
+                    val p = if (server.path.isNotBlank()) "/${server.path}" else ""
+                    "smb://${server.host}/${server.share}$p"
                 } else {
-                    val address = if (server.share.isNotBlank()) {
-                        val p = if (server.path.isNotBlank()) "/${server.path}" else ""
-                        "smb://${server.host}/${server.share}$p"
-                    } else {
-                        "smb://${server.host}"
-                    }
-                    binding.addressEditText.setText(address)
-                    if (server.share.isNotBlank()) {
-                        binding.connectButton.performClick()
-                    } else {
-                        Toast.makeText(
-                            this,
-                            getString(R.string.smb_enter_share_name),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                    "smb://${server.host}"
+                }
+                binding.addressEditText.setText(address)
+                if (server.share.isNotBlank()) {
+                    binding.connectButton.performClick()
+                } else {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.smb_enter_share_name),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
 
@@ -577,27 +551,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
 
             binding.savedServersList.addView(itemView)
         }
-    }
-
-    /** Best-effort mapping of an NFS failure to an actionable hint string, or null. */
-    private fun nfsErrorHintRes(e: Throwable): Int? {
-        var t: Throwable? = e
-        while (t != null) {
-            val message = t.message ?: ""
-            when {
-                t is java.net.ConnectException || t is java.net.SocketTimeoutException ||
-                    t is java.net.NoRouteToHostException || t is java.net.UnknownHostException ||
-                    t is NfsExportLister.ExportListException ->
-                    return R.string.nfs_error_unreachable
-                message.contains("NFS3ERR_ACCES", ignoreCase = true) ||
-                    message.contains("ACCES", ignoreCase = true) ->
-                    return R.string.nfs_error_access
-                message.contains("mount", ignoreCase = true) ->
-                    return R.string.nfs_error_mount_denied
-            }
-            t = t.cause
-        }
-        return null
     }
 
     private fun navigateTo(address: String, restoreScroll: Boolean = false) {
@@ -671,13 +624,11 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 android.util.Log.e("NetworkBrowseActivity", "Failed to navigate to $address", e)
+                // No VPN outside the home Wi-Fi, another device at the NAS address: say what helps,
+                // and open the folder by itself once it is solved.
+                if (handleAccessProblem(e) { navigateTo(address, restoreScroll) }) return@launch
                 showFolder(address)
-                val hintRes = if (NfsPath.isNfs(address)) nfsErrorHintRes(e) else null
-                val message = if (hintRes != null) {
-                    getString(hintRes)
-                } else {
-                    getString(R.string.smb_connection_failed, e.message ?: "Unknown error")
-                }
+                val message = getString(R.string.smb_connection_failed, e.message ?: "Unknown error")
                 Toast.makeText(this@NetworkBrowseActivity, message, Toast.LENGTH_LONG).show()
                 binding.emptyView.visibility = View.VISIBLE
                 binding.recyclerView.visibility = View.GONE
@@ -813,7 +764,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 SmbPath.parse(currentPath)?.let {
                     if (it.path.isBlank()) null else it.parentFolderPath
                 }
-            NfsPath.isNfs(currentPath) -> nfsParentOrNull(currentPath)
             else -> null
         }
         if (parent == null) goHome() else navigateTo(parent, restoreScroll = true)
@@ -841,94 +791,216 @@ class NetworkBrowseActivity : AppCompatActivity() {
             ?.scrollToPositionWithOffset(target[0], target[1])
     }
 
-    /** Parent URL of an NFS folder, or null when at (or above) the saved export root. */
-    private fun nfsParentOrNull(url: String): String? {
-        val nfsPath = NfsPath.parse(url) ?: return null
-        val exports = NetworkConfigStore.getAllServers(this)
-            .filter { it.isNfs && it.host.equals(nfsPath.host, ignoreCase = true) }
-            .map { it.export }
-        val export = NfsPath.matchExport(exports, nfsPath.fullPath) ?: return null
-        if (nfsPath.fullPath == export) return null
-        val parent = nfsPath.fullPath.substringBeforeLast('/', "")
-        return if (parent.isEmpty() || NfsPath.matchExport(exports, parent) == null) {
-            null
-        } else {
-            NfsPath.toUrl(nfsPath.host, parent)
+    // ---------------------------------------------------------------- home Wi-Fi, VPN, NAS id
+
+    override fun onDestroy() {
+        stopAccessWatch()
+        accessDialog?.dismiss()
+        accessDialog = null
+        super.onDestroy()
+    }
+
+    /**
+     * When [e] is (or comes from) a connection that was not opened on purpose (no VPN outside the
+     * home Wi-Fi, another device at the NAS address, no encryption), says what helps and returns
+     * true. [retry] runs once it is solved.
+     */
+    private fun handleAccessProblem(e: Throwable, retry: () -> Unit): Boolean {
+        val problem = generateSequence(e) { it.cause }.take(8)
+            .firstOrNull { SmbClient.isAccessProblem(it) } ?: return false
+        when (problem) {
+            is NetworkAccess.NotAllowedException -> showAccessPrompt(problem.status, retry)
+            is ServerIdentity.ChangedException -> showServerChangedDialog(problem, retry)
+            else -> AlertDialog.Builder(this)
+                .setMessage(problem.message)
+                .setPositiveButton(android.R.string.ok) { _, _ -> onAccessCancelled() }
+                .setOnCancelListener { onAccessCancelled() }
+                .show()
+        }
+        return true
+    }
+
+    /** The connection was not made: back to what was shown before (or leave, if nothing was). */
+    private fun onAccessCancelled() {
+        stopAccessWatch()
+        accessDialog = null
+        if (currentPath.isNotBlank()) return
+        if (launchedWithPath) finish() else refreshSavedServers()
+    }
+
+    /** Asks to switch on the VPN (or the location), and goes on by itself once it is on. */
+    private fun showAccessPrompt(status: NetworkAccess.Status, retry: () -> Unit) {
+        stopAccessWatch()
+        accessDialog?.dismiss()
+        accessRetry = retry
+
+        val vpnApp = NetworkAccess.vpnApp(this)
+        val vpnLabel = vpnApp?.let { getString(R.string.network_access_open_app, it.first) }
+            ?: getString(R.string.network_access_open_vpn_settings)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.network_access_title)
+            .setMessage(accessMessage(status))
+            .setPositiveButton(vpnLabel, null)
+            // Text and visibility depend on the status (see updateAccessDialog).
+            .setNeutralButton(R.string.network_access_grant, null)
+            .setNegativeButton(R.string.cancel) { _, _ -> onAccessCancelled() }
+            .setOnCancelListener { onAccessCancelled() }
+            .show()
+        accessDialog = dialog
+
+        // These buttons keep the dialog open: it closes by itself once the NAS may be contacted.
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val intent = vpnApp?.second ?: Intent(Settings.ACTION_VPN_SETTINGS)
+            try {
+                startActivity(intent)
+            } catch (e: Exception) {
+                startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS))
+            }
+        }
+        updateAccessDialog(dialog, status)
+        startAccessWatch()
+    }
+
+    private fun accessMessage(status: NetworkAccess.Status): String =
+        NetworkAccess.describe(this, status) + "\n\n" + getString(R.string.network_access_waiting)
+
+    private fun updateAccessDialog(dialog: AlertDialog, status: NetworkAccess.Status) {
+        dialog.setMessage(accessMessage(status))
+        val neutral = dialog.getButton(AlertDialog.BUTTON_NEUTRAL) ?: return
+        when (status) {
+            NetworkAccess.Status.UNKNOWN_NO_PERMISSION -> {
+                neutral.visibility = View.VISIBLE
+                neutral.setText(R.string.network_access_grant)
+                neutral.setOnClickListener { requestLocationPermission { } }
+            }
+            NetworkAccess.Status.UNKNOWN_LOCATION_OFF -> {
+                neutral.visibility = View.VISIBLE
+                neutral.setText(R.string.network_access_location_on)
+                neutral.setOnClickListener {
+                    try {
+                        startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    } catch (e: Exception) {
+                        android.util.Log.w("NetworkBrowseActivity", "No location settings", e)
+                    }
+                }
+            }
+            else -> neutral.visibility = View.GONE
         }
     }
 
-    /** Wire the SMB/NFS radio switch and the export-listing button of the connect dialog. */
-    private fun bindProtocolSwitch(dialogView: View) {
-        val smbRadio = dialogView.findViewById<android.widget.RadioButton>(R.id.protocolSmbRadio)
-        val nfsRadio = dialogView.findViewById<android.widget.RadioButton>(R.id.protocolNfsRadio)
-        val smbGroup = dialogView.findViewById<View>(R.id.smbFieldsGroup)
-        val nfsGroup = dialogView.findViewById<View>(R.id.nfsFieldsGroup)
-        val advancedCheck =
-            dialogView.findViewById<android.widget.CheckBox>(R.id.nfsAdvancedCheckBox)
-        val advancedGroup = dialogView.findViewById<View>(R.id.nfsAdvancedGroup)
-        val hostEdit = dialogView.findViewById<EditText>(R.id.hostEditText)
-        val exportEdit =
-            dialogView.findViewById<android.widget.AutoCompleteTextView>(R.id.exportEditText)
-        val listExportsButton =
-            dialogView.findViewById<android.widget.Button>(R.id.listExportsButton)
-
-        val applyProtocol = {
-            val nfs = nfsRadio.isChecked
-            smbGroup.visibility = if (nfs) View.GONE else View.VISIBLE
-            nfsGroup.visibility = if (nfs) View.VISIBLE else View.GONE
-        }
-        smbRadio.setOnCheckedChangeListener { _, _ -> applyProtocol() }
-        nfsRadio.setOnCheckedChangeListener { _, _ -> applyProtocol() }
-        applyProtocol()
-
-        advancedCheck.setOnCheckedChangeListener { _, isChecked ->
-            advancedGroup.visibility = if (isChecked) View.VISIBLE else View.GONE
-        }
-
-        listExportsButton.setOnClickListener {
-            val host = hostEdit.text.toString().trim()
-                .removePrefix("nfs://")
-                .substringBefore('/')
-            if (host.isBlank()) {
-                Toast.makeText(this, R.string.smb_enter_host, Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            listExportsButton.isEnabled = false
-            lifecycleScope.launch {
-                try {
-                    val exports =
-                        withContext(Dispatchers.IO) { NfsExportLister.listExports(host) }
-                    if (exports.isEmpty()) {
-                        Toast.makeText(
-                            this@NetworkBrowseActivity,
-                            R.string.nfs_no_exports_found,
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } else {
-                        exportEdit.setAdapter(
-                            android.widget.ArrayAdapter(
-                                this@NetworkBrowseActivity,
-                                android.R.layout.simple_dropdown_item_1line,
-                                exports
-                            )
-                        )
-                        exportEdit.showDropDown()
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e(
-                        "NetworkBrowseActivity",
-                        "Export listing failed for $host",
-                        e
-                    )
-                    Toast.makeText(
-                        this@NetworkBrowseActivity,
-                        getString(R.string.smb_connection_failed, e.message ?: "Unknown"),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                } finally {
-                    listExportsButton.isEnabled = true
+    /** Looks every moment whether the NAS may be contacted now (VPN switched on, home Wi-Fi). */
+    private fun startAccessWatch() {
+        accessWatch?.cancel()
+        var shown: NetworkAccess.Status? = null
+        accessWatch = lifecycleScope.launch {
+            while (true) {
+                delay(ACCESS_CHECK_INTERVAL_MS)
+                val status = withContext(Dispatchers.IO) { NetworkAccess.status(applicationContext) }
+                val dialog = accessDialog ?: return@launch
+                if (status == NetworkAccess.Status.ALLOWED) {
+                    val retry = accessRetry
+                    accessRetry = null
+                    accessWatch = null
+                    accessDialog = null
+                    dialog.dismiss()
+                    retry?.invoke()
+                    return@launch
+                }
+                if (status != shown) {
+                    shown = status
+                    updateAccessDialog(dialog, status)
                 }
             }
+        }
+    }
+
+    private fun stopAccessWatch() {
+        accessWatch?.cancel()
+        accessWatch = null
+        accessRetry = null
+    }
+
+    /** Another device answered at the NAS address than the NAS known there: no login was sent. */
+    private fun showServerChangedDialog(problem: ServerIdentity.ChangedException, retry: () -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.nas_identity_changed_title)
+            .setMessage(problem.message + "\n\n" + getString(R.string.nas_identity_changed_hint))
+            .setPositiveButton(R.string.nas_identity_accept) { _, _ ->
+                ServerIdentity.forget(this, problem.host, problem.port)
+                retry()
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> onAccessCancelled() }
+            .setOnCancelListener { onAccessCancelled() }
+            .show()
+    }
+
+    /** Asks for the location permission (after saying why); [then] gets whether it was granted. */
+    private fun requestLocationPermission(then: (Boolean) -> Unit) {
+        if (NetworkAccess.hasLocationPermission(this)) {
+            then(true)
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.network_access_permission_title)
+            .setMessage(R.string.network_access_permission_explanation)
+            .setPositiveButton(R.string.network_access_permission_continue) { _, _ ->
+                afterLocationPermission = then
+                locationPermissionLauncher.launch(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                )
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> then(false) }
+            .show()
+    }
+
+    /** Home Wi-Fi and VPN rule, encryption, NAS recognition. */
+    private fun showNetworkAccessDialog() {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_network_access, null)
+        val requireVpn = view.findViewById<CompoundButton>(R.id.requireVpnSwitch)
+        val homeWifi = view.findViewById<EditText>(R.id.homeWifiEditText)
+        val useCurrent = view.findViewById<Button>(R.id.useCurrentWifiButton)
+        val encrypt = view.findViewById<CompoundButton>(R.id.encryptSwitch)
+
+        requireVpn.isChecked = NetworkAccess.isVpnRequiredOutsideHome(this)
+        homeWifi.setText(NetworkAccess.homeWifiName(this))
+        encrypt.isChecked = NetworkAccess.encryptTraffic(this)
+
+        useCurrent.setOnClickListener {
+            requestLocationPermission { granted ->
+                if (!granted) return@requestLocationPermission
+                lifecycleScope.launch {
+                    val name = withContext(Dispatchers.IO) { NetworkAccess.currentWifiName(applicationContext) }
+                    when {
+                        name != null -> homeWifi.setText(name)
+                        !NetworkAccess.isLocationOn(this@NetworkBrowseActivity) -> Toast.makeText(
+                            this@NetworkBrowseActivity, R.string.network_access_location_is_off, Toast.LENGTH_LONG
+                        ).show()
+                        else -> Toast.makeText(
+                            this@NetworkBrowseActivity, R.string.network_access_no_wifi_now, Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.network_access_settings_title)
+            .setView(view)
+            .setPositiveButton(R.string.smb_save, null)
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val name = homeWifi.text.toString().trim()
+            if (requireVpn.isChecked && name.isEmpty()) {
+                Toast.makeText(this, R.string.network_access_enter_home_wifi, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            NetworkAccess.saveRule(this, requireVpn.isChecked, name)
+            NetworkAccess.setEncryptTraffic(this, encrypt.isChecked)
+            // Open connections were made under the old settings: the next access connects anew.
+            SmbClient.disconnectAll()
+            dialog.dismiss()
+            if (requireVpn.isChecked) requestLocationPermission { }
         }
     }
 
@@ -940,8 +1012,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
         dialogView: View,
         existingId: String
     ): NetworkServerConfig? {
-        val nfsSelected =
-            dialogView.findViewById<android.widget.RadioButton>(R.id.protocolNfsRadio).isChecked
         val hostInput =
             dialogView.findViewById<EditText>(R.id.hostEditText).text.toString().trim()
         val displayName =
@@ -950,28 +1020,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
         if (hostInput.isBlank()) {
             Toast.makeText(this, R.string.smb_enter_host, Toast.LENGTH_SHORT).show()
             return null
-        }
-
-        if (nfsSelected) {
-            val export =
-                dialogView.findViewById<android.widget.AutoCompleteTextView>(R.id.exportEditText)
-                    .text.toString().trim().trimEnd('/')
-            if (export.isBlank() || !export.startsWith("/")) {
-                Toast.makeText(this, R.string.nfs_enter_export, Toast.LENGTH_SHORT).show()
-                return null
-            }
-            val host = hostInput.removePrefix("nfs://").substringBefore('/')
-            return NetworkServerConfig(
-                id = existingId,
-                displayName = displayName.ifBlank { host },
-                host = host,
-                protocol = NetworkServerConfig.PROTOCOL_NFS,
-                export = export,
-                uid = dialogView.findViewById<EditText>(R.id.uidEditText)
-                    .text.toString().toIntOrNull() ?: 0,
-                gid = dialogView.findViewById<EditText>(R.id.gidEditText)
-                    .text.toString().toIntOrNull() ?: 0
-            )
         }
 
         var parsedHost = hostInput
@@ -1004,7 +1052,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
         )
     }
 
-    /** Save-with-test shared by add and edit. Runs testConnection for the config's protocol. */
+    /** Save-with-test shared by add and edit. */
     private fun testAndSaveServer(
         config: NetworkServerConfig,
         isNew: Boolean,
@@ -1026,21 +1074,27 @@ class NetworkBrowseActivity : AppCompatActivity() {
                         NetworkConfigStore.updateServer(this@NetworkBrowseActivity, config)
                     }
                     refreshSavedServers()
+                    val savedText = if (config.password.isNotEmpty() && !NetworkConfigStore.canSavePasswords()) {
+                        // The Keystore does not work: the password was not saved (never as plain text).
+                        R.string.smb_password_not_saved
+                    } else {
+                        R.string.smb_server_saved
+                    }
                     Toast.makeText(
                         this@NetworkBrowseActivity,
-                        R.string.smb_server_saved,
-                        Toast.LENGTH_SHORT
+                        savedText,
+                        Toast.LENGTH_LONG
                     ).show()
                     onSuccess()
                 } else {
-                    val hint = if (config.isNfs) {
-                        R.string.nfs_error_mount_denied
-                    } else {
-                        R.string.smb_connection_test_failed
-                    }
-                    Toast.makeText(this@NetworkBrowseActivity, hint, Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        this@NetworkBrowseActivity,
+                        R.string.smb_connection_test_failed,
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             } catch (e: Exception) {
+                if (handleAccessProblem(e) { testAndSaveServer(config, isNew, onSuccess) }) return@launch
                 Toast.makeText(
                     this@NetworkBrowseActivity,
                     getString(R.string.smb_connection_failed, e.message ?: "Unknown"),
@@ -1061,8 +1115,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
         onSuccess: () -> Unit
     ) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_network_connect, null)
-        // This prompt is SMB-only: hide the protocol switch and keep SMB fields.
-        dialogView.findViewById<View>(R.id.protocolGroup).visibility = View.GONE
         val usernameEdit = dialogView.findViewById<EditText>(R.id.usernameEditText)
         val passwordEdit = dialogView.findViewById<EditText>(R.id.passwordEditText)
         val displayNameEdit = dialogView.findViewById<EditText>(R.id.displayNameEditText)
@@ -1104,46 +1156,27 @@ class NetworkBrowseActivity : AppCompatActivity() {
         val hostEdit = dialogView.findViewById<EditText>(R.id.hostEditText)
         val displayNameEdit = dialogView.findViewById<EditText>(R.id.displayNameEditText)
         hostEdit.visibility = View.VISIBLE
-        bindProtocolSwitch(dialogView)
-
-        val smbRadio = dialogView.findViewById<android.widget.RadioButton>(R.id.protocolSmbRadio)
-        val nfsRadio = dialogView.findViewById<android.widget.RadioButton>(R.id.protocolNfsRadio)
-        // The protocol of a saved server is fixed; hide the switch when editing.
-        dialogView.findViewById<View>(R.id.protocolGroup).visibility = View.GONE
-        if (server.isNfs) nfsRadio.isChecked = true else smbRadio.isChecked = true
 
         displayNameEdit.setText(server.displayName)
-        if (server.isNfs) {
-            hostEdit.setText(server.host)
-            dialogView.findViewById<android.widget.AutoCompleteTextView>(R.id.exportEditText)
-                .setText(server.export)
-            dialogView.findViewById<EditText>(R.id.uidEditText).setText(server.uid.toString())
-            dialogView.findViewById<EditText>(R.id.gidEditText).setText(server.gid.toString())
-            if (server.uid != 0 || server.gid != 0) {
-                dialogView.findViewById<android.widget.CheckBox>(R.id.nfsAdvancedCheckBox)
-                    .isChecked = true
-            }
+        val fullAddress = if (server.share.isNotBlank()) {
+            val p = if (server.path.isNotBlank()) "/${server.path}" else ""
+            "${server.host}/${server.share}$p"
         } else {
-            val fullAddress = if (server.share.isNotBlank()) {
-                val p = if (server.path.isNotBlank()) "/${server.path}" else ""
-                "${server.host}/${server.share}$p"
-            } else {
-                server.host
-            }
-            hostEdit.setText(fullAddress)
-            val usernameEdit = dialogView.findViewById<EditText>(R.id.usernameEditText)
-            val passwordEdit = dialogView.findViewById<EditText>(R.id.passwordEditText)
-            val guestCheckBox =
-                dialogView.findViewById<android.widget.CheckBox>(R.id.guestCheckBox)
-            usernameEdit.setText(server.username)
-            passwordEdit.setText(server.password)
-            guestCheckBox.isChecked = server.isGuest
-            usernameEdit.isEnabled = !server.isGuest
-            passwordEdit.isEnabled = !server.isGuest
-            guestCheckBox.setOnCheckedChangeListener { _, isChecked ->
-                usernameEdit.isEnabled = !isChecked
-                passwordEdit.isEnabled = !isChecked
-            }
+            server.host
+        }
+        hostEdit.setText(fullAddress)
+        val usernameEdit = dialogView.findViewById<EditText>(R.id.usernameEditText)
+        val passwordEdit = dialogView.findViewById<EditText>(R.id.passwordEditText)
+        val guestCheckBox =
+            dialogView.findViewById<android.widget.CheckBox>(R.id.guestCheckBox)
+        usernameEdit.setText(server.username)
+        passwordEdit.setText(server.password)
+        guestCheckBox.isChecked = server.isGuest
+        usernameEdit.isEnabled = !server.isGuest
+        passwordEdit.isEnabled = !server.isGuest
+        guestCheckBox.setOnCheckedChangeListener { _, isChecked ->
+            usernameEdit.isEnabled = !isChecked
+            passwordEdit.isEnabled = !isChecked
         }
 
         AlertDialog.Builder(this)
@@ -1158,11 +1191,10 @@ class NetworkBrowseActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun showAddServerDialog(prefillNfsHost: String? = null) {
+    private fun showAddServerDialog() {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_network_connect, null)
         val hostEdit = dialogView.findViewById<EditText>(R.id.hostEditText)
         hostEdit.visibility = View.VISIBLE
-        bindProtocolSwitch(dialogView)
 
         val guestCheckBox = dialogView.findViewById<android.widget.CheckBox>(R.id.guestCheckBox)
         val usernameEdit = dialogView.findViewById<EditText>(R.id.usernameEditText)
@@ -1170,12 +1202,6 @@ class NetworkBrowseActivity : AppCompatActivity() {
         guestCheckBox.setOnCheckedChangeListener { _, isChecked ->
             usernameEdit.isEnabled = !isChecked
             passwordEdit.isEnabled = !isChecked
-        }
-
-        if (prefillNfsHost != null) {
-            dialogView.findViewById<android.widget.RadioButton>(R.id.protocolNfsRadio)
-                .isChecked = true
-            hostEdit.setText(prefillNfsHost)
         }
 
         AlertDialog.Builder(this)
@@ -1192,5 +1218,5 @@ class NetworkBrowseActivity : AppCompatActivity() {
 }
 
 /**
- * RecyclerView adapter for network (SMB/NFS) browse file listing.
+ * RecyclerView adapter for network (SMB) browse file listing.
  */

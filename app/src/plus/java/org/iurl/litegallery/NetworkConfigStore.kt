@@ -47,11 +47,7 @@ object NetworkConfigStore {
         }
     }
 
-    /**
-     * The saved server for [host] that uses [protocol], or null. Filtering by protocol
-     * matters when a host has both an SMB and an NFS entry: an SMB caller must not
-     * receive the NFS config (which carries no share/credentials) or vice versa.
-     */
+    /** The saved server for [host] that uses [protocol], or null. */
     fun getServerByHost(context: Context, host: String, protocol: String): NetworkServerConfig? {
         return getAllServers(context).find {
             it.protocol == protocol && it.host.equals(host, ignoreCase = true)
@@ -94,6 +90,9 @@ object NetworkConfigStore {
             saveServers(context, servers)
         }
     }
+
+    /** Whether passwords can be saved (encrypted) on this device; they are never saved as plain text. */
+    fun canSavePasswords(): Boolean = PasswordCipher.encrypt("check") != null
 
     fun deleteServer(context: Context, id: String) {
         val servers = getAllServers(context).toMutableList()
@@ -143,8 +142,7 @@ object NetworkConfigStore {
         a.protocol == b.protocol &&
             a.host.equals(b.host, ignoreCase = true) &&
             a.share.equals(b.share, ignoreCase = true) &&
-            a.path.trim('/').equals(b.path.trim('/'), ignoreCase = true) &&
-            a.export.trimEnd('/') == b.export.trimEnd('/')
+            a.path.trim('/').equals(b.path.trim('/'), ignoreCase = true)
 
     @Synchronized
     private fun saveServers(context: Context, servers: List<NetworkServerConfig>) {
@@ -172,39 +170,31 @@ object NetworkConfigStore {
             put("port", config.port)
             put("username", config.username)
             if (includePassword) {
-                val encrypted = PasswordCipher.encrypt(config.password)
-                if (encrypted != null) {
-                    put(KEY_PASSWORD, encrypted)
-                } else {
-                    // The Keystore is unusable on this device. Rather than lose the login, keep the
-                    // password as before; it is encrypted at the next save once the Keystore works.
-                    put(KEY_LEGACY_PASSWORD, config.password)
-                }
+                // Never as plain text: if the Keystore cannot encrypt it, the password is not
+                // saved at all and has to be entered again (see canSavePasswords).
+                PasswordCipher.encrypt(config.password)?.let { put(KEY_PASSWORD, it) }
             }
             put("isGuest", config.isGuest)
-            put("export", config.export)
-            put("uid", config.uid)
-            put("gid", config.gid)
         }
     }
 
     private fun parseServer(json: JSONObject): NetworkServerConfig? {
+        // Entries without a protocol field are SMB. Other protocols (NFS of earlier versions)
+        // are no longer supported: such entries are left out (and gone with the next save).
+        val protocol = json.optString("protocol", NetworkServerConfig.PROTOCOL_SMB)
+        if (protocol != NetworkServerConfig.PROTOCOL_SMB) return null
         return try {
             NetworkServerConfig(
                 id = json.optString("id", UUID.randomUUID().toString()),
                 displayName = json.optString("displayName", ""),
                 host = json.optString("host", ""),
-                // Entries saved before the NFS feature have no protocol field: they are SMB.
-                protocol = json.optString("protocol", NetworkServerConfig.PROTOCOL_SMB),
+                protocol = protocol,
                 share = json.optString("share", ""),
                 path = json.optString("path", ""),
                 port = json.optInt("port", 445),
                 username = json.optString("username", ""),
                 password = readPassword(json),
-                isGuest = json.optBoolean("isGuest", false),
-                export = json.optString("export", ""),
-                uid = json.optInt("uid", 0),
-                gid = json.optInt("gid", 0)
+                isGuest = json.optBoolean("isGuest", false)
             )
         } catch (e: Exception) {
             null

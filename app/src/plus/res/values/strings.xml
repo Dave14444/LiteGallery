@@ -2,7 +2,7 @@
 <resources>
     <!-- SMB Settings (plus flavor only) -->
     <string name="network_browse_title">Network Shares</string>
-    <string name="network_address_hint">smb:// or nfs:// address</string>
+    <string name="network_address_hint">smb:// address</string>
     <string name="smb_connect_button">Go</string>
     <string name="smb_saved_servers">Saved Servers</string>
     <string name="smb_add_server">Add Server</string>
@@ -29,19 +29,8 @@
     <string name="smb_username_hint">Username</string>
     <string name="smb_password_hint">Password</string>
 
-    <!-- Network protocol selection and NFS fields (plus flavor only) -->
+    <!-- Network protocol badge (plus flavor only) -->
     <string name="protocol_smb">SMB</string>
-    <string name="protocol_nfs">NFS</string>
-    <string name="nfs_export_hint">Export path (e.g. /volume1/photo)</string>
-    <string name="nfs_list_exports">List exports</string>
-    <string name="nfs_no_exports_found">No exports found — enter the path manually</string>
-    <string name="nfs_show_advanced">Advanced (UID/GID)</string>
-    <string name="nfs_uid_hint">UID</string>
-    <string name="nfs_gid_hint">GID</string>
-    <string name="nfs_enter_export">Please choose or enter an export path</string>
-    <string name="nfs_error_unreachable">NFS service unreachable. Check that NFS is enabled on the server and the firewall allows ports 111 and 2049.</string>
-    <string name="nfs_error_mount_denied">Mount denied. Check the export\'s IP allowlist and permissions, and allow connections from non-privileged ports in the NAS NFS settings.</string>
-    <string name="nfs_error_access">Read permission denied. Adjust the advanced UID/GID values or the export\'s squash setting.</string>
 
     <!-- Network folder view and cover pictures -->
     <string name="smb_cover_choose">Choose cover picture</string>
@@ -74,4 +63,39 @@
     <string name="smb_error_reading_original">%s when reading the original</string>
     <string name="smb_error_as_guest">as guest</string>
     <string name="smb_error_as_user">as “%s”</string>
+
+    <!-- Home Wi-Fi and VPN, NAS recognition, encryption -->
+    <string name="network_access_settings_title">Home network and security</string>
+    <string name="network_access_require_vpn">Outside the home network only with VPN</string>
+    <string name="network_access_require_vpn_summary">In the home Wi-Fi LiteGallery connects to the NAS directly. In any other Wi-Fi and on mobile data only once the VPN is on; otherwise the app asks for it as soon as you open a network connection.</string>
+    <string name="network_access_home_wifi_hint">Name of the home Wi-Fi</string>
+    <string name="network_access_use_current_wifi">Use current Wi-Fi</string>
+    <string name="network_access_enter_home_wifi">Please enter the name of your home Wi-Fi</string>
+    <string name="network_access_title">Switch on the VPN</string>
+    <string name="network_access_no_wifi">You are not in the home network “%1$s” but on mobile data. Switch on the VPN first.</string>
+    <string name="network_access_other_wifi">You are in another Wi-Fi than “%1$s”. Switch on the VPN first.</string>
+    <string name="network_access_no_permission">Without the location permission LiteGallery cannot tell whether you are in the home network “%1$s”. Switch on the VPN or grant the permission.</string>
+    <string name="network_access_location_off">With the location switched off LiteGallery cannot tell whether you are in the home network “%1$s”. Switch on the VPN or the location.</string>
+    <string name="network_access_unknown">The name of the Wi-Fi cannot be read right now, so it is unclear whether you are in the home network “%1$s”. Switch on the VPN first.</string>
+    <string name="network_access_waiting">As soon as that is done, it goes on by itself.</string>
+    <string name="network_access_open_app">Open %1$s</string>
+    <string name="network_access_open_vpn_settings">VPN settings</string>
+    <string name="network_access_grant">Grant permission</string>
+    <string name="network_access_location_on">Switch on location</string>
+    <string name="network_access_permission_title">Recognize the Wi-Fi</string>
+    <string name="network_access_permission_explanation">Android tells the name of the connected Wi-Fi only to apps with the location permission. LiteGallery uses it only to recognize your home Wi-Fi and does not determine your location. Please choose “Precise” and “While using the app”.</string>
+    <string name="network_access_permission_continue">Continue</string>
+    <string name="network_access_permission_denied">Without the “Precise location” permission LiteGallery cannot recognize your home Wi-Fi. You can grant it later in the app settings.</string>
+    <string name="network_access_location_is_off">Location is switched off, so Android does not tell the name of the Wi-Fi.</string>
+    <string name="network_access_no_wifi_now">No Wi-Fi connected right now (or Android does not tell its name).</string>
+    <string name="smb_encrypt_title">Encrypt the transfer (SMB3)</string>
+    <string name="smb_encrypt_summary">Encrypts everything between phone and NAS, also in the home network. The NAS has to allow SMB3. Guest connections cannot be encrypted. Large transfers may get a little slower.</string>
+    <string name="smb_encryption_unavailable">The NAS does not offer an encrypted transfer (SMB3). Allow SMB3 in the settings of the NAS or switch off the encryption under “Home network and security”.</string>
+    <string name="nas_identity_title">NAS recognition</string>
+    <string name="nas_identity_summary">LiteGallery remembers your NAS when you first log in. If another device answers at its address later, the app sends no login there.</string>
+    <string name="nas_identity_changed_title">Unknown device</string>
+    <string name="nas_identity_changed">Another device than your NAS answered at %1$s. To be safe, no login was sent.</string>
+    <string name="nas_identity_changed_hint">If you replaced, reset or renamed the NAS, you can accept the new device. Otherwise please cancel, above all in a foreign network.</string>
+    <string name="nas_identity_accept">Accept new device</string>
+    <string name="smb_password_not_saved">Connection saved, but the password could not be encrypted on this device and was therefore not saved.</string>
 </resources>

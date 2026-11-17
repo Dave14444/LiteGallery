@@ -8,7 +8,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 
 /**
- * Custom ExoPlayer DataSource that reads from remote shares (SMB, NFS) via the
+ * Custom ExoPlayer DataSource that reads from network shares (SMB) via the
  * RemoteFileClient seam. Uses RemoteRandomAccessFile.readAt directly for proper
  * random access and seeking.
  */

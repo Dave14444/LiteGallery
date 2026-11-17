@@ -88,8 +88,7 @@ class NetworkTrashActivity : AppCompatActivity() {
     private fun shareLabel(): String {
         val smb = SmbPath.parse(shareUrl) ?: return shareUrl
         val server = NetworkConfigStore.getAllServers(this).firstOrNull {
-            !it.isNfs &&
-                it.host.equals(smb.host, ignoreCase = true) &&
+            it.host.equals(smb.host, ignoreCase = true) &&
                 it.share.equals(smb.share, ignoreCase = true)
         }
         return server?.displayName?.takeIf { it.isNotBlank() } ?: "${smb.host}/${smb.share}"

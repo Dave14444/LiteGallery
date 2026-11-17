@@ -15,8 +15,8 @@ class RemoteClientsTest {
     }
 
     @Test
-    fun forUrl_routesNfsUrlsToNfsFileClient() {
-        assertSame(NfsFileClient, RemoteClients.forUrl("nfs://host/volume1/photo/file.jpg"))
+    fun forUrl_nfsIsNoLongerSupported() {
+        assertNull(RemoteClients.forUrl("nfs://host/volume1/photo/file.jpg"))
     }
 
     @Test
@@ -26,16 +26,16 @@ class RemoteClientsTest {
     }
 
     @Test
-    fun forProtocol_routesBothProtocols() {
+    fun forProtocol_routesSmb() {
         assertSame(SmbFileClient, RemoteClients.forProtocol(NetworkServerConfig.PROTOCOL_SMB))
-        assertSame(NfsFileClient, RemoteClients.forProtocol(NetworkServerConfig.PROTOCOL_NFS))
+        assertNull(RemoteClients.forProtocol("nfs"))
         assertNull(RemoteClients.forProtocol("gopher"))
     }
 
     @Test
-    fun isRemote_matchesSmbAndNfsSchemesOnly() {
+    fun isRemote_matchesSmbOnly() {
         assertTrue(RemotePath.isRemote("smb://host/share"))
-        assertTrue(RemotePath.isRemote("nfs://host/volume1/photo"))
+        assertFalse(RemotePath.isRemote("nfs://host/volume1/photo"))
         assertFalse(RemotePath.isRemote("/sdcard/x.jpg"))
         assertFalse(RemotePath.isRemote("https://example.com/a.jpg"))
     }

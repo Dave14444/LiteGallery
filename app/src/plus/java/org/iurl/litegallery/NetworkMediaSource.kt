@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
 /**
- * [MediaSource] implementation for network shares (SMB and NFS).
+ * [MediaSource] implementation for network shares (SMB).
  *
  * Only present in the `plus` flavor. It works through the protocol-agnostic
  * [RemoteClients] seam and is registered with [MediaSourceRegistry] at startup
@@ -122,7 +122,7 @@ object NetworkMediaSource : MediaSource {
 
     override fun destinationRoots(context: Context): List<FolderEntry> =
         NetworkConfigStore.getAllServers(context)
-            .filter { server -> !server.isNfs && server.share.isNotBlank() }
+            .filter { server -> server.share.isNotBlank() }
             .map { server ->
                 FolderEntry(server.displayName.ifBlank { server.host }, server.rootUrl())
             }
@@ -213,7 +213,7 @@ object NetworkMediaSource : MediaSource {
 
     override fun trashLocations(context: Context): List<TrashLocation> =
         NetworkConfigStore.getAllServers(context)
-            .filter { server -> !server.isNfs && server.share.isNotBlank() }
+            .filter { server -> server.share.isNotBlank() }
             .map { server ->
                 TrashLocation(server.displayName.ifBlank { server.host }) { activity ->
                     activity.startActivity(

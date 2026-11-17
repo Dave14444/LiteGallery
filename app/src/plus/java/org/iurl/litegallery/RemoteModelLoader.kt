@@ -13,7 +13,7 @@ import java.io.InputStream
 
 /**
  * Glide ModelLoader for loading images from remote shares. Intercepts String models
- * starting with a remote scheme (smb://, nfs://) and loads them via [RemoteClients].
+ * starting with smb:// and loads them via [RemoteClients].
  */
 class RemoteModelLoader(private val context: Context) : ModelLoader<String, InputStream> {
 

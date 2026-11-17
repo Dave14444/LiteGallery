@@ -28,7 +28,7 @@
 
     <!-- Netzwerkfreigaben -->
     <string name="network_browse_title">Netzlaufwerke</string>
-    <string name="network_address_hint">smb://- oder nfs://-Adresse</string>
+    <string name="network_address_hint">smb://-Adresse</string>
     <string name="smb_connect_button">Los</string>
     <string name="smb_saved_servers">Gespeicherte Server</string>
     <string name="smb_add_server">Server hinzufügen</string>
@@ -55,17 +55,6 @@
     <string name="smb_username_hint">Benutzername</string>
     <string name="smb_password_hint">Passwort</string>
     <string name="protocol_smb">SMB</string>
-    <string name="protocol_nfs">NFS</string>
-    <string name="nfs_export_hint">Exportpfad (z. B. /volume1/photo)</string>
-    <string name="nfs_list_exports">Exporte auflisten</string>
-    <string name="nfs_no_exports_found">Keine Exporte gefunden – Pfad manuell eingeben</string>
-    <string name="nfs_show_advanced">Erweitert (UID/GID)</string>
-    <string name="nfs_uid_hint">UID</string>
-    <string name="nfs_gid_hint">GID</string>
-    <string name="nfs_enter_export">Bitte einen Exportpfad auswählen oder eingeben</string>
-    <string name="nfs_error_unreachable">NFS-Dienst nicht erreichbar. Prüfe, ob NFS auf dem Server aktiviert ist und die Firewall die Ports 111 und 2049 erlaubt.</string>
-    <string name="nfs_error_mount_denied">Einbinden verweigert. Prüfe die IP-Freigabeliste und die Berechtigungen des Exports und erlaube in den NFS-Einstellungen des NAS Verbindungen von nicht privilegierten Ports.</string>
-    <string name="nfs_error_access">Leseberechtigung verweigert. Passe die erweiterten UID/GID-Werte oder die Squash-Einstellung des Exports an.</string>
     <!-- Warum das Schreiben auf eine Freigabe fehlschlug (in der Liste der nicht kopierten Dateien) -->
     <string name="smb_error_creating">%1$s beim Anlegen von „%2$s“ %3$s</string>
     <string name="smb_error_writing">%1$s beim Schreiben von „%2$s“ %3$s</string>
@@ -73,4 +62,39 @@
     <string name="smb_error_reading_original">%s beim Lesen des Originals</string>
     <string name="smb_error_as_guest">als Gast</string>
     <string name="smb_error_as_user">als „%s“</string>
+
+    <!-- Heimnetz und VPN, NAS-Wiedererkennung, Verschlüsselung -->
+    <string name="network_access_settings_title">Heimnetz und Sicherheit</string>
+    <string name="network_access_require_vpn">Außerhalb des Heimnetzes nur mit VPN</string>
+    <string name="network_access_require_vpn_summary">Im Heim-WLAN verbindet sich LiteGallery direkt mit der NAS. In jedem anderen WLAN und über mobile Daten erst, wenn das VPN eingeschaltet ist – sonst bittet die App darum, sobald du eine Netzwerkverbindung öffnest.</string>
+    <string name="network_access_home_wifi_hint">Name des Heim-WLANs</string>
+    <string name="network_access_use_current_wifi">Aktuelles WLAN übernehmen</string>
+    <string name="network_access_enter_home_wifi">Bitte den Namen deines Heim-WLANs eintragen</string>
+    <string name="network_access_title">VPN einschalten</string>
+    <string name="network_access_no_wifi">Du bist nicht im Heimnetz „%1$s“, sondern über mobile Daten verbunden. Schalte zuerst das VPN ein.</string>
+    <string name="network_access_other_wifi">Du bist in einem anderen WLAN als „%1$s“. Schalte zuerst das VPN ein.</string>
+    <string name="network_access_no_permission">Ohne die Standort-Berechtigung kann LiteGallery nicht erkennen, ob du im Heimnetz „%1$s“ bist. Schalte das VPN ein oder erteile die Berechtigung.</string>
+    <string name="network_access_location_off">Bei ausgeschaltetem Standort kann LiteGallery nicht erkennen, ob du im Heimnetz „%1$s“ bist. Schalte das VPN oder den Standort ein.</string>
+    <string name="network_access_unknown">Der Name des WLANs ist gerade nicht lesbar, daher ist unklar, ob du im Heimnetz „%1$s“ bist. Schalte zuerst das VPN ein.</string>
+    <string name="network_access_waiting">Sobald das erledigt ist, geht es von selbst weiter.</string>
+    <string name="network_access_open_app">%1$s öffnen</string>
+    <string name="network_access_open_vpn_settings">VPN-Einstellungen</string>
+    <string name="network_access_grant">Berechtigung erteilen</string>
+    <string name="network_access_location_on">Standort einschalten</string>
+    <string name="network_access_permission_title">WLAN erkennen</string>
+    <string name="network_access_permission_explanation">Android verrät den Namen des verbundenen WLANs nur Apps mit der Standort-Berechtigung. LiteGallery nutzt sie ausschließlich, um dein Heim-WLAN zu erkennen, und ermittelt keinen Standort. Bitte „Genau“ und „Während der Nutzung der App“ wählen.</string>
+    <string name="network_access_permission_continue">Weiter</string>
+    <string name="network_access_permission_denied">Ohne die Berechtigung „Genauer Standort“ kann LiteGallery dein Heim-WLAN nicht erkennen. Du kannst sie später in den App-Einstellungen erteilen.</string>
+    <string name="network_access_location_is_off">Der Standort ist ausgeschaltet – so verrät Android den Namen des WLANs nicht.</string>
+    <string name="network_access_no_wifi_now">Gerade ist kein WLAN verbunden (oder Android verrät seinen Namen nicht).</string>
+    <string name="smb_encrypt_title">Übertragung verschlüsseln (SMB3)</string>
+    <string name="smb_encrypt_summary">Verschlüsselt alles zwischen Handy und NAS, auch im Heimnetz. Die NAS muss SMB3 erlauben. Gast-Verbindungen lassen sich nicht verschlüsseln. Große Übertragungen können etwas langsamer werden.</string>
+    <string name="smb_encryption_unavailable">Die NAS bietet keine verschlüsselte Übertragung an (SMB3). Erlaube SMB3 in den Einstellungen der NAS oder schalte die Verschlüsselung unter „Heimnetz und Sicherheit“ aus.</string>
+    <string name="nas_identity_title">NAS-Wiedererkennung</string>
+    <string name="nas_identity_summary">LiteGallery merkt sich deine NAS bei der ersten Anmeldung. Meldet sich unter ihrer Adresse später ein anderes Gerät, sendet die App dort keine Anmeldedaten.</string>
+    <string name="nas_identity_changed_title">Unbekanntes Gerät</string>
+    <string name="nas_identity_changed">Unter %1$s hat sich ein anderes Gerät gemeldet als deine NAS. Zur Sicherheit wurden keine Anmeldedaten gesendet.</string>
+    <string name="nas_identity_changed_hint">Hast du die NAS ersetzt, zurückgesetzt oder umbenannt, kannst du das neue Gerät übernehmen. Sonst bitte abbrechen – vor allem in einem fremden Netz.</string>
+    <string name="nas_identity_accept">Neues Gerät übernehmen</string>
+    <string name="smb_password_not_saved">Verbindung gespeichert – das Passwort ließ sich auf diesem Gerät aber nicht verschlüsseln und wurde deshalb nicht gespeichert.</string>
 </resources>

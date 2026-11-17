@@ -16,4 +16,9 @@
         android:id="@+id/action_cleanup_thumbnails"
         android:title="@string/thumb_cleanup_menu"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_network_access"
+        android:title="@string/network_access_settings_title"
+        app:showAsAction="never" />
 </menu>

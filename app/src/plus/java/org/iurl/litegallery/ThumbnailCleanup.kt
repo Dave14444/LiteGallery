@@ -33,7 +33,6 @@ object ThumbnailCleanup {
         // Only the folders of the saved connections (e.g. ".../David/Bilder"), not everything
         // else on the share. The trash folder is hidden, but its previews are shown too.
         val connectionRoots = NetworkConfigStore.getAllServers(context)
-            .filter { !it.isNfs }
             .map { it.rootUrl() }
         val queue = ArrayDeque<String>().apply {
             addAll(searchRoots(root, connectionRoots))

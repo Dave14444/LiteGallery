@@ -26,10 +26,10 @@ class RemoteModelLoaderTest {
     }
 
     @Test
-    fun isRemoteImage_acceptsSmbAndNfsImageExtensions() {
+    fun isRemoteImage_acceptsSmbImageExtensions() {
         assertTrue(RemoteModelLoader.isRemoteImage("smb://host/share/photo.JPG"))
         assertTrue(RemoteModelLoader.isRemoteImage("smb://host/share/folder/image.heic"))
-        assertTrue(RemoteModelLoader.isRemoteImage("nfs://host/volume1/photo/image.png"))
+        assertFalse(RemoteModelLoader.isRemoteImage("nfs://host/volume1/photo/image.png"))
         assertFalse(RemoteModelLoader.isRemoteImage("smb://host/share/video.mp4"))
         assertFalse(RemoteModelLoader.isRemoteImage("nfs://host/volume1/video.mp4"))
         assertFalse(RemoteModelLoader.isRemoteImage("smb://host/share/no-extension"))
@@ -39,7 +39,7 @@ class RemoteModelLoaderTest {
     @Test
     fun handles_returnsTrueOnlyForRemoteImages() {
         assertTrue(loader.handles("smb://host/share/photo.webp"))
-        assertTrue(loader.handles("nfs://host/volume1/photo.webp"))
+        assertFalse(loader.handles("nfs://host/volume1/photo.webp"))
         assertFalse(loader.handles("smb://host/share/movie.mkv"))
         assertFalse(loader.handles("content://media/external/images/media/1"))
     }
@@ -47,7 +47,6 @@ class RemoteModelLoaderTest {
     @Test
     fun buildLoadData_returnsFetcherOnlyForRemoteImages() {
         assertNotNull(loader.buildLoadData("smb://host/share/photo.png", 100, 100, Options()))
-        assertNotNull(loader.buildLoadData("nfs://host/volume1/photo.png", 100, 100, Options()))
         assertNull(loader.buildLoadData("smb://host/share/movie.mp4", 100, 100, Options()))
         assertNull(loader.buildLoadData("/storage/emulated/0/DCIM/photo.png", 100, 100, Options()))
     }

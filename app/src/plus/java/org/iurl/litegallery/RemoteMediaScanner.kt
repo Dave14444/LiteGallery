@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 
 /**
- * Scans remote shares (SMB, NFS) for media files and folders via the RemoteClients seam.
+ * Scans network shares (SMB) for media files and folders via the RemoteClients seam.
  */
 class RemoteMediaScanner(private val context: Context) {
 

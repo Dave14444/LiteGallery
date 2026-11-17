@@ -28,7 +28,19 @@ import java.util.concurrent.TimeUnit
  */
 object SmbClient {
 
-    private val client: SMBClient by lazy {
+    private var smbClient: SMBClient? = null
+    @Volatile
+    private var smbClientEncrypts = false
+
+    /** The smbj client; made anew (and all connections closed) when the encryption setting changed. */
+    @Synchronized
+    private fun client(): SMBClient {
+        val encrypt = NetworkAccess.context()?.let { NetworkAccess.encryptTraffic(it) } ?: false
+        smbClient?.let { if (smbClientEncrypts == encrypt) return it }
+        smbClient?.let { old ->
+            disconnectAll()
+            Thread { try { old.close() } catch (_: Exception) {} }.start()
+        }
         val config = SmbjConfig.builder()
             .withTimeout(60, TimeUnit.SECONDS)
             // Without a socket timeout a connection that silently died (Wi-Fi changed, NAS
@@ -37,9 +49,52 @@ object SmbClient {
             // closes a connection that has been quiet for a long time. Long enough not to drop
             // a connection while one picture is being looked at.
             .withSoTimeout(SOCKET_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            // SMB3 encryption is offered to the NAS (and required, see openConnection).
+            .withEncryptData(encrypt)
             .build()
-        SMBClient(config)
+        return SMBClient(config).also {
+            smbClient = it
+            smbClientEncrypts = encrypt
+        }
     }
+
+    /** The NAS does not encrypt although encryption is switched on: no login was sent. */
+    class EncryptionUnavailableException(message: String) : java.io.IOException(message)
+
+    /**
+     * Opens a connection to [config]'s NAS: only where the network rule allows it (home Wi-Fi or
+     * VPN, see NetworkAccess), and only to the NAS known at that address (see ServerIdentity).
+     * Both are checked before any login is sent.
+     */
+    private fun openConnection(config: NetworkServerConfig): Connection {
+        NetworkAccess.requireAllowed()
+        val connection = client().connect(config.host, config.port)
+        try {
+            val context = NetworkAccess.context()
+            if (context != null) {
+                ServerIdentity.check(context, config.host, config.port, connection.connectionContext.serverGuid)
+                if (smbClientEncrypts && !connection.connectionContext.clientPrefersEncryption()) {
+                    throw EncryptionUnavailableException(context.getString(R.string.smb_encryption_unavailable))
+                }
+            }
+        } catch (e: Exception) {
+            Thread { try { connection.close() } catch (_: Exception) {} }.start()
+            throw e
+        }
+        return connection
+    }
+
+    /** After a successful login: the NAS at this address is remembered (the first time). */
+    private fun rememberServer(config: NetworkServerConfig, connection: Connection) {
+        val context = NetworkAccess.context() ?: return
+        ServerIdentity.remember(context, config.host, config.port, connection.connectionContext.serverGuid)
+    }
+
+    /** Failures the user has to act on (VPN, another NAS, no encryption): passed on as they are. */
+    internal fun isAccessProblem(e: Throwable): Boolean =
+        e is NetworkAccess.NotAllowedException ||
+            e is ServerIdentity.ChangedException ||
+            e is EncryptionUnavailableException
 
     private const val SOCKET_TIMEOUT_SECONDS = 300L
 
@@ -157,6 +212,7 @@ object SmbClient {
             }
         } catch (e: Exception) {
             android.util.Log.e("SmbClient", "Failed to list files: $dirPath on $shareName", e)
+            if (isAccessProblem(e)) throw e
             throw SmbException("Failed to list files: ${e.message}", e)
         }
     }
@@ -819,7 +875,7 @@ object SmbClient {
      */
     fun testConnection(config: NetworkServerConfig): Boolean {
         return try {
-            val connection = client.connect(config.host, config.port)
+            val connection = openConnection(config)
             val authContext = if (config.isGuest) {
                 AuthenticationContext.guest()
             } else {
@@ -830,11 +886,13 @@ object SmbClient {
                 )
             }
             val session = connection.authenticate(authContext)
+            rememberServer(config, connection)
             session.close()
             connection.close()
             true
         } catch (e: Exception) {
             android.util.Log.e("SmbClient", "Connection test failed for ${config.host}", e)
+            if (isAccessProblem(e)) throw e
             false
         }
     }
@@ -902,7 +960,7 @@ object SmbClient {
             Thread { try { it.close() } catch (_: Exception) {} }.start()
         }
 
-        val connection = client.connect(config.host, config.port)
+        val connection = openConnection(config)
         connections[config.host] = connection
         return connection
     }
@@ -941,6 +999,7 @@ object SmbClient {
             )
         }
         val session = connection.authenticate(authContext)
+        rememberServer(config, connection)
         sessions[key] = session
         return session
     }
@@ -995,6 +1054,8 @@ object SmbClient {
         val chain = generateSequence(e) { it.cause }.take(8).toList()
         // Stopped on purpose (e.g. "Cancel"): not a connection problem.
         if (chain.any { it is InterruptedException }) return false
+        // Not opened on purpose (no VPN, another NAS): trying again would not help.
+        if (chain.any { isAccessProblem(it) }) return false
         if (chain.any { it is java.net.SocketTimeoutException || it is java.util.concurrent.TimeoutException }) {
             return true
         }
