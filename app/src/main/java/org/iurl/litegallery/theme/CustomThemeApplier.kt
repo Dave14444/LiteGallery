@@ -217,8 +217,8 @@ object CustomThemeApplier {
     private fun applyCard(card: MaterialCardView, palette: CustomThemePalette, defaults: CustomThemePalette) {
         mapSurfaceColor(card.cardBackgroundColor.defaultColor, defaults, palette)
             ?.let { card.setCardBackgroundColor(it) }
-        mapColor(card.strokeColor, defaults, palette)
-            ?.let { card.strokeColor = it }
+        mapColor(card.strokeColorStateList?.defaultColor ?: -1, defaults, palette)
+            ?.let { card.setStrokeColor(android.content.res.ColorStateList.valueOf(it)) }
     }
 
     private fun applyButton(button: MaterialButton, palette: CustomThemePalette, defaults: CustomThemePalette) {

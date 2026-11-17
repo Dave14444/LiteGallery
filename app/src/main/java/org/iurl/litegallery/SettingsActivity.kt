@@ -32,7 +32,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
 
         // Handle window insets for navigation bar
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         }
         binding.root.setOnApplyWindowInsetsListener { view, insets ->
             val navigationInsets = insets.getInsets(android.view.WindowInsets.Type.navigationBars())
@@ -97,7 +97,6 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             pref.fragment!!
         ).apply {
             arguments = args
-            setTargetFragment(caller, 0)
         }
         supportFragmentManager.beginTransaction()
             .replace(R.id.settings_container, fragment)
@@ -1070,7 +1069,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                 androidx.recyclerview.widget.ItemTouchHelper.UP or androidx.recyclerview.widget.ItemTouchHelper.DOWN, 0
             ) {
                 override fun onMove(rv: androidx.recyclerview.widget.RecyclerView, vh: androidx.recyclerview.widget.RecyclerView.ViewHolder, target: androidx.recyclerview.widget.RecyclerView.ViewHolder): Boolean {
-                    adapter.moveItem(vh.adapterPosition, target.adapterPosition)
+                    adapter.moveItem(vh.bindingAdapterPosition, target.bindingAdapterPosition)
                     return true
                 }
                 override fun onSwiped(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder, direction: Int) {}

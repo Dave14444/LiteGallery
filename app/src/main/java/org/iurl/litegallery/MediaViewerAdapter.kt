@@ -149,7 +149,7 @@ class MediaViewerAdapter(
                 // Load video thumbnail as fallback (skip for SMB - can't extract frames from network)
                 if (!mediaItem.isRemote) {
                     val context = binding.root.context
-                    if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+                    if (context is androidx.fragment.app.FragmentActivity && !context.isDestroyed && !context.isFinishing) {
                         binding.videoThumbnail?.clearColorFilter()
                         Glide.with(context)
                             .load(
@@ -193,7 +193,7 @@ class MediaViewerAdapter(
                 
                 // Load image with Glide
                 val context = binding.root.context
-                if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+                if (context is androidx.fragment.app.FragmentActivity && !context.isDestroyed && !context.isFinishing) {
                     val signature = ObjectKey("${mediaItem.path}_${mediaItem.dateModified}_${mediaItem.size}")
                     // From a network share: show how much has arrived (before the request starts,
                     // a picture from the cache is ready at once).
@@ -478,7 +478,7 @@ class MediaViewerAdapter(
             stopLoadingProgress()
             binding.photoImageView.setFullResolutionSource(null)
             val context = binding.root.context
-            if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+            if (context is androidx.fragment.app.FragmentActivity && !context.isDestroyed && !context.isFinishing) {
                 com.bumptech.glide.Glide.with(context).clear(binding.photoImageView)
             }
         }
@@ -500,7 +500,7 @@ class MediaViewerAdapter(
                 if (binding.videoContainer.visibility != View.VISIBLE) {
                     // Clear any existing image content
                     val context = binding.root.context
-                    if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+                    if (context is androidx.fragment.app.FragmentActivity && !context.isDestroyed && !context.isFinishing) {
                         com.bumptech.glide.Glide.with(context).clear(binding.photoImageView)
                     }
                     binding.photoImageView.visibility = View.GONE
@@ -542,7 +542,7 @@ class MediaViewerAdapter(
             
             // Clear image from Glide
             val context = binding.root.context
-            if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+            if (context is androidx.fragment.app.FragmentActivity && !context.isDestroyed && !context.isFinishing) {
                 com.bumptech.glide.Glide.with(context).clear(binding.photoImageView)
             }
             

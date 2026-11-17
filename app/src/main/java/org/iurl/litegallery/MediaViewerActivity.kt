@@ -280,6 +280,9 @@ class MediaViewerActivity : AppCompatActivity() {
         com.bumptech.glide.Glide.get(this).clearMemory()
     }
     
+    // The RUNNING_* and MODERATE/COMPLETE levels are only sent up to Android 13; newer versions
+    // send none of them, so these cases just stay quiet there.
+    @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         android.util.Log.w("MediaViewerActivity", "Memory trim requested: level $level")
@@ -301,7 +304,7 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun setupFullScreen() {
         // Use WindowInsetsController for proper insets handling with 3-button navigation
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
             val controller = window.insetsController
             controller?.hide(android.view.WindowInsets.Type.statusBars())
             controller?.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE

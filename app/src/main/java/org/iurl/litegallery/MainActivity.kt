@@ -103,7 +103,7 @@ class MainActivity : AppCompatActivity() {
 
         // Handle window insets for navigation bar
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         }
         binding.root.setOnApplyWindowInsetsListener { view, insets ->
             val navigationInsets = insets.getInsets(android.view.WindowInsets.Type.navigationBars())
@@ -362,7 +362,7 @@ class MainActivity : AppCompatActivity() {
                 view.post {
                     view.requestFocus()
                     val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-                    imm?.showSoftInput(view.findFocus() ?: view, InputMethodManager.SHOW_IMPLICIT)
+                    imm?.showSoftInput(view.findFocus() ?: view, 0)
                 }
                 return true
             }

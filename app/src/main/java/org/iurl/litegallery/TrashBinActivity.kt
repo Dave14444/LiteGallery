@@ -69,7 +69,7 @@ class TrashBinActivity : AppCompatActivity() {
 
         // Handle window insets for status/navigation bars.
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         }
         binding.root.setOnApplyWindowInsetsListener { view, insets ->
             val navigationInsets = insets.getInsets(android.view.WindowInsets.Type.navigationBars())
