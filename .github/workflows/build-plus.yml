@@ -15,22 +15,25 @@ on:
 permissions:
   contents: read
 
+# The actions are pinned to fixed commits: a changed version tag cannot slip other code into the
+# build, which has the signing key.
+
 jobs:
   build:
     runs-on: ubuntu-24.04
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Prepare signing key
         env:
@@ -51,7 +54,7 @@ jobs:
           ./gradlew assemblePlus${{ inputs.build_type }}
 
       - name: Upload APK
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: LiteGallery-Plus-APK
           path: app/build/outputs/apk/plus/*/*.apk
@@ -64,7 +67,7 @@ jobs:
 
       - name: Upload test report
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: unit-test-report
           path: app/build/reports/tests/testPlusDebugUnitTest
