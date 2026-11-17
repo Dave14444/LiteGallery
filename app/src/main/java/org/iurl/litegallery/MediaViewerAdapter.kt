@@ -306,8 +306,6 @@ class MediaViewerAdapter(
                     android.util.Log.d("MediaViewerAdapter", "Zoom change detected: $zoomLevel")
                     onZoomChange?.invoke(zoomLevel)
                 }
-            } ?: run {
-                android.util.Log.w("MediaViewerAdapter", "PlayerView is not ZoomablePlayerView!")
             }
             
             // PRIORITY 2: Add gesture detection to video thumbnail for when player isn't ready
