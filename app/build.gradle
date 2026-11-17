@@ -142,6 +142,9 @@ dependencies {
     implementation "androidx.media3:media3-datasource:1.11.1"
     // SMB client (plus flavor only — keeps the core build network-free)
     plusImplementation 'com.hierynomus:smbj:0.14.0'
+    // smbj brings BouncyCastle 1.79 (login and SMB3 encryption). The current version fixes known
+    // flaws, most of them in parts smbj does not use; everything smbj calls is still there.
+    plusImplementation 'org.bouncycastle:bcprov-jdk18on:1.86'
     plusImplementation 'org.slf4j:slf4j-android:1.7.36'
     
     testImplementation 'junit:junit:4.13.2'

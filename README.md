@@ -9,9 +9,9 @@ LiteGallery builds in two product flavors, so you can choose your own feature/tr
 | Edition | Network | Use it if |
 | --- | --- | --- |
 | **Core** (default) | **None** — declares no `INTERNET` permission and bundles no networking code | You want a provably offline, network-free gallery |
-| **Plus** | Adds optional **SMB / NFS** network-share browsing/streaming (requests `INTERNET`) | You need to view media from a NAS, Windows share, or NFS NAS export |
+| **Plus** | Adds optional **SMB** network-share browsing/streaming (requests `INTERNET`) | You need to view media from a NAS or Windows share |
 
-Both editions share all local-gallery functionality; only the optional network-share features (SMB and NFS) — and the network permission they require — are exclusive to **Plus**.
+Both editions share all local-gallery functionality; only the optional network-share features (SMB) — and the network permission they require — are exclusive to **Plus**.
 
 ## Privacy First
 
@@ -25,7 +25,7 @@ Both editions share all local-gallery functionality; only the optional network-s
 
 **All your photos and videos stay on your device, always.**
 
-> The **Plus** edition adds opt-in SMB / NFS network-share support and therefore requests the `INTERNET` permission. If a verifiable network-free build matters to you, use **Core**.
+> The **Plus** edition adds opt-in SMB network-share support and therefore requests the `INTERNET` permission. If a verifiable network-free build matters to you, use **Core**.
 
 ## Features
 
@@ -42,9 +42,9 @@ Both editions share all local-gallery functionality; only the optional network-s
 
 ### Network Shares (Plus edition)
 - **SMB browsing** - Browse photos and videos on SMB / Windows network shares
-- **NFS browsing** - Browse photos and videos on NFSv3 exports (auto-lists server exports; the NAS must allow connections from non-privileged ports)
+- **Home network and VPN** - At home the NAS is used directly; in any other network only through the VPN (asks for it when a share is opened). The NAS is recognized again, and no login is sent to another device at its address. Optional SMB3 encryption
 - **Streaming playback** - Stream videos directly from a share with seek support
-- **Saved servers** - Bookmark servers: guest or username/password login for SMB, export path with optional UID/GID for NFS
+- **Saved servers** - Bookmark servers: guest or username/password login (passwords encrypted in the Android Keystore)
 
 ### File Management
 - **Quick rename** - Easily rename files with prefix/suffix shortcuts
@@ -66,7 +66,10 @@ Both editions share all local-gallery functionality; only the optional network-s
   - 🎥 Read Media Video (Android 13+) - To display your videos
   - 📁 Read External Storage (Android 12 and below) - To access your media files
   - 📂 Manage External Storage (optional) - Only if you want to access non-media folders
-- **Plus edition** additionally requests `INTERNET` and `ACCESS_NETWORK_STATE`, used solely for SMB / NFS network shares.
+  - 🔒 Use biometrics (optional app lock) - Lets Android ask for fingerprint, face or the device PIN; the app never sees biometric data
+- **Plus edition** additionally requests `INTERNET` and `ACCESS_NETWORK_STATE`, used solely for SMB network shares. To recognize the home Wi-Fi (see *Home network and VPN*) it may also ask for the location permission, which Android requires for reading the Wi-Fi name; no location is determined.
+
+**App lock (optional):** after the chosen time in the background, the app is unlocked with fingerprint, face or the device PIN (Settings → Storage & privacy).
 
 **Core edition: no hidden permissions, no background access, no internet connection.**
 
@@ -100,9 +103,9 @@ LiteGallery variants combine one product flavor (`core` or `plus`) with one buil
 | Variant | Use it for |
 | --- | --- |
 | `coreDebug` | Running/debugging the network-free Core edition |
-| `plusDebug` | Running/debugging the Plus edition with SMB/NFS support |
+| `plusDebug` | Running/debugging the Plus edition with SMB support |
 | `coreRelease` | Building a release APK/AAB for the network-free Core edition |
-| `plusRelease` | Building a release APK/AAB for the Plus edition with SMB/NFS support |
+| `plusRelease` | Building a release APK/AAB for the Plus edition with SMB support |
 
 To switch editions in Android Studio:
 
@@ -113,13 +116,13 @@ To switch editions in Android Studio:
 
 ### Build APK
 
-LiteGallery has two product flavors: **core** (network-free) and **plus** (adds SMB/NFS).
+LiteGallery has two product flavors: **core** (network-free) and **plus** (adds SMB).
 
 ```bash
 # Network-free edition (declares no INTERNET permission)
 ./gradlew assembleCoreRelease    # -> app/build/outputs/apk/core/release/
 
-# Edition with SMB/NFS network shares
+# Edition with SMB network shares
 ./gradlew assemblePlusRelease    # -> app/build/outputs/apk/plus/release/
 ```
 
@@ -133,7 +136,7 @@ LiteGallery currently uses JVM unit tests under `app/src/test` for pure Kotlin/J
 ### Run all unit tests
 
 The project has two flavors (`core`, `plus`), so unit tests run per flavor.
-SMB/NFS-related tests live in the `plus` test source set (`app/src/testPlus`) and run
+SMB-related tests live in the `plus` test source set (`app/src/testPlus`) and run
 only under `testPlusDebugUnitTest`.
 
 On Windows PowerShell:
@@ -174,7 +177,7 @@ macOS/Linux examples:
 
 ### Generate the JaCoCo coverage report
 
-This task builds and covers the `plus` variant (the superset that also includes the SMB/NFS code).
+This task builds and covers the `plus` variant (the superset that also includes the SMB code).
 
 On Windows PowerShell:
 ```powershell
@@ -202,7 +205,7 @@ The current JVM test suite covers:
 - MediaStore projection builders and URI path resolution
 - Trash bin persistence and cleanup behavior
 - File-system media scanning helpers
-- SMB and NFS path parsing, network server config persistence, NFS export-list RPC encoding, and remote Glide image detection (plus flavor)
+- SMB path parsing, network server config persistence, home network / VPN rule, NAS recognition, video read-ahead, and remote Glide image detection (plus flavor)
 - Locale, playback diagnostics, and basic media model behavior
 
 ### Remaining test gaps
@@ -211,10 +214,10 @@ These areas need additional coverage:
 - Activity workflows such as media viewer rename/delete/trash, trash restore/delete selection, settings UI summaries, and folder sorting interactions
 - Instrumentation tests for permission flows, Android document/tree URI access, and end-to-end UI behavior on a device or emulator
 - MediaStore delete/trash user-action intent flows, especially scoped storage behavior on recent Android versions
-- SMB/NFS runtime I/O tests with fakeable client boundaries or a controlled test server
+- SMB runtime I/O tests with fakeable client boundaries or a controlled test server
 - Larger integration tests around external content URIs, SAF tree grants, and fallback scanning
 
-Some of these gaps can be covered with more Robolectric tests, but the larger Activity and SMB/NFS runtime areas will be easier to test after small production-code refactors that separate UI code from file, MediaStore, and network boundaries.
+Some of these gaps can be covered with more Robolectric tests, but the larger Activity and SMB runtime areas will be easier to test after small production-code refactors that separate UI code from file, MediaStore, and network boundaries.
 
 ### Notes
 
