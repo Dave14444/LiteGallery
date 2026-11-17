@@ -63,7 +63,18 @@ jobs:
       # Runs after the APK is uploaded: a failing test turns the run red, but the APK is still
       # there to download.
       - name: Run unit tests
-        run: ./gradlew testPlusDebugUnitTest
+        run: ./gradlew testPlusDebugUnitTest jacocoTestDebugUnitTestReport
+
+      - name: Test coverage
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          report = ET.parse("app/build/reports/jacoco/jacocoTestDebugUnitTestReport/jacocoTestDebugUnitTestReport.xml").getroot()
+          for counter in report.findall("counter"):
+              if counter.get("type") in ("LINE", "BRANCH"):
+                  covered, missed = int(counter.get("covered")), int(counter.get("missed"))
+                  print(f"{counter.get('type').title()} coverage: {100 * covered / (covered + missed):.1f} % ({covered} of {covered + missed})")
+          PY
 
       - name: Upload test report
         if: failure()

@@ -185,9 +185,12 @@ tasks.register('jacocoTestDebugUnitTestReport', JacocoReport) {
             'android/**/*.*'
     ]
 
+    // Wherever the compilers put the classes (AGP 9 compiles Kotlin itself, into another folder).
+    def kotlinClasses = tasks.named('compilePlusDebugKotlin').flatMap { it.destinationDirectory }
+    def javaClasses = tasks.named('compilePlusDebugJavaWithJavac').flatMap { it.destinationDirectory }
     classDirectories.setFrom(files([
-            fileTree(dir: "$buildDirectory/intermediates/javac/plusDebug/classes", excludes: coverageExcludes),
-            fileTree(dir: "$buildDirectory/tmp/kotlin-classes/plusDebug", excludes: coverageExcludes)
+            fileTree(kotlinClasses) { exclude coverageExcludes },
+            fileTree(javaClasses) { exclude coverageExcludes }
     ]))
     sourceDirectories.setFrom(files(["$projectDir/src/main/java", "$projectDir/src/plus/java"]))
     executionData.setFrom(fileTree(dir: buildDirectory, includes: [
