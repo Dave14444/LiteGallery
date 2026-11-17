@@ -133,7 +133,9 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
         currentPackKey = ThemeHelper.getCurrentPack(this).key
 
         mediaScanner = MediaScanner(this)
-        loadViewModePreference()
+        // Turning the device (or another rebuild by Android) keeps the chosen view.
+        currentViewMode = FolderViewMode.parse(savedInstanceState?.getString(FolderViewMode.EXTRA_VIEW_MODE))
+            ?: defaultViewMode()
         loadSortOrderPreference()
         loadGroupByPreference()
 
@@ -1076,9 +1078,14 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadViewModePreference() {
+    private fun defaultViewMode(): MediaAdapter.ViewMode {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        currentViewMode = parseViewModePreference(prefs.getString(PREF_DEFAULT_VIEW_MODE, "grid"))
+        return FolderViewMode.parse(prefs.getString(PREF_DEFAULT_VIEW_MODE, null)) ?: MediaAdapter.ViewMode.GRID
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(FolderViewMode.EXTRA_VIEW_MODE, FolderViewMode.value(currentViewMode))
     }
 
     private fun loadSortOrderPreference() {
@@ -1094,29 +1101,13 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
     }
 
     private fun toggleViewMode() {
-        currentViewMode = when (currentViewMode) {
-            MediaAdapter.ViewMode.GRID -> MediaAdapter.ViewMode.LARGE_GRID
-            MediaAdapter.ViewMode.LARGE_GRID -> MediaAdapter.ViewMode.LIST
-            MediaAdapter.ViewMode.LIST -> MediaAdapter.ViewMode.DETAILED
-            MediaAdapter.ViewMode.DETAILED -> MediaAdapter.ViewMode.GRID
-        }
+        currentViewMode = FolderViewMode.next(currentViewMode)
         updateLayoutManager()
-        val modeName = when (currentViewMode) {
-            MediaAdapter.ViewMode.GRID -> getString(R.string.thumbnail_view)
-            MediaAdapter.ViewMode.LARGE_GRID -> getString(R.string.large_thumbnail_view)
-            MediaAdapter.ViewMode.LIST -> getString(R.string.list_view)
-            MediaAdapter.ViewMode.DETAILED -> getString(R.string.detailed_view)
-        }
-        android.widget.Toast.makeText(this, modeName, android.widget.Toast.LENGTH_SHORT).show()
-    }
-
-    private fun parseViewModePreference(viewModeValue: String?): MediaAdapter.ViewMode {
-        return when (viewModeValue) {
-            "large_grid" -> MediaAdapter.ViewMode.LARGE_GRID
-            "list" -> MediaAdapter.ViewMode.LIST
-            "detailed" -> MediaAdapter.ViewMode.DETAILED
-            else -> MediaAdapter.ViewMode.GRID
-        }
+        android.widget.Toast.makeText(
+            this,
+            FolderViewMode.label(this, currentViewMode),
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
     }
 
     private fun parseSortOrderPreference(sortOrderValue: String?): String {

@@ -2,6 +2,14 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <!-- Thumbnails, large tiles, list, details: the same switch as in the folder screen. -->
+    <item
+        android:id="@+id/action_view_mode"
+        android:icon="@drawable/ic_view_grid"
+        android:title="@string/view_mode"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
     <item
         android:id="@+id/action_network_trash"
         android:title="@string/trash_bin_title"

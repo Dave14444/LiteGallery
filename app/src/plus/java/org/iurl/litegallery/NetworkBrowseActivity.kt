@@ -73,6 +73,10 @@ class NetworkBrowseActivity : AppCompatActivity() {
     private var openedFromFolderScreen = false
     private var startPath = ""
 
+    /** The view of the folder cards, shared with the folder screens (see FolderViewMode). */
+    private var currentViewMode = MediaAdapter.ViewMode.LARGE_GRID
+    private var viewModeChoicesSeen = 0
+
     // Waiting until the NAS may be contacted (VPN on, or home Wi-Fi recognized).
     private var accessDialog: AlertDialog? = null
     private var accessRetry: (() -> Unit)? = null
@@ -113,6 +117,8 @@ class NetworkBrowseActivity : AppCompatActivity() {
 
         currentPackKey = ThemeHelper.getCurrentPack(this).key
         remoteMediaScanner = RemoteMediaScanner(this)
+        currentViewMode = FolderViewMode.initial(this, savedInstanceState, intent)
+        viewModeChoicesSeen = FolderViewMode.choicesSeen(savedInstanceState)
 
         // Back gesture (including predictive back): one folder up, or leave the screen.
         onBackPressedDispatcher.addCallback(
@@ -159,10 +165,19 @@ class NetworkBrowseActivity : AppCompatActivity() {
         currentPackKey = newPackKey
         if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
 
+        // Back from a folder screen where another view was chosen: the folders here follow it.
+        FolderViewMode.chosenSince(viewModeChoicesSeen)?.let { applyViewMode(it) }
+        viewModeChoicesSeen = FolderViewMode.choices
+
         // Back from another app: pictures it saved may have been moved next to the original.
         ExternalEditFlow.checkResult(this) {
             if (currentPath.isNotBlank()) navigateTo(currentPath)
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        FolderViewMode.save(outState, currentViewMode, viewModeChoicesSeen)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -198,6 +213,10 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 showNetworkAccessDialog()
                 true
             }
+            R.id.action_view_mode -> {
+                toggleViewMode()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -212,6 +231,9 @@ class NetworkBrowseActivity : AppCompatActivity() {
         menu.findItem(R.id.action_network_trash)?.isVisible = SmbPath.isSmb(currentPath)
         menu.findItem(R.id.action_prepare_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
         menu.findItem(R.id.action_cleanup_thumbnails)?.isVisible = SmbPath.isSmb(currentPath)
+        // The view switch where folders are shown as cards (not on the list of saved servers).
+        menu.findItem(R.id.action_view_mode)?.isVisible =
+            currentPath.isNotBlank() && binding.recyclerView.adapter === browseAdapter
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -438,12 +460,44 @@ class NetworkBrowseActivity : AppCompatActivity() {
         }
     }
 
-    /** Folders as cards, like on the home screen. */
+    /** Folders as cards or rows, in the view chosen in the folder screens. */
     private fun showCardMode() {
         if (binding.recyclerView.adapter === browseAdapter) return
         hideUntilNextList()
-        binding.recyclerView.layoutManager = GridLayoutManager(this, 2)
+        binding.recyclerView.layoutManager = folderLayoutManager()
+        browseAdapter.viewMode = currentViewMode
         binding.recyclerView.adapter = browseAdapter
+        invalidateOptionsMenu()
+    }
+
+    private fun folderLayoutManager(): LinearLayoutManager {
+        val columns = FolderViewMode.columns(currentViewMode)
+        return if (columns > 1) {
+            GridLayoutManager(this, columns)
+        } else {
+            LinearLayoutManager(this)
+        }
+    }
+
+    /** The switch in the toolbar: the next view, here and in the folder screens. */
+    private fun toggleViewMode() {
+        val mode = FolderViewMode.next(currentViewMode)
+        FolderViewMode.choose(this, mode)
+        viewModeChoicesSeen = FolderViewMode.choices
+        applyViewMode(mode)
+        Toast.makeText(this, FolderViewMode.label(this, mode), Toast.LENGTH_SHORT).show()
+    }
+
+    /** Shows the folder cards in [mode], staying at the folders that were at the top. */
+    private fun applyViewMode(mode: MediaAdapter.ViewMode) {
+        if (mode == currentViewMode) return
+        currentViewMode = mode
+        browseAdapter.viewMode = mode
+        if (binding.recyclerView.adapter !== browseAdapter) return
+        val first = (binding.recyclerView.layoutManager as? LinearLayoutManager)?.findFirstVisibleItemPosition() ?: -1
+        val manager = folderLayoutManager()
+        binding.recyclerView.layoutManager = manager
+        if (first > 0) manager.scrollToPositionWithOffset(first, 0)
     }
 
     /** Folders and files as a plain list of names (for folders with RAW files). */
@@ -452,6 +506,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
         hideUntilNextList()
         binding.recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
         binding.recyclerView.adapter = fileListAdapter
+        invalidateOptionsMenu()
     }
 
     /** Camera RAW files cannot be shown here: open a copy in another app (e.g. Snapseed). */
@@ -681,6 +736,8 @@ class NetworkBrowseActivity : AppCompatActivity() {
             Intent(this, FolderViewActivity::class.java).apply {
                 putExtra(FolderViewActivity.EXTRA_FOLDER_PATH, folderUrl)
                 putExtra(FolderViewActivity.EXTRA_FOLDER_NAME, name)
+                // The pictures open in the view the folders here are shown in.
+                putExtra(FolderViewMode.EXTRA_VIEW_MODE, FolderViewMode.value(currentViewMode))
             }
         )
     }

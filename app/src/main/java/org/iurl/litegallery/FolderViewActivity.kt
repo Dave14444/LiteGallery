@@ -50,9 +50,6 @@ class FolderViewActivity : AppCompatActivity() {
         private const val PREF_DEFAULT_SORT_ORDER = "default_sort_order"
         private const val PREF_REMEMBER_FOLDER_SORT_ORDER = "remember_folder_sort_order"
         private const val PREF_LAST_FOLDER_SORT_ORDER = "last_folder_sort_order"
-        private const val PREF_DEFAULT_VIEW_MODE = "default_view_mode"
-        private const val PREF_REMEMBER_FOLDER_VIEW_MODE = "remember_folder_view_mode"
-        private const val PREF_LAST_FOLDER_VIEW_MODE = "last_folder_view_mode"
         private const val PREF_DEFAULT_GROUP_BY = "default_group_by"
         private const val PREF_REMEMBER_FOLDER_GROUP_BY = "remember_folder_group_by"
         private const val PREF_LAST_FOLDER_GROUP_BY = "last_folder_group_by"
@@ -64,8 +61,6 @@ class FolderViewActivity : AppCompatActivity() {
         private const val DELETE_PREFS = "delete_prefs"
         private const val DELETE_MOVE_TO_TRASH_KEY = "delete_move_to_trash"
 
-        /** Columns of the sub folder cards above the pictures (as in the network browser). */
-        private const val SUB_FOLDER_COLUMNS = 2
         /** Sub folder details (cover, count) read at the same time. */
         private const val SUB_FOLDER_PARALLEL = 3
         /** Menu item ids for entries offered by a media source; far away from generated ids. */
@@ -83,6 +78,8 @@ class FolderViewActivity : AppCompatActivity() {
     private var mediaItems: List<MediaItemSkeleton> = emptyList()
     private var currentPackKey: String? = null
     private var currentViewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
+    /** Views chosen in the folder screens that this one has taken over (see FolderViewMode). */
+    private var viewModeChoicesSeen = 0
     private var currentSortOrder: String = "date_desc"
     private var currentGroupBy: FolderGroupBy = FolderGroupBy.NONE
     private var sortMenuItem: MenuItem? = null
@@ -192,8 +189,10 @@ class FolderViewActivity : AppCompatActivity() {
         // Track current pack so onResume can detect changes from Settings/Picker
         currentPackKey = ThemeHelper.getCurrentPack(this).key
 
-        // Load default view mode and sort order from preferences
-        loadViewModePreference()
+        // The view: kept over a rebuild (e.g. turning the device), handed over by the folder
+        // further up, or from the settings. Sort order and grouping from the settings.
+        currentViewMode = FolderViewMode.initial(this, savedInstanceState, intent)
+        viewModeChoicesSeen = FolderViewMode.choicesSeen(savedInstanceState)
         loadSortOrderPreference()
         loadGroupByPreference()
 
@@ -218,6 +217,11 @@ class FolderViewActivity : AppCompatActivity() {
         loadSubFolders()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        FolderViewMode.save(outState, currentViewMode, viewModeChoicesSeen)
+    }
+
     override fun onDestroy() {
         transformJob?.cancel()
         mediaIndexSyncJob?.cancel()
@@ -239,6 +243,9 @@ class FolderViewActivity : AppCompatActivity() {
         currentPackKey = newPackKey
         if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
         applyFolderHeroGradientAccent()
+        // Back from a sub folder where another view was chosen: this folder shows it as well.
+        FolderViewMode.chosenSince(viewModeChoicesSeen)?.let { applyViewMode(it) }
+        viewModeChoicesSeen = FolderViewMode.choices
         synchronizeMediaIndexInBackground()
     }
 
@@ -715,9 +722,25 @@ class FolderViewActivity : AppCompatActivity() {
                 FolderActions.showMenu(this, folder.path, folder.name) { loadSubFolders() }
             }
         )
-        // All cards in a grid above the pictures; the grid scrolls away with the list.
-        binding.subFolderRecyclerView.layoutManager = GridLayoutManager(this, SUB_FOLDER_COLUMNS)
+        // Above the pictures, in the same view as they are; scrolls away with the list.
         binding.subFolderRecyclerView.adapter = subFolderAdapter
+        updateSubFolderLayout()
+    }
+
+    /** The sub folders as tiles (as many columns as the pictures), or as rows in the list views. */
+    private fun updateSubFolderLayout() {
+        subFolderAdapter.viewMode = currentViewMode
+        val columns = FolderViewMode.columns(currentViewMode)
+        val current = binding.subFolderRecyclerView.layoutManager
+        val fits = when (current) {
+            is GridLayoutManager -> columns > 1 && current.spanCount == columns
+            is LinearLayoutManager -> columns == 1
+            else -> false
+        }
+        if (!fits) {
+            binding.subFolderRecyclerView.layoutManager =
+                if (columns > 1) GridLayoutManager(this, columns) else LinearLayoutManager(this)
+        }
     }
 
     /**
@@ -774,6 +797,8 @@ class FolderViewActivity : AppCompatActivity() {
         startActivity(
             source.browseIntent(this, folder.path)
                 .putExtra(EXTRA_OPENED_FROM_FOLDER_SCREEN, true)
+                // The sub folder opens in the view chosen here.
+                .putExtra(FolderViewMode.EXTRA_VIEW_MODE, FolderViewMode.value(currentViewMode))
         )
     }
 
@@ -1429,7 +1454,7 @@ class FolderViewActivity : AppCompatActivity() {
         binding.recyclerView.layoutManager = when (currentViewMode) {
             MediaAdapter.ViewMode.GRID, MediaAdapter.ViewMode.LARGE_GRID -> GridLayoutManager(
                 this,
-                if (currentViewMode == MediaAdapter.ViewMode.LARGE_GRID) 2 else 3
+                FolderViewMode.columns(currentViewMode)
             ).apply {
                 spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                     override fun getSpanSize(position: Int): Int {
@@ -1453,65 +1478,24 @@ class FolderViewActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadViewModePreference() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        val defaultViewMode = prefs.getString(PREF_DEFAULT_VIEW_MODE, "grid") ?: "grid"
-        val rememberViewMode = prefs.getBoolean(PREF_REMEMBER_FOLDER_VIEW_MODE, false)
-        val resolvedViewMode = if (rememberViewMode) {
-            prefs.getString(PREF_LAST_FOLDER_VIEW_MODE, defaultViewMode)
-        } else {
-            defaultViewMode
-        }
-        currentViewMode = parseViewModePreference(resolvedViewMode)
-
-        // Initialize remembered value when feature is enabled for the first time.
-        if (rememberViewMode && !prefs.contains(PREF_LAST_FOLDER_VIEW_MODE)) {
-            prefs.edit().putString(PREF_LAST_FOLDER_VIEW_MODE, viewModeToPreferenceValue(currentViewMode)).apply()
-        }
-    }
-
+    /** The switch in the toolbar: the next view, here and in the other folder screens. */
     private fun toggleViewMode() {
-        currentViewMode = when (currentViewMode) {
-            MediaAdapter.ViewMode.GRID -> MediaAdapter.ViewMode.LARGE_GRID
-            MediaAdapter.ViewMode.LARGE_GRID -> MediaAdapter.ViewMode.LIST
-            MediaAdapter.ViewMode.LIST -> MediaAdapter.ViewMode.DETAILED
-            MediaAdapter.ViewMode.DETAILED -> MediaAdapter.ViewMode.GRID
-        }
+        val mode = FolderViewMode.next(currentViewMode)
+        FolderViewMode.choose(this, mode)
+        viewModeChoicesSeen = FolderViewMode.choices
+        applyViewMode(mode)
+        android.widget.Toast.makeText(this, FolderViewMode.label(this, mode), android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    /** Shows pictures and sub folders in [mode], staying at the pictures that were at the top. */
+    private fun applyViewMode(mode: MediaAdapter.ViewMode) {
+        if (mode == currentViewMode) return
+        // The place in the list: the same pictures at the top afterwards (not back to the start).
+        val anchor = captureScrollAnchor()?.let { ScrollAnchor(it.paths, 0) }
+        currentViewMode = mode
         updateLayoutManager()
-        persistCurrentViewModeIfNeeded()
-
-        // Show toast to indicate current view mode
-        val modeName = when (currentViewMode) {
-            MediaAdapter.ViewMode.GRID -> getString(R.string.thumbnail_view)
-            MediaAdapter.ViewMode.LARGE_GRID -> getString(R.string.large_thumbnail_view)
-            MediaAdapter.ViewMode.LIST -> getString(R.string.list_view)
-            MediaAdapter.ViewMode.DETAILED -> getString(R.string.detailed_view)
-        }
-        android.widget.Toast.makeText(this, modeName, android.widget.Toast.LENGTH_SHORT).show()
-    }
-
-    private fun parseViewModePreference(viewModeValue: String?): MediaAdapter.ViewMode {
-        return when (viewModeValue) {
-            "large_grid" -> MediaAdapter.ViewMode.LARGE_GRID
-            "list" -> MediaAdapter.ViewMode.LIST
-            "detailed" -> MediaAdapter.ViewMode.DETAILED
-            else -> MediaAdapter.ViewMode.GRID
-        }
-    }
-
-    private fun viewModeToPreferenceValue(viewMode: MediaAdapter.ViewMode): String {
-        return when (viewMode) {
-            MediaAdapter.ViewMode.GRID -> "grid"
-            MediaAdapter.ViewMode.LARGE_GRID -> "large_grid"
-            MediaAdapter.ViewMode.LIST -> "list"
-            MediaAdapter.ViewMode.DETAILED -> "detailed"
-        }
-    }
-
-    private fun persistCurrentViewModeIfNeeded() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        if (!prefs.getBoolean(PREF_REMEMBER_FOLDER_VIEW_MODE, false)) return
-        prefs.edit().putString(PREF_LAST_FOLDER_VIEW_MODE, viewModeToPreferenceValue(currentViewMode)).apply()
+        updateSubFolderLayout()
+        anchor?.let { restoreScrollAnchor(it) }
     }
 
     private fun loadSortOrderPreference() {
