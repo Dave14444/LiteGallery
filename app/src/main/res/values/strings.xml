@@ -641,4 +641,20 @@
     <string name="viewer_loading">Loading picture…</string>
     <string name="viewer_loading_bytes">%s loaded</string>
     <string name="viewer_load_failed">The picture could not be loaded</string>
+
+    <!-- App lock -->
+    <string name="app_lock_title">App lock</string>
+    <string name="app_lock_off">Off</string>
+    <string name="app_lock_immediately">As soon as the app is left</string>
+    <string name="app_lock_after_1_min">After 1 minute in the background</string>
+    <string name="app_lock_after_5_min">After 5 minutes in the background</string>
+    <string name="app_lock_after_15_min">After 15 minutes in the background</string>
+    <string name="app_lock_summary_off">Off: anyone holding your unlocked phone can open the app</string>
+    <string name="app_lock_summary_on">%s. Unlock with fingerprint, face or the device PIN.</string>
+    <string name="app_lock_no_screen_lock">Set up a screen lock (PIN, pattern or password) on the phone first.</string>
+    <string name="app_lock_confirm_title">Change the app lock</string>
+    <string name="app_lock_prompt_title">Unlock LiteGallery</string>
+    <string name="app_lock_locked">LiteGallery is locked</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="app_lock_turned_off_no_screen_lock">The app lock was switched off because the phone no longer has a screen lock.</string>
 </resources>

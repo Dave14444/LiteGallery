@@ -152,6 +152,7 @@ object ExternalEditFlow {
                 }
                 // Remember the hand-over: pictures the other app saves meanwhile are offered later.
                 ExternalEditTracker.begin(appContext, path)
+                AppLock.leavingForOtherApp()
                 activity.startActivity(if (chooser) Intent.createChooser(intent, name) else intent)
             } catch (e: Exception) {
                 android.util.Log.e("ExternalEditFlow", "Could not open $path: ${e.message}")

@@ -263,6 +263,9 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             setupAdvancedStorageAccessListener()
             setupExternalFolderGrantManagementListeners()
 
+            // App lock (fingerprint, face or device PIN)
+            setupAppLockListener()
+
             // Set initial summaries
             updateLanguageSummary()
             updateThemeSummary()
@@ -272,6 +275,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             updateTrashSettingsSummary()
             updateAdvancedStorageAccessSummary()
             updateExternalFolderGrantSummary()
+            updateAppLockSummary()
             updateAboutSummary()
         }
 
@@ -565,6 +569,62 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             }
         }
 
+        private fun setupAppLockListener() {
+            findPreference<androidx.preference.ListPreference>(AppLock.KEY_TIMEOUT)
+                ?.setOnPreferenceChangeListener { preference, newValue ->
+                    val list = preference as androidx.preference.ListPreference
+                    val value = newValue as String
+                    if (value == list.value) return@setOnPreferenceChangeListener false
+                    if (!AppLock.canAuthenticate(requireContext())) {
+                        // Nothing to check against: switching off is fine, switching on is not possible.
+                        if (value == AppLock.OFF) {
+                            view?.post { updateAppLockSummary() }
+                            return@setOnPreferenceChangeListener true
+                        }
+                        showToast(getString(R.string.app_lock_no_screen_lock))
+                        return@setOnPreferenceChangeListener false
+                    }
+                    // Only the owner changes the lock; switching it on also shows that unlocking works.
+                    confirmWithAppLock {
+                        list.value = value
+                        updateAppLockSummary()
+                    }
+                    false
+                }
+        }
+
+        private fun confirmWithAppLock(onConfirmed: () -> Unit) {
+            val prompt = androidx.biometric.BiometricPrompt(
+                this,
+                androidx.core.content.ContextCompat.getMainExecutor(requireContext()),
+                object : androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(
+                        result: androidx.biometric.BiometricPrompt.AuthenticationResult
+                    ) {
+                        AppLock.backFromOtherApp()
+                        onConfirmed()
+                    }
+
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        AppLock.backFromOtherApp()
+                    }
+                }
+            )
+            // Entering the PIN opens a screen of the system: coming back from it does not lock.
+            AppLock.leavingForOtherApp()
+            prompt.authenticate(AppLock.promptInfo(requireContext(), getString(R.string.app_lock_confirm_title)))
+        }
+
+        private fun updateAppLockSummary() {
+            val preference = findPreference<androidx.preference.ListPreference>(AppLock.KEY_TIMEOUT) ?: return
+            val value = preference.value ?: AppLock.OFF
+            preference.summary = if (value == AppLock.OFF) {
+                getString(R.string.app_lock_summary_off)
+            } else {
+                getString(R.string.app_lock_summary_on, preference.entry)
+            }
+        }
+
         private fun setupAdvancedStorageAccessListener() {
             findPreference<androidx.preference.Preference>(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE)
                 ?.setOnPreferenceClickListener {
@@ -637,6 +697,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
         }
 
         private fun openAdvancedAllFilesSettings(): Boolean {
+            AppLock.leavingForOtherApp()
             return try {
                 val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                     data = android.net.Uri.parse("package:${requireContext().packageName}")
@@ -1059,6 +1120,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
         private fun exportSettings() {
             try {
                 val defaultFilename = settingsHelper.generateDefaultFilename()
+                AppLock.leavingForOtherApp()
                 exportFileLauncher.launch(defaultFilename)
             } catch (e: Exception) {
                 android.util.Log.e("SettingsFragment", "Failed to launch export file picker", e)
@@ -1068,6 +1130,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
 
         private fun importSettings() {
             try {
+                AppLock.leavingForOtherApp()
                 importFileLauncher.launch(arrayOf("application/json", "*/*"))
             } catch (e: Exception) {
                 android.util.Log.e("SettingsFragment", "Failed to launch import file picker", e)

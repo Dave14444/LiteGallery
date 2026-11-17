@@ -80,6 +80,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Covers the app while it is locked (see AppLock). -->
+        <activity
+            android:name=".LockActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
+
         <activity
             android:name=".SettingsActivity"
             android:exported="false"

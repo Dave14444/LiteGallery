@@ -253,6 +253,7 @@ object ExifDialog {
         if (latitude != null && longitude != null) {
             builder.setNeutralButton(R.string.exif_open_map) { _, _ ->
                 try {
+                    AppLock.leavingForOtherApp()
                     activity.startActivity(
                         Intent(Intent.ACTION_VIEW, Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude"))
                     )

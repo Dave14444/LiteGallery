@@ -903,6 +903,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 )
                 try {
                     val request = androidx.activity.result.IntentSenderRequest.Builder(deleteResult.userActionIntentSender).build()
+                    AppLock.leavingForOtherApp()
                     deleteUserActionLauncher.launch(request)
                 } catch (e: Exception) {
                     pendingDeleteUserAction = null
@@ -1385,6 +1386,7 @@ private fun shareCurrent() {
                 )
             }
 
+            AppLock.leavingForOtherApp()
             startActivity(
                 android.content.Intent.createChooser(
                     shareIntent,
@@ -1484,6 +1486,7 @@ private fun shareCurrent() {
                 addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }
+            AppLock.leavingForOtherApp()
             startActivity(editIntent)
         } catch (e: Exception) {
             android.util.Log.e("MediaViewerActivity", "Edit failed: ${e.message}")
@@ -1946,6 +1949,7 @@ binding.viewPager.layoutDirection = View.LAYOUT_DIRECTION_LTR
                     getString(R.string.external_folder_access_select_folder_hint, targetFolderPathInfo.displayPath),
                     android.widget.Toast.LENGTH_LONG
                 ).show()
+                AppLock.leavingForOtherApp()
                 openExternalFolderTreeLauncher.launch(resolveInitialUriForOpenDocumentTree(uri))
             }
             .setNeutralButton(R.string.copy_path, null)
@@ -2182,6 +2186,7 @@ binding.viewPager.layoutDirection = View.LAYOUT_DIRECTION_LTR
                     getString(R.string.external_folder_access_select_folder_hint, targetFolderPathInfo.displayPath),
                     android.widget.Toast.LENGTH_LONG
                 ).show()
+                AppLock.leavingForOtherApp()
                 openExternalFolderTreeLauncher.launch(resolveInitialUriForOpenDocumentTree(targetUri))
             }
             .setNeutralButton(R.string.copy_path, null)

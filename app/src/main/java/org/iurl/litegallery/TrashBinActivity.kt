@@ -1236,6 +1236,7 @@ class TrashBinActivity : AppCompatActivity() {
 
         return try {
             val request = androidx.activity.result.IntentSenderRequest.Builder(intentSender).build()
+            AppLock.leavingForOtherApp()
             systemTrashActionLauncher.launch(request)
             true
         } catch (_: Exception) {

@@ -851,6 +851,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
         // These buttons keep the dialog open: it closes by itself once the NAS may be contacted.
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val intent = vpnApp?.second ?: Intent(Settings.ACTION_VPN_SETTINGS)
+            AppLock.leavingForOtherApp()
             try {
                 startActivity(intent)
             } catch (e: Exception) {
@@ -877,6 +878,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
                 neutral.visibility = View.VISIBLE
                 neutral.setText(R.string.network_access_location_on)
                 neutral.setOnClickListener {
+                    AppLock.leavingForOtherApp()
                     try {
                         startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                     } catch (e: Exception) {

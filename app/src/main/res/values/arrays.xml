@@ -246,4 +246,18 @@
         <item>de</item>
     </string-array>
 
+    <string-array name="app_lock_entries">
+        <item>@string/app_lock_off</item>
+        <item>@string/app_lock_immediately</item>
+        <item>@string/app_lock_after_1_min</item>
+        <item>@string/app_lock_after_5_min</item>
+        <item>@string/app_lock_after_15_min</item>
+    </string-array>
+    <string-array name="app_lock_values" translatable="false">
+        <item>off</item>
+        <item>0</item>
+        <item>60</item>
+        <item>300</item>
+        <item>900</item>
+    </string-array>
 </resources>

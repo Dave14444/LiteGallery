@@ -642,4 +642,20 @@
     <string name="viewer_loading">Lade Bild…</string>
     <string name="viewer_loading_bytes">%s geladen</string>
     <string name="viewer_load_failed">Das Bild konnte nicht geladen werden</string>
+
+    <!-- App-Sperre -->
+    <string name="app_lock_title">App-Sperre</string>
+    <string name="app_lock_off">Aus</string>
+    <string name="app_lock_immediately">Sofort beim Verlassen der App</string>
+    <string name="app_lock_after_1_min">Nach 1 Minute im Hintergrund</string>
+    <string name="app_lock_after_5_min">Nach 5 Minuten im Hintergrund</string>
+    <string name="app_lock_after_15_min">Nach 15 Minuten im Hintergrund</string>
+    <string name="app_lock_summary_off">Aus: Wer dein entsperrtes Handy in der Hand hat, kann die App öffnen</string>
+    <string name="app_lock_summary_on">%s. Entsperren mit Fingerabdruck, Gesicht oder Geräte-PIN.</string>
+    <string name="app_lock_no_screen_lock">Richte zuerst am Handy eine Displaysperre ein (PIN, Muster oder Passwort).</string>
+    <string name="app_lock_confirm_title">App-Sperre ändern</string>
+    <string name="app_lock_prompt_title">LiteGallery entsperren</string>
+    <string name="app_lock_locked">LiteGallery ist gesperrt</string>
+    <string name="app_lock_unlock">Entsperren</string>
+    <string name="app_lock_turned_off_no_screen_lock">Die App-Sperre wurde ausgeschaltet, weil am Handy keine Displaysperre mehr eingerichtet ist.</string>
 </resources>

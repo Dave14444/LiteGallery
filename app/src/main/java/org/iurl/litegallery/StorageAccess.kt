@@ -37,6 +37,7 @@ object StorageAccess {
     }
 
     private fun openSettings(context: Context) {
+        AppLock.leavingForOtherApp()
         try {
             context.startActivity(
                 Intent(

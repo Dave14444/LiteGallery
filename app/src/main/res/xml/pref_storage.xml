@@ -3,6 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:title="@string/storage_and_privacy_settings">
 
+    <ListPreference
+        android:defaultValue="off"
+        android:entries="@array/app_lock_entries"
+        android:entryValues="@array/app_lock_values"
+        android:key="app_lock_timeout"
+        android:title="@string/app_lock_title" />
+
     <SwitchPreferenceCompat
         android:defaultValue="true"
         android:key="external_folder_access_prompt_enabled"

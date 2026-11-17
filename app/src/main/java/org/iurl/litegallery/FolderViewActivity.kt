@@ -495,6 +495,7 @@ class FolderViewActivity : AppCompatActivity() {
             shareIntent.clipData = clip
             shareIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
 
+            AppLock.leavingForOtherApp()
             startActivity(android.content.Intent.createChooser(shareIntent, getString(R.string.share)))
         }
     }

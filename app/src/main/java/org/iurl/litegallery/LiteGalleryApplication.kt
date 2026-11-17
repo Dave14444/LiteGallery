@@ -20,6 +20,9 @@ class LiteGalleryApplication : Application() {
         // Apply theme when app starts (consults the active pack to decide night mode)
         ThemeHelper.applyTheme(this)
 
+        // The app lock watches every screen from the start.
+        AppLock.install(this)
+
         // Glide's cache on the phone must be set up before anything loads a picture.
         setupImageCache()
 
