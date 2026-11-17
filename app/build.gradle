@@ -1,7 +1,6 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
-    id 'kotlin-kapt'
+    id 'com.google.devtools.ksp'
     id 'jacoco'
 }
 
@@ -11,7 +10,8 @@ jacoco {
 
 android {
     namespace 'org.iurl.litegallery'
-    compileSdk 36
+    // Build against Android 17 (needed by current AndroidX and Glide); the app still targets Android 16.
+    compileSdk 37
 
     defaultConfig {
         applicationId "org.iurl.litegallery"
@@ -132,10 +132,9 @@ dependencies {
     implementation 'com.github.bumptech.glide:recyclerview-integration:5.0.7'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.11.0'
-    // Room 2.7 is the first version that reads the class files of Kotlin 2 (needed by kapt).
     implementation 'androidx.room:room-runtime:2.8.5'
     implementation 'androidx.room:room-ktx:2.8.5'
-    kapt 'androidx.room:room-compiler:2.8.5'
+    ksp 'androidx.room:room-compiler:2.8.5'
     // Media3 dependencies (replacing ExoPlayer 2.x)
     implementation "androidx.media3:media3-exoplayer:1.11.1"
     implementation "androidx.media3:media3-ui:1.11.1"

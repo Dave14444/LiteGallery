@@ -1,5 +1,9 @@
 # LiteGallery release rules
 #
+# Keep the classes in their packages (R8 of AGP 9.1+ would move them all into one by default):
+# behaves as before, and error reports stay readable.
+-dontrepackage
+#
 # Remove low-value debug/info/verbose logs in release builds to reduce runtime overhead
 # and avoid noisy output on user devices.
 -assumenosideeffects class android.util.Log {
