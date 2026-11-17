@@ -137,10 +137,10 @@ dependencies {
     implementation 'androidx.room:room-ktx:2.8.5'
     kapt 'androidx.room:room-compiler:2.8.5'
     // Media3 dependencies (replacing ExoPlayer 2.x)
-    implementation "androidx.media3:media3-exoplayer:1.2.0"
-    implementation "androidx.media3:media3-ui:1.2.0"
-    implementation "androidx.media3:media3-common:1.2.0"
-    implementation "androidx.media3:media3-datasource:1.2.0"
+    implementation "androidx.media3:media3-exoplayer:1.11.1"
+    implementation "androidx.media3:media3-ui:1.11.1"
+    implementation "androidx.media3:media3-common:1.11.1"
+    implementation "androidx.media3:media3-datasource:1.11.1"
     // SMB client (plus flavor only — keeps the core build network-free)
     plusImplementation 'com.hierynomus:smbj:0.14.0'
     plusImplementation 'org.slf4j:slf4j-android:1.7.36'
