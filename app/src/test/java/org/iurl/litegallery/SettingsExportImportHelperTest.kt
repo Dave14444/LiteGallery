@@ -26,7 +26,8 @@ class SettingsExportImportHelperTest {
 
     // Persisted XML preference keys that intentionally should not be exported/imported.
     // Prefer keeping this empty; add deprecated or ephemeral keys here only deliberately.
-    private val persistentPreferenceXmlKeysExcludedFromExportImport = emptySet<String>()
+    // The app lock stays on the phone: a settings file must not switch it off (or on, elsewhere).
+    private val persistentPreferenceXmlKeysExcludedFromExportImport = setOf(AppLock.KEY_TIMEOUT)
 
     private enum class XmlPreferenceType {
         STRING,
