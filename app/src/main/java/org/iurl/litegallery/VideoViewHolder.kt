@@ -9,6 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.recyclerview.widget.RecyclerView
 import org.iurl.litegallery.databinding.ItemMediaViewerBinding
@@ -382,18 +383,42 @@ class VideoViewHolder(
         private var retryCount = 0
 
         private const val MAX_RETRIES = 3
+
+        // Buffer (see createLoadControl). Over the VPN a video may arrive slower than it plays:
+        // after running dry it then waits for a longer stretch instead of stuttering every few
+        // seconds. Local videos never run dry, so for them nothing changes.
+        private const val MIN_BUFFER_MS = 50_000
+        private const val MAX_BUFFER_MS = 120_000
+        private const val BUFFER_FOR_START_MS = 3_000
+        private const val BUFFER_AFTER_RUNNING_DRY_MS = 15_000
         private const val LOADING_TIMEOUT_MS = 30000L
         private const val LOADING_INDICATOR_DELAY_MS = 250L
 
         private val mainHandler = Handler(Looper.getMainLooper())
         private var loadingTimeoutRunnable: Runnable? = null
 
+        /**
+         * Starts quickly (3 s in store), keeps loading up to 2 minutes ahead (as far as memory
+         * allows), and after running dry waits for 15 s in store before going on.
+         */
+        private fun createLoadControl(): DefaultLoadControl =
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    MIN_BUFFER_MS,
+                    MAX_BUFFER_MS,
+                    BUFFER_FOR_START_MS,
+                    BUFFER_AFTER_RUNNING_DRY_MS
+                )
+                .build()
+
         @Synchronized
         private fun ensureSharedPlayer(context: Context): ExoPlayer {
             val existing = sharedPlayer
             if (existing != null) return existing
 
-            val player = ExoPlayer.Builder(context.applicationContext).build()
+            val player = ExoPlayer.Builder(context.applicationContext)
+                .setLoadControl(createLoadControl())
+                .build()
             val listener = object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     activeOwner?.onSharedPlaybackStateChanged(playbackState)
