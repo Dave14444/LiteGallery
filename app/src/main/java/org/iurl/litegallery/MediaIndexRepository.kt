@@ -239,7 +239,7 @@ class MediaIndexRepository(context: Context) {
                 state.version == checkpoint.version &&
                 state.generation >= 0L &&
                 checkpoint.generation >= state.generation
-            val changedSinceGeneration = if (canIncrementalSync) state?.generation else null
+            val changedSinceGeneration = if (canIncrementalSync) state.generation else null
 
             synchronizeMediaStore(checkpoint, changedSinceGeneration)
         }

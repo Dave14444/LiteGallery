@@ -552,8 +552,8 @@ class CustomThemeEditorActivity : AppCompatActivity() {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = smallRadius
             if (hasGradient) {
-                setOrientation(GradientHelper.angleToOrientation(gradientAngle!!))
-                setColors(intArrayOf(gradientStart!!, gradientEnd!!))
+                setOrientation(GradientHelper.angleToOrientation(gradientAngle))
+                setColors(intArrayOf(gradientStart, gradientEnd))
             } else {
                 setColor(faint)
             }
@@ -565,7 +565,7 @@ class CustomThemeEditorActivity : AppCompatActivity() {
         }
         previewGradientAngle.setTextColor(if (hasGradient) text else dim)
         previewGradientWarning.visibility = if (hasGradient) {
-            warnVisibility(onAccent, gradientStart!!, gradientEnd!!)
+            warnVisibility(onAccent, gradientStart, gradientEnd)
         } else {
             View.GONE
         }

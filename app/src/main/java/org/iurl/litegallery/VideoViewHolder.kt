@@ -39,14 +39,14 @@ class VideoViewHolder(
 
         binding.photoImageView.visibility = View.GONE
         binding.videoContainer.visibility = View.VISIBLE
-        binding.videoThumbnail?.visibility = View.GONE
-        binding.videoLoadingIndicator?.visibility = View.GONE
-        binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+        binding.videoThumbnail.visibility = View.GONE
+        binding.videoLoadingIndicator.visibility = View.GONE
+        binding.playButton.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
 
         binding.root.setOnClickListener {
             onMediaClick()
         }
-        binding.playButton?.setOnClickListener {
+        binding.playButton.setOnClickListener {
             onPlayPauseClick()
         }
 
@@ -109,7 +109,7 @@ class VideoViewHolder(
     }
 
     fun getZoomablePlayerView(): org.iurl.litegallery.ZoomablePlayerView? {
-        return binding.playerView as? org.iurl.litegallery.ZoomablePlayerView
+        return binding.playerView
     }
 
     private fun activateSharedPlayer() {
@@ -208,32 +208,32 @@ class VideoViewHolder(
     private fun showLoadingUi() {
         if (hasRenderedFrame) {
             hideLoadingIndicator()
-            binding.videoThumbnail?.visibility = View.GONE
+            binding.videoThumbnail.visibility = View.GONE
         } else {
             scheduleLoadingIndicator()
-            binding.videoThumbnail?.visibility = View.GONE
+            binding.videoThumbnail.visibility = View.GONE
         }
-        binding.playButton?.visibility = if (hasRenderedFrame && !hasBeenPlayed) View.VISIBLE else View.GONE
+        binding.playButton.visibility = if (hasRenderedFrame && !hasBeenPlayed) View.VISIBLE else View.GONE
     }
 
     private fun showReadyUi() {
         hideLoadingIndicator()
         hasRenderedFrame = true
-        binding.videoThumbnail?.visibility = View.GONE
-        binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+        binding.videoThumbnail.visibility = View.GONE
+        binding.playButton.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
     }
 
     private fun showInvalidUi() {
         hideLoadingIndicator()
         hasRenderedFrame = false
-        binding.videoThumbnail?.visibility = View.VISIBLE
-        binding.playButton?.visibility = View.GONE
+        binding.videoThumbnail.visibility = View.VISIBLE
+        binding.playButton.visibility = View.GONE
     }
 
     private fun scheduleLoadingIndicator() {
         if (hasRenderedFrame) return
         hideLoadingIndicator()
-        val loadingIndicator = binding.videoLoadingIndicator ?: return
+        val loadingIndicator = binding.videoLoadingIndicator
         val runnable = Runnable {
             showLoadingIndicatorRunnable = null
             if (!isActive || activeOwner !== this || hasRenderedFrame) return@Runnable
@@ -245,10 +245,10 @@ class VideoViewHolder(
 
     private fun hideLoadingIndicator() {
         showLoadingIndicatorRunnable?.let { runnable ->
-            binding.videoLoadingIndicator?.removeCallbacks(runnable)
+            binding.videoLoadingIndicator.removeCallbacks(runnable)
         }
         showLoadingIndicatorRunnable = null
-        binding.videoLoadingIndicator?.visibility = View.GONE
+        binding.videoLoadingIndicator.visibility = View.GONE
     }
 
     private fun onSharedPlaybackStateChanged(playbackState: Int) {
@@ -293,11 +293,11 @@ class VideoViewHolder(
 
         if (isPlaying && !hasBeenPlayed) {
             hasBeenPlayed = true
-            binding.playButton?.visibility = View.GONE
+            binding.playButton.visibility = View.GONE
         }
 
         if (!isPlaying && isPlayerReady && !hasBeenPlayed) {
-            binding.playButton?.visibility = View.VISIBLE
+            binding.playButton.visibility = View.VISIBLE
         }
     }
 

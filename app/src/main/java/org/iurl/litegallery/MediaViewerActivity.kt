@@ -515,19 +515,19 @@ class MediaViewerActivity : AppCompatActivity() {
             showPropertiesDialog()
         }
 
-        binding.rotatePhotoButton?.setOnClickListener {
+        binding.rotatePhotoButton.setOnClickListener {
             rotatePhotoPreview()
         }
 
-        binding.copyButton?.setOnClickListener {
+        binding.copyButton.setOnClickListener {
             android.widget.Toast.makeText(this, "Copy: coming soon", android.widget.Toast.LENGTH_SHORT).show()
         }
         
-        binding.moveButton?.setOnClickListener {
+        binding.moveButton.setOnClickListener {
             android.widget.Toast.makeText(this, "Move: coming soon", android.widget.Toast.LENGTH_SHORT).show()
         }
 
-        binding.reloadVideoButton?.setOnClickListener {
+        binding.reloadVideoButton.setOnClickListener {
             reloadCurrentVideo()
         }
 
@@ -751,12 +751,12 @@ class MediaViewerActivity : AppCompatActivity() {
         val isVideo = currentItem?.isVideo == true
 
         // Type-specific action buttons in bottom toolbar.
-        binding.reloadVideoButton?.let { button ->
+        binding.reloadVideoButton.let { button ->
             if (button.parent != null) {
                 button.visibility = if (isVideo) android.view.View.VISIBLE else android.view.View.GONE
             }
         }
-        binding.rotatePhotoButton?.let { button ->
+        binding.rotatePhotoButton.let { button ->
             if (button.parent != null) {
                 button.visibility = if (isVideo) android.view.View.GONE else android.view.View.VISIBLE
             }

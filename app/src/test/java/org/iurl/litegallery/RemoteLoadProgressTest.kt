@@ -17,7 +17,9 @@ class RemoteLoadProgressTest {
         try {
             RemoteLoadProgress.ProgressStream(ByteArrayInputStream(data), path, data.size.toLong()).use { stream ->
                 val buffer = ByteArray(64 * 1024)
-                while (stream.read(buffer) >= 0) Unit
+                do {
+                    val read = stream.read(buffer)
+                } while (read >= 0)
             }
         } finally {
             RemoteLoadProgress.stopListening(path, listener)

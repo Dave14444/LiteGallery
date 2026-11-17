@@ -150,7 +150,7 @@ class MediaViewerAdapter(
                 if (!mediaItem.isRemote) {
                     val context = binding.root.context
                     if (context is androidx.fragment.app.FragmentActivity && !context.isDestroyed && !context.isFinishing) {
-                        binding.videoThumbnail?.clearColorFilter()
+                        binding.videoThumbnail.clearColorFilter()
                         Glide.with(context)
                             .load(
                                 if (mediaItem.path.startsWith("smb://")) {
@@ -164,8 +164,8 @@ class MediaViewerAdapter(
                             .into(binding.videoThumbnail)
                     }
                 } else {
-                    binding.videoThumbnail?.setImageResource(R.drawable.ic_play_circle)
-                    binding.videoThumbnail?.setColorFilter(android.graphics.Color.WHITE, android.graphics.PorterDuff.Mode.SRC_IN)
+                    binding.videoThumbnail.setImageResource(R.drawable.ic_play_circle)
+                    binding.videoThumbnail.setColorFilter(android.graphics.Color.WHITE, android.graphics.PorterDuff.Mode.SRC_IN)
                 }
                 
                 // Set up video player
@@ -261,7 +261,7 @@ class MediaViewerAdapter(
             })
             
             // Set up gesture listeners on ZoomablePlayerView with configurable actions
-            (binding.playerView as? org.iurl.litegallery.ZoomablePlayerView)?.let { zoomablePlayerView ->
+            binding.playerView.let { zoomablePlayerView ->
                 android.util.Log.d("MediaViewerAdapter", "Setting up ZoomablePlayerView gestures")
 
                 // Set up gesture action listeners
@@ -311,7 +311,7 @@ class MediaViewerAdapter(
             }
             
             // PRIORITY 2: Add gesture detection to video thumbnail for when player isn't ready
-            binding.videoThumbnail?.setOnTouchListener { _, event ->
+            binding.videoThumbnail.setOnTouchListener { _, event ->
                 android.util.Log.d("MediaViewerAdapter", "Touch event on video thumbnail")
                 gestureDetector.onTouchEvent(event)
                 true // Consume the event for video-specific gestures
@@ -341,7 +341,7 @@ class MediaViewerAdapter(
         }
         
         fun getZoomImageView(): org.iurl.litegallery.ZoomImageView? {
-            return binding.photoImageView as? org.iurl.litegallery.ZoomImageView
+            return binding.photoImageView
         }
         
         // ---- Pictures read over the network: progress ----
@@ -508,11 +508,11 @@ class MediaViewerAdapter(
                 }
                 
                 // Reset video-specific UI elements
-                binding.videoThumbnail?.visibility = View.VISIBLE
-                binding.playButton?.visibility = View.VISIBLE
+                binding.videoThumbnail.visibility = View.VISIBLE
+                binding.playButton.visibility = View.VISIBLE
                 
                 // Only reset PlayerView zoom if it exists
-                (binding.playerView as? org.iurl.litegallery.ZoomablePlayerView)?.resetZoom()
+                binding.playerView.resetZoom()
                 
             } else {
                 // Prepare for photo content
@@ -537,8 +537,8 @@ class MediaViewerAdapter(
             // Reset all UI elements to default state
             binding.photoImageView.visibility = View.VISIBLE
             binding.videoContainer.visibility = View.GONE
-            binding.videoThumbnail?.visibility = View.VISIBLE
-            binding.playButton?.visibility = View.VISIBLE
+            binding.videoThumbnail.visibility = View.VISIBLE
+            binding.playButton.visibility = View.VISIBLE
             
             // Clear image from Glide
             val context = binding.root.context
@@ -550,9 +550,9 @@ class MediaViewerAdapter(
             resetPhotoZoom()
             
             // Force PlayerView reset
-            binding.playerView?.let { playerView ->
+            binding.playerView.let { playerView ->
                 playerView.player = null
-                (playerView as? org.iurl.litegallery.ZoomablePlayerView)?.resetZoom()
+                playerView.resetZoom()
             }
         }
         
@@ -568,16 +568,16 @@ class MediaViewerAdapter(
             // Clear all touch listeners that might hold references
             binding.root.setOnTouchListener(null)
             binding.photoImageView.setOnTouchListener(null)
-            binding.playerView?.setOnTouchListener(null)
-            binding.playButton?.setOnClickListener(null)
+            binding.playerView.setOnTouchListener(null)
+            binding.playButton.setOnClickListener(null)
             
             // Clear gesture listeners
-            (binding.photoImageView as? org.iurl.litegallery.ZoomImageView)?.let { zoomImageView ->
+            binding.photoImageView.let { zoomImageView ->
                 zoomImageView.setOnImageClickListener {}
                 zoomImageView.setOnZoomChangeListener {}
             }
             
-            (binding.playerView as? org.iurl.litegallery.ZoomablePlayerView)?.let { zoomPlayerView ->
+            binding.playerView.let { zoomPlayerView ->
                 zoomPlayerView.setOnPlayPauseListener {}
                 zoomPlayerView.setOnToggleUIListener {}
                 zoomPlayerView.setOnShowUIListener {}
@@ -590,7 +590,7 @@ class MediaViewerAdapter(
             
             // Force clear any cached bitmaps in ImageViews
             binding.photoImageView.setImageDrawable(null)
-            binding.videoThumbnail?.setImageDrawable(null)
+            binding.videoThumbnail.setImageDrawable(null)
             
             android.util.Log.d("MediaViewerAdapter", "All ViewHolder references cleared")
         }

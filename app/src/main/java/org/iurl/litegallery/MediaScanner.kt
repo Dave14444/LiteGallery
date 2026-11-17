@@ -1009,7 +1009,7 @@ class MediaScanner(private val context: Context) {
                 "${MediaStore.Video.Media.DATA} = ?"
             }
             val selectionArgs = if (usesScopedSelection) {
-                arrayOf(relativeFolderPath!!, itemName)
+                arrayOf(relativeFolderPath, itemName)
             } else {
                 arrayOf(item.path)
             }
@@ -1049,7 +1049,7 @@ class MediaScanner(private val context: Context) {
                 "${MediaStore.Images.Media.DATA} = ?"
             }
             val selectionArgs = if (usesScopedSelection) {
-                arrayOf(relativeFolderPath!!, itemName)
+                arrayOf(relativeFolderPath, itemName)
             } else {
                 arrayOf(item.path)
             }

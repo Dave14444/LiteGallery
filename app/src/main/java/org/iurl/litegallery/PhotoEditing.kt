@@ -95,9 +95,10 @@ object PhotoEditing {
             loaded.rawWidth, loaded.rawHeight, loaded.orientation, rotation, crop
         )
 
+        // Older Android versions answer null instead of an error.
         @Suppress("DEPRECATION")
-        val decoder = BitmapRegionDecoder.newInstance(loaded.file.absolutePath, false)
-            ?: throw IOException("Cannot open the picture ${loaded.file.name}")
+        val opened: BitmapRegionDecoder? = BitmapRegionDecoder.newInstance(loaded.file.absolutePath, false)
+        val decoder = opened ?: throw IOException("Cannot open the picture ${loaded.file.name}")
         try {
             var sampleSize = sampleSizeFor(storedRect.width().toLong() * storedRect.height())
             var decoded: Bitmap? = null
@@ -111,7 +112,7 @@ object PhotoEditing {
                     sampleSize *= 2
                 }
             }
-            val result: Bitmap = decoded ?: throw IOException("Cannot decode the picture")
+            val result: Bitmap = decoded
 
             try {
                 encode(result, output)
@@ -219,6 +220,8 @@ object PhotoEditing {
             "webp" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 Bitmap.CompressFormat.WEBP_LOSSLESS
             } else {
+                // The only WebP format before Android 11.
+                @Suppress("DEPRECATION")
                 Bitmap.CompressFormat.WEBP
             }
             else -> Bitmap.CompressFormat.JPEG
