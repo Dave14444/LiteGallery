@@ -352,7 +352,7 @@ class NetworkTrashAdapter(
             binding.root.strokeColor = ThemeColorResolver.resolveColor(
                 context,
                 if (selected) {
-                    com.google.android.material.R.attr.colorPrimary
+                    androidx.appcompat.R.attr.colorPrimary
                 } else {
                     com.google.android.material.R.attr.colorOutlineVariant
                 }

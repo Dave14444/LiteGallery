@@ -62,7 +62,6 @@ data class CustomThemePalette(
             androidx.appcompat.R.attr.colorPrimary,
             androidx.appcompat.R.attr.colorAccent,
             androidx.appcompat.R.attr.colorControlActivated,
-            com.google.android.material.R.attr.colorPrimary,
             com.google.android.material.R.attr.colorSecondary,
         ) -> accent
 

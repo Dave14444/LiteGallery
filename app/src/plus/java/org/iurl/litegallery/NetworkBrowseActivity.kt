@@ -250,7 +250,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
         }
         
         binding.swipeRefreshLayout.setColorSchemeColors(
-            ThemeColorResolver.resolveColor(this, com.google.android.material.R.attr.colorPrimary),
+            ThemeColorResolver.resolveColor(this, androidx.appcompat.R.attr.colorPrimary),
         )
     }
 
@@ -400,7 +400,7 @@ class NetworkBrowseActivity : AppCompatActivity() {
             if (isSaved) R.drawable.ic_star else R.drawable.ic_star_border,
         )
         val colorAttr = if (isSaved) {
-            com.google.android.material.R.attr.colorPrimary
+            androidx.appcompat.R.attr.colorPrimary
         } else {
             com.google.android.material.R.attr.colorOnSurfaceVariant
         }

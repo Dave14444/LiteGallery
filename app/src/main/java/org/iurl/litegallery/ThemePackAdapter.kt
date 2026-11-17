@@ -186,7 +186,7 @@ class ThemePackAdapter(
         if (isActive) {
             val activePalette = if (pack.isCustom) CustomThemePalette.fromStore(ctx) else null
             val accentColor = activePalette?.accent
-                ?: ThemeColorResolver.resolveColor(ctx, com.google.android.material.R.attr.colorPrimary)
+                ?: ThemeColorResolver.resolveColor(ctx, androidx.appcompat.R.attr.colorPrimary)
             val onAccentColor = activePalette?.onAccent
                 ?: ThemeColorResolver.resolveColor(ctx, com.google.android.material.R.attr.colorOnPrimary)
             holder.card.strokeColor = accentColor

@@ -209,7 +209,7 @@ class CustomThemeEditorActivity : AppCompatActivity() {
     private fun addSectionHeader(parent: LinearLayout, labelRes: Int) {
         val tv = TextView(this).apply {
             text = getString(labelRes)
-            setTextColor(getThemeAttrColor(com.google.android.material.R.attr.colorPrimary))
+            setTextColor(getThemeAttrColor(androidx.appcompat.R.attr.colorPrimary))
             textSize = 12f
             isAllCaps = true
             letterSpacing = 0.1f

@@ -125,7 +125,7 @@ class TrashAdapter(
             binding.root.strokeColor = resolveAttrColor(
                 context,
                 if (selected) {
-                    com.google.android.material.R.attr.colorPrimary
+                    androidx.appcompat.R.attr.colorPrimary
                 } else {
                     com.google.android.material.R.attr.colorOutlineVariant
                 }

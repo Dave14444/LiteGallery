@@ -306,7 +306,7 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
             }
         }
         binding.swipeRefresh.setColorSchemeColors(
-            ThemeColorResolver.resolveColor(this, com.google.android.material.R.attr.colorPrimary),
+            ThemeColorResolver.resolveColor(this, androidx.appcompat.R.attr.colorPrimary),
         )
     }
 

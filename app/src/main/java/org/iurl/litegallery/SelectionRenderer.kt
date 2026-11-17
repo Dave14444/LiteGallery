@@ -18,7 +18,7 @@ object SelectionRenderer {
         if (selected) {
             val color = ThemeColorResolver.resolveColor(
                 root.context,
-                com.google.android.material.R.attr.colorPrimary
+                androidx.appcompat.R.attr.colorPrimary
             )
             thumbnail?.strokeColor = ColorStateList.valueOf(color)
             thumbnail?.strokeWidth = SELECTION_STROKE_DP * root.resources.displayMetrics.density

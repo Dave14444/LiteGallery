@@ -90,7 +90,7 @@ class FolderFastScrollerView @JvmOverloads constructor(
 
         val accentColor = org.iurl.litegallery.theme.ThemeColorResolver.resolveColor(
             context,
-            MaterialR.attr.colorPrimary
+            androidx.appcompat.R.attr.colorPrimary
         )
         val bubbleTextColor = org.iurl.litegallery.theme.ThemeColorResolver.resolveColor(
             context,

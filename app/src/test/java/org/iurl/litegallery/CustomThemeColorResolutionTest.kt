@@ -54,7 +54,7 @@ class CustomThemeColorResolutionTest {
 
         assertEquals(
             Color.RED,
-            ThemeColorResolver.resolveColor(app, com.google.android.material.R.attr.colorPrimary),
+            ThemeColorResolver.resolveColor(app, androidx.appcompat.R.attr.colorPrimary),
         )
         assertEquals(
             Color.YELLOW,

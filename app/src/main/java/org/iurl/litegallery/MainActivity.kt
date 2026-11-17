@@ -322,7 +322,7 @@ class MainActivity : AppCompatActivity() {
             refreshFromUserAction(fromSwipeRefresh = true)
         }
         binding.swipeRefresh.setColorSchemeColors(
-            ThemeColorResolver.resolveColor(this, com.google.android.material.R.attr.colorPrimary),
+            ThemeColorResolver.resolveColor(this, androidx.appcompat.R.attr.colorPrimary),
         )
     }
 

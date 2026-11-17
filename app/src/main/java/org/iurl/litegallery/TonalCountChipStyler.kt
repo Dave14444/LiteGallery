@@ -16,7 +16,7 @@ object TonalCountChipStyler {
         val context = chip.context
         val primary = ThemeColorResolver.resolveColor(
             context,
-            com.google.android.material.R.attr.colorPrimary,
+            androidx.appcompat.R.attr.colorPrimary,
         )
         val surface = ThemeColorResolver.resolveColor(
             context,

@@ -129,7 +129,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
         val gradient = GradientHelper.createForCurrentPack(this, binding.offlineFooterCard.radius) ?: return
         val primary = ThemeColorResolver.resolveColor(
             this,
-            com.google.android.material.R.attr.colorPrimary,
+            androidx.appcompat.R.attr.colorPrimary,
             Color.TRANSPARENT,
         )
         val onPrimary = ThemeColorResolver.resolveColor(
