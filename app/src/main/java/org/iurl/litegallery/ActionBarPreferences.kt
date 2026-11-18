@@ -10,6 +10,7 @@ object ActionBarPreferences {
         "delete",
         "share",
         "edit",
+        "raw",
         "exif",
         "rename",
         "rotate_screen",

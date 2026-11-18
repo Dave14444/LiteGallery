@@ -524,6 +524,41 @@
                         </LinearLayout>
 
                         <LinearLayout
+                            android:id="@+id/rawButton"
+                            android:layout_width="64dp"
+                            android:layout_height="wrap_content"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:contentDescription="@string/open_raw"
+                            android:focusable="true"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical"
+                            android:padding="4dp">
+
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_action_tile">
+
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:contentDescription="@null"
+                                    android:src="@drawable/ic_raw"
+                                    app:tint="?attr/colorPrimary" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="@string/open_raw"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="10sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
                             android:id="@+id/exifButton"
                             android:layout_width="64dp"
                             android:layout_height="wrap_content"

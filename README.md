@@ -31,7 +31,7 @@ Both editions share all local-gallery functionality; only the optional network-s
 
 ### Media Browsing
 - **Folder-based organization** - Browse your media files organized by folders
-- **Multiple view modes** - Switch between Grid, List, and Detailed views
+- **Multiple view modes** - Switch between small and large tiles, List, and Detailed views; folders follow the chosen view
 - **Flexible sorting** - Sort by date or name, in ascending or descending order
 - **Fast media scanning** - Quickly scan and display all your media files
 
@@ -39,6 +39,7 @@ Both editions share all local-gallery functionality; only the optional network-s
 - **Image viewer** - View images with smooth zooming and panning
 - **Video player** - Play videos with customizable gesture controls
 - **Fullscreen mode** - Immersive viewing experience
+- **Open the RAW file** - For a JPG, opens the camera RAW file with the same name (e.g. IMG_1234.CR2) in another app such as Snapseed; it is looked for next to the picture and in the folders inside its folder, on the phone and on network shares
 
 ### Network Shares (Plus edition)
 - **SMB browsing** - Browse photos and videos on SMB / Windows network shares

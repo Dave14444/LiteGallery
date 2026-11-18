@@ -17,6 +17,7 @@ import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -30,6 +31,9 @@ class MediaViewerActivity : AppCompatActivity() {
         const val RESULT_MEDIA_CHANGED = "result_media_changed"
         const val RESULT_FOLDER_PATH = "result_folder_path"
         const val RESULT_DELETED_PATHS = "result_deleted_paths"
+
+        /** The search for a RAW file shows its progress only if it takes longer than this. */
+        private const val RAW_SEARCH_PROGRESS_DELAY_MS = 300L
         const val RESULT_RENAMED_OLD_PATHS = "result_renamed_old_paths"
         const val RESULT_RENAMED_NEW_PATHS = "result_renamed_new_paths"
         const val RESULT_RENAMED_NEW_NAMES = "result_renamed_new_names"
@@ -494,6 +498,10 @@ class MediaViewerActivity : AppCompatActivity() {
             editCurrent()
         }
 
+        binding.rawButton.setOnClickListener {
+            openRawOfCurrent()
+        }
+
         binding.exifButton.setOnClickListener {
             val item = getCurrentMediaItem() ?: return@setOnClickListener
             ExifDialog.show(this, item.path, item.name, item.size, item.dateModified) {
@@ -559,6 +567,25 @@ class MediaViewerActivity : AppCompatActivity() {
         applyActionBarCustomization()
     }
 
+    /** Adds [action] to an existing installation once ([flag]): into the order after [after], and visible. */
+    private fun addActionOnce(prefs: android.content.SharedPreferences, flag: String, action: String, after: String) {
+        if (prefs.getBoolean(flag, false)) return
+        val editor = prefs.edit()
+        prefs.getString(ActionBarPreferences.KEY_ORDER, null)?.let { stored ->
+            val keys = stored.split(',').filter { it.isNotBlank() }.toMutableList()
+            if (action !in keys) {
+                val at = keys.indexOf(after).let { if (it >= 0) it + 1 else keys.size }
+                keys.add(at, action)
+                editor.putString(ActionBarPreferences.KEY_ORDER, keys.joinToString(","))
+            }
+        }
+        prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)?.let { stored ->
+            val keys = stored.split(',').filter { it.isNotBlank() }
+            if (action !in keys) editor.putString(ActionBarPreferences.KEY_VISIBLE, (keys + action).joinToString(","))
+        }
+        editor.putBoolean(flag, true).apply()
+    }
+
     /** Adds [action] to the visible actions of an existing installation, once ([flag]). */
     private fun makeVisibleOnce(prefs: android.content.SharedPreferences, flag: String, action: String) {
         if (prefs.getBoolean(flag, false)) return
@@ -608,6 +635,7 @@ class MediaViewerActivity : AppCompatActivity() {
         // Existing installations: actions added in newer versions become visible once.
         makeVisibleOnce(prefs, "share_action_migrated", "share")
         makeVisibleOnce(prefs, "edit_action_migrated", "edit")
+        addActionOnce(prefs, "raw_action_migrated", "raw", after = "edit")
 
         val order = prefs.getString(ActionBarPreferences.KEY_ORDER, null)
             ?.split(',')
@@ -627,6 +655,7 @@ class MediaViewerActivity : AppCompatActivity() {
         map["delete"] = binding.deleteButton
         map["share"] = binding.shareButton
         map["edit"] = binding.editButton
+        map["raw"] = binding.rawButton
         map["exif"] = binding.exifButton
         map["rename"] = binding.renameButton
         map["rotate_screen"] = binding.rotateButton
@@ -757,6 +786,12 @@ class MediaViewerActivity : AppCompatActivity() {
             }
         }
         binding.rotatePhotoButton.let { button ->
+            if (button.parent != null) {
+                button.visibility = if (isVideo) android.view.View.GONE else android.view.View.VISIBLE
+            }
+        }
+        // Videos have no RAW file.
+        binding.rawButton.let { button ->
             if (button.parent != null) {
                 button.visibility = if (isVideo) android.view.View.GONE else android.view.View.VISIBLE
             }
@@ -1462,6 +1497,95 @@ private fun shareCurrent() {
             android.content.Intent.ACTION_EDIT,
             chooser = false
         )
+    }
+
+    private var rawSearchJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * Opens the camera RAW file of the picture shown in another app (e.g. Snapseed): the file
+     * with the same name, next to the picture or in a folder inside its folder.
+     */
+    private fun openRawOfCurrent() {
+        val item = getCurrentMediaItem() ?: return
+        if (item.isVideo) return
+        rawSearchJob?.cancel()
+        val progress = android.app.AlertDialog.Builder(this)
+            .setMessage(R.string.raw_searching)
+            .setNegativeButton(R.string.cancel) { _, _ -> rawSearchJob?.cancel() }
+            .setCancelable(false)
+            .create()
+        rawSearchJob = lifecycleScope.launch {
+            // Shown only if the search takes a moment (folders on a network share).
+            val showProgress = launch {
+                kotlinx.coroutines.delay(RAW_SEARCH_PROGRESS_DELAY_MS)
+                progress.show()
+                ThemeHelper.applyRuntimeCustomColors(progress)
+            }
+            val outcome = try {
+                withContext(Dispatchers.IO) {
+                    try {
+                        Result.success(RawCompanion.find(applicationContext, item.path, item.name) { isActive })
+                    } catch (e: Exception) {
+                        Result.failure(e)
+                    }
+                }
+            } finally {
+                showProgress.cancel()
+                progress.dismiss()
+            }
+            val raw = outcome.getOrElse { e ->
+                android.util.Log.w("MediaViewerActivity", "RAW search failed for ${item.path}", e)
+                android.widget.Toast.makeText(
+                    this@MediaViewerActivity,
+                    getString(R.string.raw_search_failed, e.message ?: e.javaClass.simpleName),
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
+            if (raw == null) {
+                android.widget.Toast.makeText(
+                    this@MediaViewerActivity,
+                    getString(R.string.raw_not_found, item.name),
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
+            openRawFile(raw)
+        }
+    }
+
+    /** Hands the RAW file to another app, as the network browser does (Android asks which one). */
+    private fun openRawFile(raw: RawCompanion.Entry) {
+        val mimeType = RawFileTypes.mimeType(raw.name)
+        if (MediaSourceRegistry.forPath(raw.path) != null) {
+            // On a network share: a copy on the phone is opened (with progress for big files).
+            ExternalEditFlow.openRemoteInOtherApp(
+                this,
+                raw.path,
+                raw.name,
+                mimeType,
+                android.content.Intent.ACTION_VIEW,
+                chooser = true
+            )
+            return
+        }
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                this,
+                "${applicationContext.packageName}.fileprovider",
+                java.io.File(raw.path)
+            )
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mimeType)
+                clipData = android.content.ClipData.newUri(contentResolver, "media", uri)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            AppLock.leavingForOtherApp()
+            startActivity(android.content.Intent.createChooser(intent, raw.name))
+        } catch (e: Exception) {
+            android.util.Log.e("MediaViewerActivity", "Could not open ${raw.path}", e)
+            android.widget.Toast.makeText(this, R.string.external_edit_failed, android.widget.Toast.LENGTH_LONG).show()
+        }
     }
 
     /** Back from an editing app (e.g. Snapseed): offers to file the pictures it saved. */

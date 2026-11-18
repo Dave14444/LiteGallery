@@ -19,21 +19,7 @@ object RemoteFileTypes {
 
     fun isRaw(name: String): Boolean = RAW_EXTENSIONS.contains(extensionOf(name))
 
-    fun rawMimeType(name: String): String = when (extensionOf(name)) {
-        "cr2" -> "image/x-canon-cr2"
-        "cr3" -> "image/x-canon-cr3"
-        "crw" -> "image/x-canon-crw"
-        "nef" -> "image/x-nikon-nef"
-        "nrw" -> "image/x-nikon-nrw"
-        "arw" -> "image/x-sony-arw"
-        "dng" -> "image/x-adobe-dng"
-        "orf" -> "image/x-olympus-orf"
-        "rw2" -> "image/x-panasonic-rw2"
-        "raf" -> "image/x-fuji-raf"
-        "pef" -> "image/x-pentax-pef"
-        "srw" -> "image/x-samsung-srw"
-        else -> "image/*"
-    }
+    fun rawMimeType(name: String): String = RawFileTypes.mimeType(name)
 
     fun mimeType(name: String): String {
         val ext = extensionOf(name)

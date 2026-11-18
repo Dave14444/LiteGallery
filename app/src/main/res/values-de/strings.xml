@@ -658,4 +658,10 @@
     <string name="app_lock_locked">LiteGallery ist gesperrt</string>
     <string name="app_lock_unlock">Entsperren</string>
     <string name="app_lock_turned_off_no_screen_lock">Die App-Sperre wurde ausgeschaltet, weil am Handy keine Displaysperre mehr eingerichtet ist.</string>
+
+    <!-- Viewer: open the camera RAW file of the picture shown -->
+    <string name="open_raw">RAW öffnen</string>
+    <string name="raw_searching">RAW-Datei wird gesucht…</string>
+    <string name="raw_not_found">Keine RAW-Datei zu %1$s gefunden (gesucht neben dem Bild und in seinen Unterordnern).</string>
+    <string name="raw_search_failed">RAW-Datei konnte nicht gesucht werden: %1$s</string>
 </resources>

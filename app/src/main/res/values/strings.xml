@@ -657,4 +657,10 @@
     <string name="app_lock_locked">LiteGallery is locked</string>
     <string name="app_lock_unlock">Unlock</string>
     <string name="app_lock_turned_off_no_screen_lock">The app lock was switched off because the phone no longer has a screen lock.</string>
+
+    <!-- Viewer: open the camera RAW file of the picture shown -->
+    <string name="open_raw">Open RAW</string>
+    <string name="raw_searching">Looking for the RAW file…</string>
+    <string name="raw_not_found">No RAW file found for %1$s (looked next to the picture and in the folders inside its folder).</string>
+    <string name="raw_search_failed">Could not look for the RAW file: %1$s</string>
 </resources>
