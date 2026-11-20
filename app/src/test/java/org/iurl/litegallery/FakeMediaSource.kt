@@ -64,8 +64,13 @@ class FakeMediaSource : MediaSource {
     override fun parentFolder(path: String): String? =
         path.trimEnd('/').substringBeforeLast('/', "").ifEmpty { null }
 
-    override fun openInput(context: Context, path: String): InputStream =
-        ByteArrayInputStream(files[path] ?: throw java.io.FileNotFoundException(path))
+    /** How often a file was read from this source. */
+    var inputsOpened = 0
+
+    override fun openInput(context: Context, path: String): InputStream {
+        inputsOpened++
+        return ByteArrayInputStream(files[path] ?: throw java.io.FileNotFoundException(path))
+    }
 
     override fun fileSize(context: Context, path: String): Long {
         if (sizeUnknown) return -1L

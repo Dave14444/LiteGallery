@@ -32,6 +32,10 @@ class PhotoEditorActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_PATH = "extra_path"
+
+        /** The version shown in the viewer (time and size as listed), to find it in the image cache. */
+        const val EXTRA_DATE_MODIFIED = "extra_date_modified"
+        const val EXTRA_SIZE = "extra_size"
         const val RESULT_SAVED_PATH = "result_saved_path"
         const val RESULT_REPLACED = "result_replaced"
 
@@ -52,6 +56,8 @@ class PhotoEditorActivity : AppCompatActivity() {
     private var rotatedPreview: Bitmap? = null
     private var selectedAspect = 0
     private var sourceLastModified = 0L
+    private var listedModified = 0L
+    private var listedSize = 0L
     private var isSaving = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,6 +86,8 @@ class PhotoEditorActivity : AppCompatActivity() {
         )
 
         sourcePath = intent.getStringExtra(EXTRA_PATH).orEmpty()
+        listedModified = intent.getLongExtra(EXTRA_DATE_MODIFIED, 0L)
+        listedSize = intent.getLongExtra(EXTRA_SIZE, 0L)
         if (!canEdit(sourcePath)) {
             Toast.makeText(this, R.string.photo_editor_unsupported, Toast.LENGTH_LONG).show()
             finish()
@@ -193,8 +201,19 @@ class PhotoEditorActivity : AppCompatActivity() {
             workDirectory.deleteRecursively()
             workDirectory.mkdirs()
             localFile = File(workDirectory, "source_${fileNameOf(sourcePath)}")
-            source.openInput(applicationContext, sourcePath).use { input ->
-                localFile.outputStream().use { output -> input.copyTo(output, 256 * 1024) }
+            // Shown in the viewer just now: the picture is in the image cache, as long as it was
+            // not changed on the share since (then it is loaded anew).
+            val cached = if (listedModified > 0L && listedModified == sourceLastModified) {
+                RemoteOriginals.cached(applicationContext, sourcePath, listedModified, listedSize)
+            } else {
+                null
+            }
+            if (cached != null) {
+                cached.copyTo(localFile, overwrite = true)
+            } else {
+                source.openInput(applicationContext, sourcePath).use { input ->
+                    localFile.outputStream().use { output -> input.copyTo(output, 256 * 1024) }
+                }
             }
         }
         return PhotoEditing.load(localFile, PREVIEW_MAX_SIDE)

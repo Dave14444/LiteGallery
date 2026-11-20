@@ -34,6 +34,10 @@ class MediaViewerActivity : AppCompatActivity() {
 
         /** The search for a RAW file shows its progress only if it takes longer than this. */
         private const val RAW_SEARCH_PROGRESS_DELAY_MS = 300L
+
+        /** Copies for sharing (in the app cache), and how long they are kept. */
+        private const val SHARE_DIRECTORY = "share"
+        private const val SHARE_COPY_KEEP_MS = 60 * 60 * 1000L
         const val RESULT_RENAMED_OLD_PATHS = "result_renamed_old_paths"
         const val RESULT_RENAMED_NEW_PATHS = "result_renamed_new_paths"
         const val RESULT_RENAMED_NEW_NAMES = "result_renamed_new_names"
@@ -1342,110 +1346,75 @@ class MediaViewerActivity : AppCompatActivity() {
         resultRenamedIds.add(updatedItem.id)
     }
 
-    
-private fun shareCurrent() {
-    val item = getCurrentMediaItem() ?: return
 
-    lifecycleScope.launch {
-        try {
-            val uri = if (item.isRemote) {
-                val source = MediaSourceRegistry.forPath(item.path)
-
-                if (source == null) {
-                    android.widget.Toast.makeText(
-                        this@MediaViewerActivity,
-                        "Netzwerkquelle nicht gefunden.",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                    return@launch
-                }
-
-                val shareDir = java.io.File(cacheDir, "share").apply {
-                    mkdirs()
-                }
-
-                val extension = item.extension
-                    .takeIf { it.isNotBlank() }
-                    ?.let { ".$it" } ?: ".tmp"
-
-                val cachedFile = java.io.File.createTempFile(
-                    "shared_",
-                    extension,
-                    shareDir
-                )
-
-                val copied = source.copyToCache(
-                    this@MediaViewerActivity,
-                    item.path,
-                    cachedFile
-                )
-
-                if (!copied) {
-                    cachedFile.delete()
-
-                    android.widget.Toast.makeText(
-                        this@MediaViewerActivity,
-                        "Das Netzwerkbild konnte nicht zum Teilen geladen werden.",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                    return@launch
-                }
-
-                androidx.core.content.FileProvider.getUriForFile(
-                    this@MediaViewerActivity,
-                    "${applicationContext.packageName}.fileprovider",
-                    cachedFile
-                )
-            } else {
-                buildSecureUriForItem(item)
-            }
-
+    /**
+     * Shares the picture or video shown. From a network share a copy is handed over: a picture
+     * that is shown was read completely already and is copied from the image cache at once;
+     * anything else is loaded from the share, with progress.
+     */
+    private fun shareCurrent() {
+        val item = getCurrentMediaItem() ?: return
+        if (!item.isRemote) {
+            val uri = buildSecureUriForItem(item)
             if (uri == null) {
-                android.widget.Toast.makeText(
-                    this@MediaViewerActivity,
-                    "Die Datei konnte nicht zum Teilen vorbereitet werden.",
-                    android.widget.Toast.LENGTH_LONG
-                ).show()
-                return@launch
+                android.widget.Toast.makeText(this, R.string.share_failed, android.widget.Toast.LENGTH_LONG).show()
+                return
             }
-
-            val shareIntent = android.content.Intent(
-                android.content.Intent.ACTION_SEND
-            ).apply {
-                type = item.mimeType
-                putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                clipData = android.content.ClipData.newUri(
-                    contentResolver,
-                    "media",
-                    uri
+            startShare(item, uri)
+            return
+        }
+        val shareRoot = java.io.File(cacheDir, SHARE_DIRECTORY)
+        // Its own folder per sharing, so the copy keeps the name of the file.
+        val target = java.io.File(java.io.File(shareRoot, System.currentTimeMillis().toString()), item.name)
+        RemoteCopy.fetch(
+            this,
+            item.path,
+            target,
+            R.string.share_remote_failed,
+            cached = { RemoteOriginals.cached(applicationContext, item) },
+            knownModified = item.dateModified,
+            beforeCopy = { removeOldShareCopies(shareRoot) }
+        ) { file ->
+            try {
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    this,
+                    "${applicationContext.packageName}.fileprovider",
+                    file
                 )
-                addFlags(
-                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
+                startShare(item, uri)
+            } catch (e: Exception) {
+                android.util.Log.e("MediaViewerActivity", "Share failed", e)
+                android.widget.Toast.makeText(this, R.string.share_failed, android.widget.Toast.LENGTH_LONG).show()
             }
-
-            AppLock.leavingForOtherApp()
-            startActivity(
-                android.content.Intent.createChooser(
-                    shareIntent,
-                    getString(R.string.share)
-                )
-            )
-        } catch (e: Exception) {
-            android.util.Log.e(
-                "MediaViewerActivity",
-                "Share failed",
-                e
-            )
-
-            android.widget.Toast.makeText(
-                this@MediaViewerActivity,
-                "Teilen fehlgeschlagen: ${e.localizedMessage ?: "Unbekannter Fehler"}",
-                android.widget.Toast.LENGTH_LONG
-            ).show()
         }
     }
-}
+
+    private fun startShare(item: MediaItem, uri: android.net.Uri) {
+        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = item.mimeType
+            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            clipData = android.content.ClipData.newUri(contentResolver, "media", uri)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            AppLock.leavingForOtherApp()
+            startActivity(android.content.Intent.createChooser(shareIntent, getString(R.string.share)))
+        } catch (e: Exception) {
+            android.util.Log.e("MediaViewerActivity", "Share failed", e)
+            android.widget.Toast.makeText(this, R.string.share_failed, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /**
+     * Copies handed over for sharing are removed after a while (the receiving app has read them
+     * by then); before, every sharing left a copy behind.
+     */
+    private fun removeOldShareCopies(shareRoot: java.io.File) {
+        val now = System.currentTimeMillis()
+        shareRoot.listFiles()?.forEach { entry ->
+            if (now - entry.lastModified() > SHARE_COPY_KEEP_MS) entry.deleteRecursively()
+        }
+    }
 
 
     private val photoEditorLauncher = registerForActivityResult(
@@ -1495,7 +1464,10 @@ private fun shareCurrent() {
             item.name,
             item.mimeType,
             android.content.Intent.ACTION_EDIT,
-            chooser = false
+            chooser = false,
+            // Shown already: the picture is taken from the image cache, not loaded again.
+            cached = { RemoteOriginals.cached(applicationContext, item) },
+            knownModified = item.dateModified
         )
     }
 
@@ -1597,6 +1569,9 @@ private fun shareCurrent() {
         photoEditorLauncher.launch(
             android.content.Intent(this, PhotoEditorActivity::class.java)
                 .putExtra(PhotoEditorActivity.EXTRA_PATH, item.path)
+                // The version shown: a picture from a share is taken from the image cache.
+                .putExtra(PhotoEditorActivity.EXTRA_DATE_MODIFIED, item.dateModified)
+                .putExtra(PhotoEditorActivity.EXTRA_SIZE, item.size)
         )
     }
 

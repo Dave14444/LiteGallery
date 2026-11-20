@@ -664,4 +664,8 @@
     <string name="raw_searching">RAW-Datei wird gesucht…</string>
     <string name="raw_not_found">Keine RAW-Datei zu %1$s gefunden (gesucht neben dem Bild und in seinen Unterordnern).</string>
     <string name="raw_search_failed">RAW-Datei konnte nicht gesucht werden: %1$s</string>
+
+    <!-- Sharing -->
+    <string name="share_failed">Die Datei konnte nicht geteilt werden</string>
+    <string name="share_remote_failed">Die Datei konnte nicht zum Teilen vom Netzlaufwerk geladen werden</string>
 </resources>

@@ -194,7 +194,8 @@ class MediaViewerAdapter(
                 // Load image with Glide
                 val context = binding.root.context
                 if (context is androidx.fragment.app.FragmentActivity && !context.isDestroyed && !context.isFinishing) {
-                    val signature = ObjectKey("${mediaItem.path}_${mediaItem.dateModified}_${mediaItem.size}")
+                    // The same key as sharing and editing use to find the picture in the cache.
+                    val signature = RemoteOriginals.signature(mediaItem)
                     // From a network share: show how much has arrived (before the request starts,
                     // a picture from the cache is ready at once).
                     if (mediaItem.isRemote) startLoadingProgress(mediaItem)
@@ -454,7 +455,7 @@ class MediaViewerAdapter(
                 return { File(mediaItem.path).takeIf { it.isFile && it.canRead() } }
             }
             val appContext = binding.root.context.applicationContext
-            val signature = ObjectKey("${mediaItem.path}_${mediaItem.dateModified}_${mediaItem.size}")
+            val signature = RemoteOriginals.signature(mediaItem)
             fun fetch(cacheOnly: Boolean): File? = try {
                 Glide.with(appContext)
                     .downloadOnly()

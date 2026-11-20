@@ -663,4 +663,8 @@
     <string name="raw_searching">Looking for the RAW file…</string>
     <string name="raw_not_found">No RAW file found for %1$s (looked next to the picture and in the folders inside its folder).</string>
     <string name="raw_search_failed">Could not look for the RAW file: %1$s</string>
+
+    <!-- Sharing -->
+    <string name="share_failed">The file could not be shared</string>
+    <string name="share_remote_failed">The file could not be loaded from the network share for sharing</string>
 </resources>
