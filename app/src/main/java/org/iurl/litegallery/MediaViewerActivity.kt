@@ -1487,6 +1487,18 @@ class MediaViewerActivity : AppCompatActivity() {
             .setCancelable(false)
             .create()
         rawSearchJob = lifecycleScope.launch {
+            // Fetched onto the device in advance: handed over at once, nothing asked from the share.
+            val kept = withContext(Dispatchers.IO) {
+                try {
+                    RawOffline.lookup(applicationContext, item.path, item.name)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            if (kept != null) {
+                openRawFile(RawCompanion.Entry(kept.name, kept.rawPath, false), kept.file)
+                return@launch
+            }
             // Shown only if the search takes a moment (folders on a network share).
             val showProgress = launch {
                 kotlinx.coroutines.delay(RAW_SEARCH_PROGRESS_DELAY_MS)
@@ -1526,8 +1538,11 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
 
-    /** Hands the RAW file to another app, as the network browser does (Android asks which one). */
-    private fun openRawFile(raw: RawCompanion.Entry) {
+    /**
+     * Hands the RAW file to another app, as the network browser does (Android asks which one).
+     * [kept] is its copy on the device, if it was fetched in advance.
+     */
+    private fun openRawFile(raw: RawCompanion.Entry, kept: java.io.File? = null) {
         val mimeType = RawFileTypes.mimeType(raw.name)
         if (MediaSourceRegistry.forPath(raw.path) != null) {
             // On a network share: a copy on the phone is opened (with progress for big files).
@@ -1537,7 +1552,8 @@ class MediaViewerActivity : AppCompatActivity() {
                 raw.name,
                 mimeType,
                 android.content.Intent.ACTION_VIEW,
-                chooser = true
+                chooser = true,
+                cached = kept?.let { file -> { file.takeIf { it.isFile } } }
             )
             return
         }

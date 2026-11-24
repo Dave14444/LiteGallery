@@ -11,8 +11,8 @@ import java.io.File
  */
 object RawCompanion {
 
-    /** A file or folder as listed. */
-    data class Entry(val name: String, val path: String, val isDirectory: Boolean)
+    /** A file or folder as listed ([size] below 0 if unknown). */
+    data class Entry(val name: String, val path: String, val isDirectory: Boolean, val size: Long = -1L)
 
     /** Folder contents are kept this long: the next pictures of the same folder are found at once. */
     private const val KEEP_MS = 5 * 60 * 1000L
@@ -37,13 +37,13 @@ object RawCompanion {
         val read: (String) -> List<Entry>
         if (source != null) {
             folder = source.parentFolder(picturePath) ?: return null
-            read = { path -> source.listFolder(context, path).map { Entry(it.name, it.path, it.isDirectory) } }
+            read = { path -> source.listFolder(context, path).map { Entry(it.name, it.path, it.isDirectory, it.size) } }
         } else {
             // A picture handed over by another app (content://) has no folder to look in.
             if (picturePath.startsWith("content://")) return null
             folder = File(picturePath).parent ?: return null
             read = { path ->
-                File(path).listFiles()?.map { Entry(it.name, it.path, it.isDirectory) } ?: emptyList()
+                File(path).listFiles()?.map { Entry(it.name, it.path, it.isDirectory, it.length()) } ?: emptyList()
             }
         }
         val found = search(pictureName, folder, keepGoing) { path -> listed(path, read) }
@@ -72,6 +72,45 @@ object RawCompanion {
         }
         return null
     }
+
+    /**
+     * For fetching in advance: the RAW files of all pictures in [folderPath], by the picture's
+     * name without extension. Looked for as in [search]; stops once every picture has its RAW
+     * file (or [keepGoing] says so).
+     */
+    internal fun collect(
+        folderPath: String,
+        keepGoing: () -> Boolean = { true },
+        list: (String) -> List<Entry>
+    ): Map<String, Entry> {
+        val inFolder = list(folderPath)
+        val pictures = inFolder
+            .filter { !it.isDirectory && RawFileTypes.extensionOf(it.name) in PICTURE_EXTENSIONS }
+            .map { it.name.substringBeforeLast('.') }
+            .filter { it.isNotEmpty() }
+        val wanted = pictures.associateBy { it.lowercase() }
+        val found = LinkedHashMap<String, Entry>()
+
+        fun takeFrom(entries: List<Entry>) {
+            entries
+                .filter { !it.isDirectory && RawFileTypes.isRaw(it.name) }
+                .groupBy { it.name.substringBeforeLast('.').lowercase() }
+                .forEach { (base, raws) ->
+                    val picture = wanted[base] ?: return@forEach
+                    if (picture !in found) pick(picture, raws)?.let { found[picture] = it }
+                }
+        }
+
+        takeFrom(inFolder)
+        for (folder in searchOrder(inFolder)) {
+            if (found.size == wanted.size || !keepGoing()) break
+            takeFrom(list(folder.path))
+        }
+        return found
+    }
+
+    /** Pictures a camera saves next to its RAW files. */
+    private val PICTURE_EXTENSIONS = setOf("jpg", "jpeg", "heic", "heif")
 
     /**
      * The folders to look in: those named like RAW files first ("RAW", "CR2", "Rohdaten"), then

@@ -139,7 +139,12 @@ object RemoteCopy {
                             }
                         }
                     }
-                    val modified = knownModified.takeIf { it > 0L } ?: source.lastModified(appContext, path)
+                    // A copy from the device needs nothing from the share (it may not be reachable).
+                    val modified = when {
+                        knownModified > 0L -> knownModified
+                        fromCache != null -> 0L
+                        else -> source.lastModified(appContext, path)
+                    }
                     if (modified > 0L) target.setLastModified(modified)
                     target
                 }

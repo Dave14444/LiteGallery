@@ -98,4 +98,28 @@
     <string name="nas_identity_changed_hint">If you replaced, reset or renamed the NAS, you can accept the new device. Otherwise please cancel, above all in a foreign network.</string>
     <string name="nas_identity_accept">Accept new device</string>
     <string name="smb_password_not_saved">Connection saved, but the password could not be encrypted on this device and was therefore not saved.</string>
+
+    <!-- Loading RAW files onto the device for editing on the go -->
+    <string name="raw_prefetch_menu">Load RAWs onto the device</string>
+    <string name="raw_prefetch_title">RAW files for on the go</string>
+    <string name="raw_prefetch_searching">Looking for the RAW files of the pictures…</string>
+    <string name="raw_prefetch_none">No RAW files were found for the pictures in this folder (looked next to them and in the folders inside).</string>
+    <string name="raw_prefetch_found">%1$d RAW files belong to the pictures in this folder.</string>
+    <string name="raw_prefetch_already">%1$d of them are on the device already (until %2$s).</string>
+    <string name="raw_prefetch_to_load">%1$d files (%2$s) will be loaded. Free on the device: %3$s.</string>
+    <string name="raw_prefetch_keep">The copies are removed automatically %1$d days after loading. Best loaded at home in the Wi-Fi.</string>
+    <string name="raw_prefetch_start">Load</string>
+    <string name="raw_prefetch_extend">Keep %1$d more days</string>
+    <string name="raw_prefetch_extended">The RAW copies stay on the device until %1$s.</string>
+    <string name="raw_prefetch_delete">Remove from device</string>
+    <string name="raw_prefetch_deleted">The RAW copies of this folder were removed from the device.</string>
+    <string name="raw_prefetch_no_space">Not enough space on the device: %1$s needed, %2$s free.</string>
+    <string name="raw_prefetch_started">The RAW files are loaded in the background; the notification shows the progress.</string>
+    <string name="raw_prefetch_running">RAW files are being loaded already. Stop that?</string>
+    <string name="raw_prefetch_stop">Stop</string>
+    <string name="raw_prefetch_continue">Keep loading</string>
+    <string name="raw_prefetch_failed_search">The RAW files could not be looked up: %1$s</string>
+    <string name="raw_prefetch_progress">%1$d of %2$d · %3$s of %4$s</string>
+    <string name="raw_prefetch_done">%1$d loaded, %2$d were there already, %3$d failed. On the device until %4$s.</string>
+    <string name="raw_prefetch_stopped_space">Stopped: the device is full.</string>
 </resources>

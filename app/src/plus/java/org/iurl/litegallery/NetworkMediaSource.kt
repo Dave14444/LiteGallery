@@ -391,6 +391,11 @@ object NetworkMediaSource : MediaSource {
             }
         )
         actions.add(
+            FolderAction(context.getString(R.string.raw_prefetch_menu)) { activity ->
+                RawPrefetcher.start(activity, folderPath, label)
+            }
+        )
+        actions.add(
             FolderAction(context.getString(R.string.thumb_cleanup_menu)) { activity ->
                 ThumbnailCleanup.start(activity, folderPath)
             }

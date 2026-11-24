@@ -43,6 +43,11 @@
             android:name=".ThumbnailPrepareService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Loads the RAW files of a folder onto the device for editing on the go. -->
+        <service
+            android:name=".RawPrefetchService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 
 </manifest>

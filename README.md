@@ -40,6 +40,7 @@ Both editions share all local-gallery functionality; only the optional network-s
 - **Video player** - Play videos with customizable gesture controls
 - **Fullscreen mode** - Immersive viewing experience
 - **Open the RAW file** - For a JPG, opens the camera RAW file with the same name (e.g. IMG_1234.CR2) in another app such as Snapseed; it is looked for next to the picture and in the folders inside its folder, on the phone and on network shares
+- **RAW files for on the go** - Folder menu "Load RAWs onto the device" fetches the RAW files of a network folder's pictures in the background (best at home in the Wi-Fi); "Open RAW" then hands over the copy on the device at once. The copies are removed automatically 7 days after loading
 
 ### Network Shares (Plus edition)
 - **SMB browsing** - Browse photos and videos on SMB / Windows network shares

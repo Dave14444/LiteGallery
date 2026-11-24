@@ -31,6 +31,15 @@ class LiteGalleryApplication : Application() {
 
         // Remove leftovers of shares and edits that were never cleaned up.
         TempFileCleaner.cleanUpInBackground(this)
+
+        // RAW files fetched onto the device are removed a week after fetching.
+        Thread({
+            try {
+                RawOffline.removeExpired(this)
+            } catch (e: Exception) {
+                android.util.Log.w("LiteGallery", "Removing expired RAW copies failed", e)
+            }
+        }, "raw-offline-cleanup").start()
     }
 
     override fun onTerminate() {

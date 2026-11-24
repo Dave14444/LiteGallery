@@ -134,6 +134,67 @@ class RawCompanionTest {
         assertEquals(listOf("/a", "/a/B"), share.read)
     }
 
+    // ---------------------------------------------------------------- all RAW files of a folder
+
+    @Test
+    fun collect_findsTheRawFilesOfAllPictures() {
+        val share = Share(
+            mapOf(
+                "/Urlaub" to listOf(
+                    file("/Urlaub", "IMG_1.JPG"),
+                    file("/Urlaub", "IMG_2.JPG"),
+                    file("/Urlaub", "IMG_3.jpg"),
+                    file("/Urlaub", "Clip.MP4"),
+                    folder("/Urlaub", "snapseed"),
+                    folder("/Urlaub", "RAW")
+                ),
+                "/Urlaub/RAW" to listOf(
+                    file("/Urlaub/RAW", "IMG_1.CR2"),
+                    file("/Urlaub/RAW", "IMG_2.CR2"),
+                    // Its picture was deleted: not needed.
+                    file("/Urlaub/RAW", "IMG_9.CR2")
+                ),
+                "/Urlaub/snapseed" to listOf(file("/Urlaub/snapseed", "IMG_3.cr2"))
+            )
+        )
+
+        val found = RawCompanion.collect("/Urlaub", list = share::list)
+
+        assertEquals(
+            mapOf(
+                "IMG_1" to "/Urlaub/RAW/IMG_1.CR2",
+                "IMG_2" to "/Urlaub/RAW/IMG_2.CR2",
+                "IMG_3" to "/Urlaub/snapseed/IMG_3.cr2"
+            ),
+            found.mapValues { it.value.path }
+        )
+    }
+
+    @Test
+    fun collect_stopsOnceEveryPictureHasItsRawFile() {
+        val share = Share(
+            mapOf(
+                "/a" to listOf(file("/a", "IMG_1.JPG"), folder("/a", "RAW"), folder("/a", "Zeug")),
+                "/a/RAW" to listOf(file("/a/RAW", "IMG_1.CR2")),
+                "/a/Zeug" to listOf(file("/a/Zeug", "IMG_1.dng"))
+            )
+        )
+        val found = RawCompanion.collect("/a", list = share::list)
+        assertEquals("/a/RAW/IMG_1.CR2", found["IMG_1"]?.path)
+        assertEquals(listOf("/a", "/a/RAW"), share.read)
+    }
+
+    @Test
+    fun collect_keepsTheSizes() {
+        val share = Share(
+            mapOf(
+                "/a" to listOf(file("/a", "IMG_1.JPG"), folder("/a", "RAW")),
+                "/a/RAW" to listOf(Entry("IMG_1.CR2", "/a/RAW/IMG_1.CR2", false, 27_000_000L))
+            )
+        )
+        assertEquals(27_000_000L, RawCompanion.collect("/a", list = share::list)["IMG_1"]?.size)
+    }
+
     // ---------------------------------------------------------------- on the phone
 
     private val context get() = ApplicationProvider.getApplicationContext<android.content.Context>()

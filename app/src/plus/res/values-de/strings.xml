@@ -97,4 +97,28 @@
     <string name="nas_identity_changed_hint">Hast du die NAS ersetzt, zurückgesetzt oder umbenannt, kannst du das neue Gerät übernehmen. Sonst bitte abbrechen – vor allem in einem fremden Netz.</string>
     <string name="nas_identity_accept">Neues Gerät übernehmen</string>
     <string name="smb_password_not_saved">Verbindung gespeichert – das Passwort ließ sich auf diesem Gerät aber nicht verschlüsseln und wurde deshalb nicht gespeichert.</string>
+
+    <!-- Loading RAW files onto the device for editing on the go -->
+    <string name="raw_prefetch_menu">RAWs aufs Gerät laden</string>
+    <string name="raw_prefetch_title">RAWs für unterwegs</string>
+    <string name="raw_prefetch_searching">RAW-Dateien zu den Bildern werden gesucht…</string>
+    <string name="raw_prefetch_none">Zu den Bildern in diesem Ordner wurden keine RAW-Dateien gefunden (gesucht daneben und in den Unterordnern).</string>
+    <string name="raw_prefetch_found">Zu den Bildern in diesem Ordner gehören %1$d RAW-Dateien.</string>
+    <string name="raw_prefetch_already">Davon sind %1$d schon auf dem Gerät (bis %2$s).</string>
+    <string name="raw_prefetch_to_load">%1$d Dateien (%2$s) werden geladen. Frei auf dem Gerät: %3$s.</string>
+    <string name="raw_prefetch_keep">Die Kopien werden %1$d Tage nach dem Laden automatisch gelöscht. Am besten zu Hause im WLAN laden.</string>
+    <string name="raw_prefetch_start">Laden</string>
+    <string name="raw_prefetch_extend">Weitere %1$d Tage behalten</string>
+    <string name="raw_prefetch_extended">Die RAW-Kopien bleiben bis %1$s auf dem Gerät.</string>
+    <string name="raw_prefetch_delete">Vom Gerät löschen</string>
+    <string name="raw_prefetch_deleted">Die RAW-Kopien dieses Ordners wurden vom Gerät gelöscht.</string>
+    <string name="raw_prefetch_no_space">Zu wenig Speicher auf dem Gerät: %1$s nötig, %2$s frei.</string>
+    <string name="raw_prefetch_started">Die RAW-Dateien werden im Hintergrund geladen – den Fortschritt zeigt die Benachrichtigung.</string>
+    <string name="raw_prefetch_running">Es werden gerade schon RAW-Dateien geladen. Anhalten?</string>
+    <string name="raw_prefetch_stop">Anhalten</string>
+    <string name="raw_prefetch_continue">Weiterladen</string>
+    <string name="raw_prefetch_failed_search">Die RAW-Dateien konnten nicht gesucht werden: %1$s</string>
+    <string name="raw_prefetch_progress">%1$d von %2$d · %3$s von %4$s</string>
+    <string name="raw_prefetch_done">%1$d geladen, %2$d waren schon da, %3$d fehlgeschlagen. Auf dem Gerät bis %4$s.</string>
+    <string name="raw_prefetch_stopped_space">Angehalten: Der Speicher des Geräts ist voll.</string>
 </resources>
