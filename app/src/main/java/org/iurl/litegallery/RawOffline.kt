@@ -81,7 +81,36 @@ object RawOffline {
     fun lookup(context: Context, picturePath: String, pictureName: String, now: Long = System.currentTimeMillis()): Hit? {
         val source = MediaSourceRegistry.forPath(picturePath) ?: return null
         val folderPath = source.parentFolder(picturePath) ?: return null
-        return lookupIn(folderDir(context, folderPath), pictureName, now)
+        lookupIn(folderDir(context, folderPath), pictureName, now)?.let { return it }
+        // The same folder written in other upper/lower case (a share does not tell them apart).
+        val wanted = folderPath.trimEnd('/')
+        return keptDirs(context)
+            .filter { (_, folder) -> folder.folderPath.equals(wanted, ignoreCase = true) }
+            .firstNotNullOfOrNull { (dir, _) -> lookupIn(dir, pictureName, now) }
+    }
+
+    /**
+     * The copy of the RAW file at [rawPath] on the share (e.g. tapped in the RAW folder), kept for
+     * whichever picture folder, or null. [size] is its size on the share if known: a copy of
+     * another size is of an older or newer file and not used. Quick: nothing is asked from the share.
+     */
+    fun findByRawPath(context: Context, rawPath: String, size: Long = -1L, now: Long = System.currentTimeMillis()): Hit? {
+        val wanted = rawPath.trimEnd('/')
+        for ((dir, folder) in keptDirs(context)) {
+            if (isExpired(folder, now)) continue
+            val kept = folder.files.firstOrNull { it.rawPath.equals(wanted, ignoreCase = true) } ?: continue
+            if (size > 0L && kept.size > 0L && size != kept.size) continue
+            val file = File(dir, kept.name)
+            val complete = file.isFile && (kept.size <= 0L || file.length() == kept.size)
+            if (complete) return Hit(kept.rawPath, kept.name, file)
+        }
+        return null
+    }
+
+    /** Every directory of kept RAW files with its index. */
+    private fun keptDirs(context: Context): List<Pair<File, Folder>> = synchronized(lock) {
+        root(context).listFiles { file -> file.isDirectory }.orEmpty()
+            .mapNotNull { dir -> readIndex(dir)?.let { dir to it } }
     }
 
     internal fun lookupIn(dir: File, pictureName: String, now: Long): Hit? {

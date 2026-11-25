@@ -513,16 +513,31 @@ class NetworkBrowseActivity : AppCompatActivity() {
         invalidateOptionsMenu()
     }
 
-    /** Camera RAW files cannot be shown here: open a copy in another app (e.g. Snapseed). */
+    /**
+     * Camera RAW files cannot be shown here: open them in another app (e.g. Snapseed). One loaded
+     * onto the device in advance (folder menu "Load RAWs onto the device") is handed over at
+     * once; any other is copied from the share first.
+     */
     private fun openRawFile(file: RemoteFileInfo) {
-        ExternalEditFlow.openRemoteInOtherApp(
-            this,
-            file.url,
-            file.name,
-            RemoteFileTypes.rawMimeType(file.name),
-            Intent.ACTION_VIEW,
-            chooser = true
-        )
+        val mimeType = RemoteFileTypes.rawMimeType(file.name)
+        lifecycleScope.launch {
+            val kept = withContext(Dispatchers.IO) {
+                try {
+                    RawOffline.findByRawPath(applicationContext, file.url, file.size)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            if (kept != null) {
+                ExternalEditFlow.openKeptInOtherApp(
+                    this@NetworkBrowseActivity, file.url, kept.file, mimeType, Intent.ACTION_VIEW, chooser = true
+                )
+            } else {
+                ExternalEditFlow.openRemoteInOtherApp(
+                    this@NetworkBrowseActivity, file.url, file.name, mimeType, Intent.ACTION_VIEW, chooser = true
+                )
+            }
+        }
     }
 
     private fun setupSavedServers() {

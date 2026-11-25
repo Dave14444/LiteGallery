@@ -137,4 +137,34 @@ class RawOfflineTest {
         assertEquals(RawOffline.key("fake://nas/a"), RawOffline.key("fake://nas/a/"))
         assertFalse(RawOffline.key("fake://nas/a") == RawOffline.key("fake://nas/b"))
     }
+
+    @Test
+    fun aTappedRawFile_isFoundByItsPathOnTheShare() {
+        keep("IMG_1234")
+
+        val hit = RawOffline.findByRawPath(context, "$folder/RAW/IMG_1234.CR2", 1000L, now = start + day)
+
+        assertNotNull(hit)
+        assertEquals(RawOffline.fileFor(context, folder, "IMG_1234.CR2"), hit!!.file)
+        // Size unknown, or the path in other upper/lower case: found as well.
+        assertNotNull(RawOffline.findByRawPath(context, "$folder/RAW/IMG_1234.CR2", now = start))
+        assertNotNull(RawOffline.findByRawPath(context, "fake://nas/bilder/urlaub/raw/img_1234.cr2", now = start))
+    }
+
+    @Test
+    fun byPath_otherFilesChangedOnesAndOldCopies_haveNoHit() {
+        keep("IMG_1234")
+        assertNull(RawOffline.findByRawPath(context, "$folder/RAW/IMG_1235.CR2", now = start))
+        // Of another size on the share: a different file by now.
+        assertNull(RawOffline.findByRawPath(context, "$folder/RAW/IMG_1234.CR2", 2000L, now = start))
+        assertNull(RawOffline.findByRawPath(context, "$folder/RAW/IMG_1234.CR2", now = start + 7 * day))
+    }
+
+    @Test
+    fun theFolderInOtherCase_findsTheCopyToo() {
+        keep("IMG_1234")
+        val hit = RawOffline.lookup(context, "fake://nas/bilder/urlaub/IMG_1234.JPG", "IMG_1234.JPG", now = start)
+        assertNotNull(hit)
+        assertEquals("$folder/RAW/IMG_1234.CR2", hit!!.rawPath)
+    }
 }

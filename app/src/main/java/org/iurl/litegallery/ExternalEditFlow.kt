@@ -48,24 +48,53 @@ object ExternalEditFlow {
             // One file at a time is handed over: the last one is not needed any more.
             beforeCopy = { directory.deleteRecursively() }
         ) { file ->
-            val appContext = activity.applicationContext
-            try {
-                val uri = FileProvider.getUriForFile(activity, "${appContext.packageName}.fileprovider", file)
-                val intent = Intent(action).apply {
-                    setDataAndType(uri, mimeType)
-                    clipData = ClipData.newUri(activity.contentResolver, "media", uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                }
-                // Remember the hand-over: pictures the other app saves meanwhile are offered later.
-                ExternalEditTracker.begin(appContext, path)
-                AppLock.leavingForOtherApp()
-                activity.startActivity(if (chooser) Intent.createChooser(intent, name) else intent)
-            } catch (e: Exception) {
-                android.util.Log.e("ExternalEditFlow", "Could not open $path: ${e.message}")
-                ExternalEditTracker.clear(appContext)
-                Toast.makeText(activity, R.string.external_edit_failed, Toast.LENGTH_LONG).show()
+            handOver(activity, path, file, name, mimeType, action, chooser, writable = true)
+        }
+    }
+
+    /**
+     * Opens [file], a copy of [path] kept on the device (e.g. a RAW file loaded in advance), in
+     * another app as it is: nothing is copied or loaded. The other app may only read it, so the
+     * kept copy stays as it was.
+     */
+    fun openKeptInOtherApp(
+        activity: AppCompatActivity,
+        path: String,
+        file: File,
+        mimeType: String,
+        action: String,
+        chooser: Boolean
+    ) {
+        handOver(activity, path, file, file.name, mimeType, action, chooser, writable = false)
+    }
+
+    private fun handOver(
+        activity: AppCompatActivity,
+        path: String,
+        file: File,
+        name: String,
+        mimeType: String,
+        action: String,
+        chooser: Boolean,
+        writable: Boolean
+    ) {
+        val appContext = activity.applicationContext
+        try {
+            val uri = FileProvider.getUriForFile(activity, "${appContext.packageName}.fileprovider", file)
+            val intent = Intent(action).apply {
+                setDataAndType(uri, mimeType)
+                clipData = ClipData.newUri(activity.contentResolver, "media", uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                if (writable) addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }
+            // Remember the hand-over: pictures the other app saves meanwhile are offered later.
+            ExternalEditTracker.begin(appContext, path)
+            AppLock.leavingForOtherApp()
+            activity.startActivity(if (chooser) Intent.createChooser(intent, name) else intent)
+        } catch (e: Exception) {
+            android.util.Log.e("ExternalEditFlow", "Could not open $path: ${e.message}")
+            ExternalEditTracker.clear(appContext)
+            Toast.makeText(activity, R.string.external_edit_failed, Toast.LENGTH_LONG).show()
         }
     }
 

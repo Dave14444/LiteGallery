@@ -1589,7 +1589,19 @@ class MediaViewerActivity : AppCompatActivity() {
                 ).show()
                 return@launch
             }
-            openRawFile(raw)
+            // Loaded in advance, but under another picture folder: also used.
+            val keptCopy = if (MediaSourceRegistry.forPath(raw.path) != null) {
+                withContext(Dispatchers.IO) {
+                    try {
+                        RawOffline.findByRawPath(applicationContext, raw.path, raw.size)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            } else {
+                null
+            }
+            openRawFile(raw, keptCopy?.file)
         }
     }
 
@@ -1600,6 +1612,13 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun openRawFile(raw: RawCompanion.Entry, kept: java.io.File? = null) {
         val mimeType = RawFileTypes.mimeType(raw.name)
         if (MediaSourceRegistry.forPath(raw.path) != null) {
+            if (kept != null && kept.isFile) {
+                // Loaded onto the device in advance: handed over as it is, at once.
+                ExternalEditFlow.openKeptInOtherApp(
+                    this, raw.path, kept, mimeType, android.content.Intent.ACTION_VIEW, chooser = true
+                )
+                return
+            }
             // On a network share: a copy on the phone is opened (with progress for big files).
             ExternalEditFlow.openRemoteInOtherApp(
                 this,
@@ -1607,8 +1626,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 raw.name,
                 mimeType,
                 android.content.Intent.ACTION_VIEW,
-                chooser = true,
-                cached = kept?.let { file -> { file.takeIf { it.isFile } } }
+                chooser = true
             )
             return
         }
