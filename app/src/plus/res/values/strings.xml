@@ -123,13 +123,13 @@
     <string name="raw_prefetch_done">%1$d loaded, %2$d were there already, %3$d failed. On the device until %4$s.</string>
     <string name="raw_prefetch_stopped_space">Stopped: the device is full.</string>
 
-    <!-- Map, RAW files of pictures with a star -->
+    <!-- Map, RAW files of favorites -->
     <string name="map_title_folder">Map: %1$s</string>
     <string name="map_no_places">None of these pictures holds the place where it was taken.</string>
     <string name="map_attribution">© OpenStreetMap contributors</string>
     <string name="raw_prefetch_which">Which RAW files?</string>
     <string name="raw_prefetch_which_all">Of all pictures (%1$d)</string>
-    <string name="raw_prefetch_which_starred">Only of pictures with a star (%1$d)</string>
+    <string name="raw_prefetch_which_starred">Only of favorites (%1$d)</string>
     <plurals name="map_places_count">
         <item quantity="one">%d picture with a place</item>
         <item quantity="other">%d pictures with a place</item>
