@@ -500,6 +500,10 @@ class NetworkBrowseActivity : AppCompatActivity() {
         if (first > 0) manager.scrollToPositionWithOffset(first, 0)
     }
 
+    /** RAW files in the order of the gallery's setting "Sort order" (see GallerySortOrder). */
+    private fun sortLikeGallery(files: List<RemoteFileInfo>): List<RemoteFileInfo> =
+        files.sortedWith(rawFileOrder(GallerySortOrder.current(this)))
+
     /** Folders and files as a plain list of names (for folders with RAW files). */
     private fun showListMode() {
         if (binding.recyclerView.adapter === fileListAdapter) return
@@ -649,8 +653,9 @@ class NetworkBrowseActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                // Folders with RAW files and no pictures: a plain list of names.
-                val rawFiles = items.filter { !it.isDirectory && RemoteFileTypes.isRaw(it.name) }
+                // Folders with RAW files and no pictures: a plain list of names, in the order the
+                // gallery shows pictures (newest first, unless chosen otherwise).
+                val rawFiles = sortLikeGallery(items.filter { !it.isDirectory && RemoteFileTypes.isRaw(it.name) })
                 if (media.isEmpty() && rawFiles.isNotEmpty()) {
                     showFolder(address)
                     showListMode()

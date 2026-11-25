@@ -687,4 +687,6 @@
     <string name="photo_data_reading_progress">Reading photo data… %1$d of %2$d</string>
     <string name="photo_data_failed">The photo data could not be read</string>
     <string name="map_title">Map</string>
+    <!-- Title while exactly one file is selected: with its name. -->
+    <string name="selection_count_with_name">%1$d selected, %2$s</string>
 </resources>

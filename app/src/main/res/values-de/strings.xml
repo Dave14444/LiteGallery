@@ -688,4 +688,6 @@
     <string name="photo_data_reading_progress">Aufnahmedaten werden gelesen… %1$d von %2$d</string>
     <string name="photo_data_failed">Die Aufnahmedaten konnten nicht gelesen werden</string>
     <string name="map_title">Karte</string>
+    <!-- Title while exactly one file is selected: with its name. -->
+    <string name="selection_count_with_name">%1$d ausgewählt, %2$s</string>
 </resources>

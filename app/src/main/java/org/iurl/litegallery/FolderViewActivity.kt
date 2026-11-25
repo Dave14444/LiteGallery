@@ -445,7 +445,12 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun updateSelectionUi() {
         val selecting = selectedPaths.isNotEmpty()
-        supportActionBar?.title = if (selecting) {
+        supportActionBar?.title = if (selecting && selectedPaths.size == 1) {
+            // One picture selected: its file name too, e.g. "1 selected, IMG_1234.JPG".
+            val path = selectedPaths.first()
+            val name = selectedItems().firstOrNull()?.name ?: path.substringAfterLast('/')
+            getString(R.string.selection_count_with_name, 1, name)
+        } else if (selecting) {
             getString(R.string.selection_count, selectedPaths.size)
         } else {
             ""
