@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Filter of the folder screen: star, camera, lens, focal length, aperture, ISO. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="8dp">
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/starredSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/filter_starred_only"
+            android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+        <TextView
+            android:id="@+id/noDataText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/filter_no_photo_data"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/cameraTitle"
+            style="@style/FilterSectionTitle"
+            android:text="@string/exif_camera" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/cameraChips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/lensTitle"
+            style="@style/FilterSectionTitle"
+            android:text="@string/exif_lens" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/lensChips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/focalTitle"
+            style="@style/FilterSectionTitle"
+            android:text="@string/exif_focal_length" />
+
+        <com.google.android.material.slider.RangeSlider
+            android:id="@+id/focalSlider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stepSize="1"
+            app:labelBehavior="gone" />
+
+        <TextView
+            android:id="@+id/apertureTitle"
+            style="@style/FilterSectionTitle"
+            android:text="@string/exif_aperture" />
+
+        <com.google.android.material.slider.RangeSlider
+            android:id="@+id/apertureSlider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stepSize="1"
+            app:labelBehavior="gone" />
+
+        <TextView
+            android:id="@+id/isoTitle"
+            style="@style/FilterSectionTitle"
+            android:text="@string/exif_iso" />
+
+        <com.google.android.material.slider.RangeSlider
+            android:id="@+id/isoSlider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stepSize="1"
+            app:labelBehavior="gone" />
+    </LinearLayout>
+</ScrollView>

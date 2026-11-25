@@ -354,6 +354,8 @@ object RawPrefetcher {
             val result = try {
                 withContext(Dispatchers.IO) {
                     val worker = this
+                    // Also which pictures have a star (to offer loading only theirs).
+                    Stars.load(context, folderPath)
                     Result.success(
                         RawCompanion.collect(folderPath, keepGoing = { worker.isActive }) { path ->
                             source.listFolder(context, path).map {
@@ -377,8 +379,35 @@ object RawPrefetcher {
                 ).show()
                 return@launch
             }
-            confirm(activity, folderPath, label, found)
+            chooseWhich(activity, folderPath, label, found)
         }
+    }
+
+    /** With some pictures having a star: all RAW files, or only theirs? */
+    private fun chooseWhich(
+        activity: androidx.appcompat.app.AppCompatActivity,
+        folderPath: String,
+        label: String,
+        found: Map<String, RawCompanion.Entry>
+    ) {
+        val starredPictures = Stars.starredIn(folderPath).map { it.substringBeforeLast('.').lowercase() }.toSet()
+        val ofStarred = found.filterKeys { it.lowercase() in starredPictures }
+        if (ofStarred.isEmpty() || ofStarred.size == found.size) {
+            confirm(activity, folderPath, label, found)
+            return
+        }
+        val dialog = android.app.AlertDialog.Builder(activity)
+            .setTitle(R.string.raw_prefetch_which)
+            .setItems(
+                arrayOf(
+                    activity.getString(R.string.raw_prefetch_which_starred, ofStarred.size),
+                    activity.getString(R.string.raw_prefetch_which_all, found.size)
+                )
+            ) { _, which -> confirm(activity, folderPath, label, if (which == 0) ofStarred else found) }
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+        dialog.show()
+        ThemeHelper.applyRuntimeCustomColors(dialog)
     }
 
     private fun confirm(

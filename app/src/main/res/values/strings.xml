@@ -667,4 +667,24 @@
     <!-- Sharing -->
     <string name="share_failed">The file could not be shared</string>
     <string name="share_remote_failed">The file could not be loaded from the network share for sharing</string>
+
+    <!-- Stars, filter by photo data, map -->
+    <string name="star">Star</string>
+    <string name="star_add">Add star</string>
+    <string name="star_remove">Remove star</string>
+    <string name="star_failed">The star could not be stored (no connection to the NAS?)</string>
+    <string name="star_added_count">Star added to %1$d</string>
+    <string name="star_removed_count">Star removed from %1$d</string>
+    <string name="filter_title">Filter</string>
+    <string name="filter_chip_active">Filter: %1$d</string>
+    <string name="filter_starred_only">Only with a star</string>
+    <string name="filter_starred_only_count">Only with a star (%1$d)</string>
+    <string name="filter_no_photo_data">These pictures hold no photo data (camera, lens, …).</string>
+    <string name="filter_apply">Apply</string>
+    <string name="filter_reset">Show all</string>
+    <string name="filter_choice_count">%1$s (%2$d)</string>
+    <string name="photo_data_reading">Reading photo data…</string>
+    <string name="photo_data_reading_progress">Reading photo data… %1$d of %2$d</string>
+    <string name="photo_data_failed">The photo data could not be read</string>
+    <string name="map_title">Map</string>
 </resources>

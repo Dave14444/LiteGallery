@@ -62,4 +62,18 @@
         app:layout_constraintTop_toTopOf="@+id/thumbnailImageView"
         tools:text="SYS" />
 
+    <ImageView
+        android:id="@+id/starBadge"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_margin="4dp"
+        android:background="@drawable/bg_star_badge"
+        android:contentDescription="@string/star"
+        android:padding="3dp"
+        android:src="@drawable/ic_star"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="@+id/thumbnailImageView"
+        app:layout_constraintTop_toTopOf="@+id/thumbnailImageView"
+        app:tint="@color/star_gold" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

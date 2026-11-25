@@ -247,6 +247,27 @@
                     app:rippleColor="?attr/colorPrimary"
                     tools:text="Date: Newest" />
 
+                <!-- Star and photo data (camera, lens, focal length, aperture, ISO). -->
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/filterStatusChip"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:minHeight="36dp"
+                    android:text="@string/filter_title"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    app:chipBackgroundColor="?attr/colorSurfaceVariant"
+                    app:chipIcon="@drawable/ic_filter"
+                    app:chipIconTint="?attr/colorOnSurfaceVariant"
+                    app:chipStrokeColor="?attr/colorOutlineVariant"
+                    app:chipStrokeWidth="1dp"
+                    app:closeIconVisible="false"
+                    app:ensureMinTouchTargetSize="true"
+                    app:rippleColor="?attr/colorPrimary" />
+
             </LinearLayout>
             </HorizontalScrollView>
         </com.google.android.material.appbar.AppBarLayout>

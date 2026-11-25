@@ -121,4 +121,16 @@
     <string name="raw_prefetch_progress">%1$d von %2$d · %3$s von %4$s</string>
     <string name="raw_prefetch_done">%1$d geladen, %2$d waren schon da, %3$d fehlgeschlagen. Auf dem Gerät bis %4$s.</string>
     <string name="raw_prefetch_stopped_space">Angehalten: Der Speicher des Geräts ist voll.</string>
+
+    <!-- Map, RAW files of pictures with a star -->
+    <string name="map_title_folder">Karte: %1$s</string>
+    <string name="map_no_places">Keines dieser Bilder enthält den Ort, an dem es aufgenommen wurde.</string>
+    <string name="map_attribution">© OpenStreetMap-Mitwirkende</string>
+    <string name="raw_prefetch_which">Welche RAW-Dateien?</string>
+    <string name="raw_prefetch_which_all">Von allen Bildern (%1$d)</string>
+    <string name="raw_prefetch_which_starred">Nur von Bildern mit Stern (%1$d)</string>
+    <plurals name="map_places_count">
+        <item quantity="one">%d Bild mit Ort</item>
+        <item quantity="other">%d Bilder mit Ort</item>
+    </plurals>
 </resources>

@@ -160,6 +160,8 @@ class GroupedMediaAdapter(
         fun bind(displayItem: FolderDisplayItem.Media, mediaItem: MediaItem) {
             val skeleton = displayItem.skeleton
             bindThumbnail(binding, skeleton, mediaItem)
+            binding.starBadge.visibility =
+                if (Stars.isStarred(skeleton.path)) android.view.View.VISIBLE else android.view.View.GONE
 
             binding.sourceBadgeTextView.visibility = android.view.View.GONE
             binding.sourceBadgeTextView.contentDescription = null
@@ -181,6 +183,8 @@ class GroupedMediaAdapter(
         fun bind(displayItem: FolderDisplayItem.Media, mediaItem: MediaItem) {
             val skeleton = displayItem.skeleton
             bindThumbnail(binding, skeleton, mediaItem)
+            binding.starBadge.visibility =
+                if (Stars.isStarred(skeleton.path)) android.view.View.VISIBLE else android.view.View.GONE
             binding.fileNameTextView.text = skeleton.name
             binding.root.setOnClickListener {
                 onMediaClick(skeleton, displayItem.mediaIndex)
@@ -199,6 +203,8 @@ class GroupedMediaAdapter(
         fun bind(displayItem: FolderDisplayItem.Media, mediaItem: MediaItem) {
             val skeleton = displayItem.skeleton
             bindThumbnail(binding, skeleton, mediaItem)
+            binding.starBadge.visibility =
+                if (Stars.isStarred(skeleton.path)) android.view.View.VISIBLE else android.view.View.GONE
             binding.fileNameTextView.text = skeleton.name
 
             if (mediaItem.width > 0 && mediaItem.height > 0) {

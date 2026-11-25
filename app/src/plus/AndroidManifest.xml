@@ -43,6 +43,12 @@
             android:name=".ThumbnailPrepareService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- The pictures of a folder on a map (OpenStreetMap). -->
+        <activity
+            android:name=".PhotoMapActivity"
+            android:exported="false"
+            android:label="@string/map_title" />
+
         <!-- Loads the RAW files of a folder onto the device for editing on the go. -->
         <service
             android:name=".RawPrefetchService"

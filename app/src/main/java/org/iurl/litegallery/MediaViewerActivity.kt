@@ -506,6 +506,10 @@ class MediaViewerActivity : AppCompatActivity() {
             openRawOfCurrent()
         }
 
+        binding.starButton.setOnClickListener {
+            toggleStarOfCurrent()
+        }
+
         binding.exifButton.setOnClickListener {
             val item = getCurrentMediaItem() ?: return@setOnClickListener
             ExifDialog.show(this, item.path, item.name, item.size, item.dateModified) {
@@ -640,6 +644,7 @@ class MediaViewerActivity : AppCompatActivity() {
         makeVisibleOnce(prefs, "share_action_migrated", "share")
         makeVisibleOnce(prefs, "edit_action_migrated", "edit")
         addActionOnce(prefs, "raw_action_migrated", "raw", after = "edit")
+        addActionOnce(prefs, "star_action_migrated", "star", after = "share")
 
         val order = prefs.getString(ActionBarPreferences.KEY_ORDER, null)
             ?.split(',')
@@ -660,6 +665,7 @@ class MediaViewerActivity : AppCompatActivity() {
         map["share"] = binding.shareButton
         map["edit"] = binding.editButton
         map["raw"] = binding.rawButton
+        map["star"] = binding.starButton
         map["exif"] = binding.exifButton
         map["rename"] = binding.renameButton
         map["rotate_screen"] = binding.rotateButton
@@ -794,6 +800,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 button.visibility = if (isVideo) android.view.View.GONE else android.view.View.VISIBLE
             }
         }
+        updateStarButton(position)
         // Videos have no RAW file.
         binding.rawButton.let { button ->
             if (button.parent != null) {
@@ -1339,6 +1346,11 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun recordRenameResult(oldPath: String, updatedItem: MediaItem) {
+        // The star goes along with the new name.
+        if (Stars.isStarred(oldPath)) {
+            val appContext = applicationContext
+            lifecycleScope.launch(Dispatchers.IO) { Stars.moved(appContext, oldPath, updatedItem.path) }
+        }
         hasMediaCollectionChanged = true
         resultRenamedOldPaths.add(oldPath)
         resultRenamedNewPaths.add(updatedItem.path)
@@ -1469,6 +1481,49 @@ class MediaViewerActivity : AppCompatActivity() {
             cached = { RemoteOriginals.cached(applicationContext, item) },
             knownModified = item.dateModified
         )
+    }
+
+    // ---- Star ----
+
+    /** Folders whose stars were asked for (once each, also if that failed). */
+    private val starFoldersAsked = HashSet<String>()
+
+    /** Shows whether the picture at [position] has a star (reads the folder's stars once). */
+    private fun updateStarButton(position: Int = currentPosition) {
+        val item = mediaItems.getOrNull(position) ?: return
+        binding.starIcon.setImageResource(if (Stars.isStarred(item.path)) R.drawable.ic_star else R.drawable.ic_star_border)
+        val folder = item.path.substringBeforeLast('/', "")
+        if (folder.isNotEmpty() && !Stars.isLoaded(folder) && !item.path.startsWith("content://") &&
+            starFoldersAsked.add(folder)
+        ) {
+            lifecycleScope.launch {
+                withContext(Dispatchers.IO) { Stars.load(applicationContext, folder) }
+                if (currentPosition == position) updateStarButton(position)
+            }
+        }
+    }
+
+    /** Gives the picture shown a star or takes it away (on the NAS for all devices). */
+    private fun toggleStarOfCurrent() {
+        val item = getCurrentMediaItem() ?: return
+        if (item.path.startsWith("content://")) return
+        val starred = !Stars.isStarred(item.path)
+        val position = currentPosition
+        lifecycleScope.launch {
+            val stored = withContext(Dispatchers.IO) {
+                try {
+                    Stars.set(applicationContext, listOf(item.path), starred)
+                    true
+                } catch (e: Exception) {
+                    android.util.Log.w("MediaViewerActivity", "Star not stored", e)
+                    false
+                }
+            }
+            if (!stored) {
+                android.widget.Toast.makeText(this@MediaViewerActivity, R.string.star_failed, android.widget.Toast.LENGTH_LONG).show()
+            }
+            if (currentPosition == position) updateStarButton(position)
+        }
     }
 
     private var rawSearchJob: kotlinx.coroutines.Job? = null

@@ -9,6 +9,7 @@ object ActionBarPreferences {
     val DEFAULT_ACTION_ORDER = listOf(
         "delete",
         "share",
+        "star",
         "edit",
         "raw",
         "exif",

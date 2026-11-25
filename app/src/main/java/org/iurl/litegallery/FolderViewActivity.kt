@@ -12,6 +12,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.widget.Toast
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -122,6 +123,17 @@ class FolderViewActivity : AppCompatActivity() {
     private var deleteMenuItem: MenuItem? = null
     private var dateMenuItem: MenuItem? = null
     private var selectAllMenuItem: MenuItem? = null
+    private var starMenuItem: MenuItem? = null
+    private var mapMenuItem: MenuItem? = null
+
+    /** Changes of stars this screen has shown (see Stars.changes). */
+    private var starChangesSeen = -1
+
+    /** Shown are only the pictures that pass (star, photo data); empty: all. */
+    private var currentFilter = PhotoFilter()
+
+    /** Photo data of the folder's pictures by path, once read for the filter or the map. */
+    private var photoInfos: Map<String, PhotoInfo> = emptyMap()
 
     private lateinit var subFolderAdapter: FolderAdapter
     private var subFolderJob: Job? = null
@@ -209,6 +221,7 @@ class FolderViewActivity : AppCompatActivity() {
         mediaScanner = MediaScanner(this)
         loadMediaItems()
         loadSubFolders()
+        loadStars()
     }
 
     override fun onRestart() {
@@ -246,6 +259,8 @@ class FolderViewActivity : AppCompatActivity() {
         // Back from a sub folder where another view was chosen: this folder shows it as well.
         FolderViewMode.chosenSince(viewModeChoicesSeen)?.let { applyViewMode(it) }
         viewModeChoicesSeen = FolderViewMode.choices
+        // Back from the viewer where stars were set or taken away.
+        if (starChangesSeen >= 0 && Stars.changes != starChangesSeen) showStars()
         synchronizeMediaIndexInBackground()
     }
 
@@ -260,6 +275,8 @@ class FolderViewActivity : AppCompatActivity() {
         deleteMenuItem = menu.findItem(R.id.action_delete_selection)
         dateMenuItem = menu.findItem(R.id.action_date_selection)
         selectAllMenuItem = menu.findItem(R.id.action_select_all)
+        starMenuItem = menu.findItem(R.id.action_star_selection)
+        mapMenuItem = menu.findItem(R.id.action_map)
         addFolderActions(menu)
         setupSearchMenuItem(searchMenuItem)
         updateSortIndicator()
@@ -311,6 +328,14 @@ class FolderViewActivity : AppCompatActivity() {
             }
             R.id.action_select_all -> {
                 selectAllVisible()
+                true
+            }
+            R.id.action_star_selection -> {
+                starSelection()
+                true
+            }
+            R.id.action_map -> {
+                openMap()
                 true
             }
             R.id.action_view_mode -> {
@@ -433,6 +458,14 @@ class FolderViewActivity : AppCompatActivity() {
         deleteMenuItem?.isVisible = selecting
         dateMenuItem?.isVisible = selecting
         selectAllMenuItem?.isVisible = selecting
+        starMenuItem?.isVisible = selecting && canStar()
+        if (selecting) {
+            // All selected have a star already: the action takes it away.
+            val allStarred = selectedItems().let { items -> items.isNotEmpty() && items.all { Stars.isStarred(it.path) } }
+            starMenuItem?.setTitle(if (allStarred) R.string.star_remove else R.string.star_add)
+            starMenuItem?.setIcon(if (allStarred) R.drawable.ic_star else R.drawable.ic_star_border)
+        }
+        mapMenuItem?.isVisible = !selecting && PhotoMapLauncher.isAvailable && folderPath.isNotBlank()
         folderActionItems.forEach { it.isVisible = !selecting }
         selectionBackCallback.isEnabled = selecting
     }
@@ -815,8 +848,11 @@ class FolderViewActivity : AppCompatActivity() {
         binding.folderStatsTextView.visibility = View.GONE
         binding.groupStatusChip.setOnClickListener { showGroupDialog() }
         binding.sortStatusChip.setOnClickListener { showSortDialog() }
+        binding.filterStatusChip.setOnClickListener { showFilterDialog() }
+        binding.filterStatusChip.setOnCloseIconClickListener { applyFilter(PhotoFilter()) }
         updateGroupIndicator()
         updateSortIndicator()
+        updateFilterIndicator()
     }
 
     private fun bindFolderHeroTitle() {
@@ -853,7 +889,7 @@ class FolderViewActivity : AppCompatActivity() {
     private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).roundToInt()
 
     private fun bindFolderStats(stats: FolderDisplayStats) {
-        val showSearchCount = currentSearchQuery != null && unfilteredMediaItems.isNotEmpty()
+        val showSearchCount = (currentSearchQuery != null || !currentFilter.isEmpty) && unfilteredMediaItems.isNotEmpty()
         if (stats.itemCount == 0 && !showSearchCount) {
             binding.folderHeroDivider.visibility = View.GONE
             binding.folderStatsTextView.visibility = View.GONE
@@ -945,6 +981,107 @@ class FolderViewActivity : AppCompatActivity() {
                 else -> 0
             }
         }
+
+    // ---- Stars ----
+
+    /** Reads the stars of the folder (on the NAS one small file) and shows them. */
+    private fun loadStars() {
+        if (folderPath.isBlank()) return
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) { Stars.load(applicationContext, folderPath) }
+            showStars()
+        }
+    }
+
+    /** Redraws the stars on the pictures (and the list, if only those with a star are shown). */
+    private fun showStars() {
+        starChangesSeen = Stars.changes
+        if (currentFilter.starredOnly) {
+            applyDisplayTransform(scrollToTop = false)
+        } else if (::mediaAdapter.isInitialized && ::groupedMediaAdapter.isInitialized) {
+            mediaAdapter.notifyItemRangeChanged(0, mediaAdapter.itemCount, MediaAdapter.PAYLOAD_META_LOADED)
+            groupedMediaAdapter.notifyItemRangeChanged(0, groupedMediaAdapter.itemCount, MediaAdapter.PAYLOAD_META_LOADED)
+        }
+        updateFilterIndicator()
+    }
+
+    private fun canStar(): Boolean = !folderPath.startsWith("content://")
+
+    /** Gives the selected pictures a star, or takes it away if all of them have one. */
+    private fun starSelection() {
+        val items = selectedItems()
+        if (items.isEmpty()) return
+        val starred = !items.all { Stars.isStarred(it.path) }
+        lifecycleScope.launch {
+            val stored = withContext(Dispatchers.IO) {
+                try {
+                    Stars.set(applicationContext, items.map { it.path }, starred)
+                    true
+                } catch (e: Exception) {
+                    android.util.Log.w("FolderViewActivity", "Stars not stored", e)
+                    false
+                }
+            }
+            if (!stored) {
+                Toast.makeText(this@FolderViewActivity, R.string.star_failed, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            Toast.makeText(
+                this@FolderViewActivity,
+                getString(if (starred) R.string.star_added_count else R.string.star_removed_count, items.size),
+                Toast.LENGTH_SHORT
+            ).show()
+            clearSelection()
+            showStars()
+        }
+    }
+
+    // ---- Filter (star, photo data) ----
+
+    /** The condition for the list, as it is now (null: everything passes). */
+    private fun filterPredicate(): ((MediaItemSkeleton) -> Boolean)? {
+        val filter = currentFilter
+        if (filter.isEmpty) return null
+        val starred = Stars.starredIn(folderPath)
+        val infos = photoInfos
+        return { item -> filter.matches(infos[item.path], item.name in starred) }
+    }
+
+    private fun updateFilterIndicator() {
+        val count = currentFilter.activeCount
+        binding.filterStatusChip.text =
+            if (count == 0) getString(R.string.filter_title) else getString(R.string.filter_chip_active, count)
+        binding.filterStatusChip.isCloseIconVisible = count > 0
+        binding.filterStatusChip.contentDescription = binding.filterStatusChip.text
+    }
+
+    private fun applyFilter(filter: PhotoFilter) {
+        if (filter == currentFilter) return
+        currentFilter = filter
+        updateFilterIndicator()
+        applyDisplayTransform(scrollToTop = true, bypassDiff = true)
+    }
+
+    /** Reads the photo data of the pictures (once; from the NAS only the start of each) and offers the filter. */
+    private fun showFilterDialog() {
+        if (isLoadingMediaItems || unfilteredMediaItems.isEmpty()) return
+        val items = unfilteredMediaItems
+        PhotoDataLoader.load(this, folderPath, items) { infos ->
+            photoInfos = infos
+            val choices = PhotoFilter.choices(infos.values)
+            val starredCount = Stars.starredIn(folderPath).let { names -> items.count { it.name in names } }
+            PhotoFilterDialog.show(this, currentFilter, choices, starredCount) { applyFilter(it) }
+        }
+    }
+
+    // ---- Map ----
+
+    /** The pictures shown (with the filter) on a map, by where they were taken. */
+    private fun openMap() {
+        if (isLoadingMediaItems || mediaItems.isEmpty()) return
+        cacheCurrentFolderMedia(mediaItems, isComplete = currentSearchQuery == null && currentFilter.isEmpty)
+        PhotoMapLauncher.open(this, folderPath, folderName)
+    }
 
    private fun openMediaViewer(skeleton: MediaItemSkeleton, position: Int) {
     // Die aktuell sichtbare, bereits sortierte Liste für den Viewer sichern.
@@ -1664,6 +1801,7 @@ class FolderViewActivity : AppCompatActivity() {
         val sortOrderSnapshot = currentSortOrder
         val groupBySnapshot = currentGroupBy
         val searchQuerySnapshot = currentSearchQuery
+        val filterSnapshot = filterPredicate()
         val labels = folderDisplayLabels()
 
         transformJob = lifecycleScope.launch {
@@ -1674,13 +1812,14 @@ class FolderViewActivity : AppCompatActivity() {
                     groupBy = groupBySnapshot,
                     labels = labels,
                     searchQuery = searchQuerySnapshot,
+                    filter = filterSnapshot,
                     ensureActive = { coroutineContext.ensureActive() }
                 )
             }
             if (generation != displayGeneration) return@launch
 
             mediaItems = result.sortedMediaItems
-            cacheCurrentFolderMedia(mediaItems, isComplete = currentSearchQuery == null)
+            cacheCurrentFolderMedia(mediaItems, isComplete = currentSearchQuery == null && currentFilter.isEmpty)
             submitDisplayResult(result, scrollToTop, bypassDiff)
             bindFolderContentVisibility()
         }
@@ -1867,6 +2006,7 @@ class FolderViewActivity : AppCompatActivity() {
             val groupBySnapshot = currentGroupBy
             val searchQuerySnapshot = currentSearchQuery
             val searchKeySnapshot = lastAppliedSearchKey
+            val filterSnapshot = filterPredicate()
             val labels = folderDisplayLabels()
             val result = withContext(Dispatchers.Default) {
                 FolderDisplayBuilder.build(
@@ -1875,6 +2015,7 @@ class FolderViewActivity : AppCompatActivity() {
                     groupBy = groupBySnapshot,
                     labels = labels,
                     searchQuery = searchQuerySnapshot,
+                    filter = filterSnapshot,
                     ensureActive = { coroutineContext.ensureActive() }
                 )
             }
@@ -1967,7 +2108,7 @@ class FolderViewActivity : AppCompatActivity() {
 
                                     deferFastScrollerUntilFinalLoad = false
                                     mediaItems = displayResult.sortedMediaItems
-                                    cacheCurrentFolderMedia(mediaItems, isComplete = currentSearchQuery == null)
+                                    cacheCurrentFolderMedia(mediaItems, isComplete = currentSearchQuery == null && currentFilter.isEmpty)
                                     submitDisplayResult(displayResult, bypassDiff = true, keepPlace = placeBeforeReload)
 
                                     binding.progressBar.visibility = View.GONE

@@ -21,4 +21,6 @@
     <color name="transparent">#00000000</color>
     <color name="semi_transparent_black">#80000000</color>
     <color name="semi_transparent_white">#80FFFFFF</color>
+    <!-- The star of marked pictures. -->
+    <color name="star_gold">#FFFFC107</color>
 </resources>

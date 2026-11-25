@@ -177,6 +177,8 @@ class MediaAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(skeleton: MediaItemSkeleton, mediaItem: MediaItem, position: Int) {
+            binding.starBadge.visibility =
+                if (Stars.isStarred(skeleton.path)) android.view.View.VISIBLE else android.view.View.GONE
             if (skeleton.usesPlaceholderThumbnail) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
@@ -234,6 +236,8 @@ class MediaAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(skeleton: MediaItemSkeleton, mediaItem: MediaItem, position: Int) {
+            binding.starBadge.visibility =
+                if (Stars.isStarred(skeleton.path)) android.view.View.VISIBLE else android.view.View.GONE
             if (skeleton.usesPlaceholderThumbnail) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
@@ -282,6 +286,8 @@ class MediaAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(skeleton: MediaItemSkeleton, mediaItem: MediaItem, position: Int) {
+            binding.starBadge.visibility =
+                if (Stars.isStarred(skeleton.path)) android.view.View.VISIBLE else android.view.View.GONE
             if (skeleton.usesPlaceholderThumbnail) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {

@@ -52,4 +52,12 @@
         <item name="android:textColorSecondary">@color/on_surface_variant</item>
         <item name="preferenceCategoryTitleTextColor">?attr/colorPrimary</item>
     </style>
+    <!-- Heading of a part of the filter dialog (camera, lens, ...). -->
+    <style name="FilterSectionTitle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">16dp</item>
+        <item name="android:layout_marginBottom">4dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleSmall</item>
+    </style>
 </resources>

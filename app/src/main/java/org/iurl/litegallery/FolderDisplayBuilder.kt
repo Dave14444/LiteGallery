@@ -55,13 +55,16 @@ object FolderDisplayBuilder {
         groupBy: FolderGroupBy,
         labels: FolderDisplayLabels,
         searchQuery: MediaSearchQuery? = null,
+        /** Further condition (star, photo data); null lets everything pass. */
+        filter: ((MediaItemSkeleton) -> Boolean)? = null,
         ensureActive: () -> Unit = {}
     ): FolderDisplayResult {
-        val filteredItems = if (searchQuery == null || searchQuery.isEmpty || items.isEmpty()) {
+        val searched = if (searchQuery == null || searchQuery.isEmpty || items.isEmpty()) {
             items
         } else {
             items.filter { searchQuery.matches(it) }
         }
+        val filteredItems = if (filter == null) searched else searched.filter(filter)
         ensureActive()
         val stats = buildStats(filteredItems, ensureActive)
         val sortedItems = sortMediaItems(filteredItems, sortOrder)

@@ -43,6 +43,19 @@
             android:visibility="gone"
             tools:text="1:23" />
 
+        <ImageView
+            android:id="@+id/starBadge"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="1dp"
+            android:background="@drawable/bg_star_badge"
+            android:contentDescription="@string/star"
+            android:padding="2dp"
+            android:src="@drawable/ic_star"
+            android:visibility="gone"
+            app:tint="@color/star_gold" />
+
     </FrameLayout>
 
     <TextView

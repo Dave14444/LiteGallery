@@ -67,6 +67,22 @@ class FakeMediaSource : MediaSource {
     /** How often a file was read from this source. */
     var inputsOpened = 0
 
+    /** Data stored about folders (stars, photo data), by folder and key. */
+    val folderData = HashMap<String, String>()
+
+    /** Makes reading folder data fail (as without a connection). */
+    var folderDataUnreachable = false
+
+    override fun readFolderData(context: Context, folderPath: String, key: String): String? {
+        if (folderDataUnreachable) throw java.io.IOException("No connection")
+        return folderData["$folderPath|$key"]
+    }
+
+    override fun writeFolderData(context: Context, folderPath: String, key: String, content: String) {
+        if (folderDataUnreachable) throw java.io.IOException("No connection")
+        folderData["$folderPath|$key"] = content
+    }
+
     override fun openInput(context: Context, path: String): InputStream {
         inputsOpened++
         return ByteArrayInputStream(files[path] ?: throw java.io.FileNotFoundException(path))

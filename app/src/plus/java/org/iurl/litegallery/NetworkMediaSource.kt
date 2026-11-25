@@ -285,6 +285,53 @@ object NetworkMediaSource : MediaSource {
     override fun supportsFolderOperations(path: String): Boolean =
         SmbPath.parse(path)?.path?.isNotEmpty() == true
 
+    // ---- Data about folders and pictures ----
+
+    /**
+     * Stars and photo data of the folders of a share, in one hidden folder at its top (next to
+     * the thumbnails): the phone and the tablet see the same.
+     */
+    internal const val FOLDER_DATA_DIR = ".LiteGalleryData"
+
+    private fun folderDataFile(folderPath: String, key: String): Pair<SmbPath, String>? {
+        val smb = SmbPath.parse(folderPath) ?: return null
+        // Named after the folder within the share, not after the server's address (the same NAS
+        // may be reached by name or by IP).
+        val name = "${FolderData.hash("${smb.share}/${smb.path.trim('/')}")}-$key.json"
+        return smb to "$FOLDER_DATA_DIR/$name"
+    }
+
+    override fun readFolderData(context: Context, folderPath: String, key: String): String? {
+        val (smb, file) = folderDataFile(folderPath, key) ?: return null
+        return try {
+            SmbClient.openInputStream(context, smb.host, smb.share, file).use { it.readBytes().toString(Charsets.UTF_8) }
+        } catch (e: Exception) {
+            // Nothing stored yet is no error; anything else (no connection) is.
+            val status = SmbClient.describeError(e)
+            if (status == "STATUS_OBJECT_NAME_NOT_FOUND" || status == "STATUS_OBJECT_PATH_NOT_FOUND") null else throw e
+        }
+    }
+
+    override fun writeFolderData(context: Context, folderPath: String, key: String, content: String) {
+        val (smb, file) = folderDataFile(folderPath, key) ?: throw java.io.IOException("Not a share: $folderPath")
+        SmbClient.writeBytes(context, smb.host, smb.share, file, content.toByteArray(Charsets.UTF_8))
+    }
+
+    override fun readStart(context: Context, path: String, maxBytes: Int): ByteArray {
+        // Exactly the bytes asked for (a stream would read a whole megabyte ahead).
+        SmbFileClient.openRandomAccess(context, path).use { file ->
+            val length = minOf(maxBytes.toLong(), file.size).toInt().coerceAtLeast(0)
+            val buffer = ByteArray(length)
+            var total = 0
+            while (total < length) {
+                val count = file.readAt(total.toLong(), buffer, total, length - total)
+                if (count <= 0) break
+                total += count
+            }
+            return if (total == length) buffer else buffer.copyOf(total)
+        }
+    }
+
     override fun listFolder(context: Context, folderPath: String): List<FolderChild> =
         SmbFileClient.listFiles(context, folderPath).map {
             FolderChild(it.name, it.url, it.isDirectory, if (it.isDirectory) 0L else it.size)

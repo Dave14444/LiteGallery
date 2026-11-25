@@ -219,6 +219,36 @@ interface MediaSource {
     /** Extra entries for the menu of the folder screen showing [folderPath] (e.g. the share's trash). */
     fun folderMenuActions(context: Context, folderPath: String): List<FolderAction> = emptyList()
 
+    // ---- Data about folders and pictures (stars, photo data) ----
+
+    /**
+     * Small data the app keeps about the folder [folderPath] under [key] (which pictures have a
+     * star, their photo data), stored with the folder: on a share it is shared by all devices.
+     * Null if there is none yet. Blocking; throws if it cannot be read (not: if there is none).
+     */
+    fun readFolderData(context: Context, folderPath: String, key: String): String? = null
+
+    /** Stores [content] for [folderPath] under [key] (see [readFolderData]). Blocking; throws on failure. */
+    fun writeFolderData(context: Context, folderPath: String, key: String, content: String) {
+        throw UnsupportedOperationException("No folder data on this source")
+    }
+
+    /**
+     * The first [maxBytes] bytes of the file [path] (fewer if it is smaller), e.g. to read the
+     * photo data at the start of a picture without loading all of it. Blocking.
+     */
+    fun readStart(context: Context, path: String, maxBytes: Int): ByteArray =
+        openInput(context, path).use { input ->
+            val buffer = ByteArray(maxBytes)
+            var total = 0
+            while (total < maxBytes) {
+                val count = input.read(buffer, total, maxBytes - total)
+                if (count < 0) break
+                total += count
+            }
+            buffer.copyOf(total)
+        }
+
     // ---- Settings export ----
 
     /** Name of this source's part in the settings file, or null if it has nothing to export. */

@@ -39,6 +39,9 @@ Both editions share all local-gallery functionality; only the optional network-s
 - **Image viewer** - View images with smooth zooming and panning
 - **Video player** - Play videos with customizable gesture controls
 - **Fullscreen mode** - Immersive viewing experience
+- **Stars** - Mark pictures with a star in the viewer or for a selection in the folder; shown on the thumbnails. For folders on a network share the stars are kept on the share (hidden folder `.LiteGalleryData`), so phone and tablet show the same
+- **Filter by photo data** - Show only pictures with a star, or by camera, lens, focal length, aperture and ISO; only the values that occur in the folder are offered. Of pictures on a share only the start is read once and kept on the share
+- **Map** (Plus) - The pictures of a folder on an OpenStreetMap map by where they were taken; a tap opens the picture, groups zoom in. The map tiles come from openstreetmap.org
 - **Open the RAW file** - For a JPG, opens the camera RAW file with the same name (e.g. IMG_1234.CR2) in another app such as Snapseed; it is looked for next to the picture and in the folders inside its folder, on the phone and on network shares
 - **RAW files for on the go** - Folder menu "Load RAWs onto the device" fetches the RAW files of a network folder's pictures in the background (best at home in the Wi-Fi); "Open RAW" then hands over the copy on the device at once. The copies are removed automatically 7 days after loading
 
