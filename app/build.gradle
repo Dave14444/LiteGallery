@@ -8,6 +8,23 @@ jacoco {
     toolVersion = '0.8.16'
 }
 
+// ---- The Android library the unit tests run on (Robolectric) ----
+// All tests use @Config(sdk = [34]): Android 14, in the version Robolectric 4.18 expects
+// (see DefaultSdkProvider of Robolectric). Update both together.
+configurations {
+    robolectricJars {
+        transitive = false
+    }
+}
+dependencies {
+    robolectricJars 'org.robolectric:android-all-instrumented:14-robolectric-10818077-i7'
+}
+def robolectricJarsDir = layout.buildDirectory.dir('robolectric-jars')
+def prepareRobolectricJars = tasks.register('prepareRobolectricJars', Sync) {
+    from configurations.robolectricJars
+    into robolectricJarsDir
+}
+
 android {
     namespace 'org.iurl.litegallery'
     // Build against Android 17 (needed by current AndroidX and Glide); the app still targets Android 16.
@@ -98,6 +115,13 @@ android {
 
     testOptions {
         unitTests.includeAndroidResources = true
+        // Robolectric runs on the Android library fetched by Gradle (see robolectricJars below),
+        // not on one it downloads itself while the tests run: that download goes around
+        // Gradle's cache and fails whenever Maven Central turns it away.
+        unitTests.all { test ->
+            test.dependsOn(prepareRobolectricJars)
+            test.systemProperty 'robolectric.dependency.dir', robolectricJarsDir.get().asFile.absolutePath
+        }
     }
 
     packaging {
