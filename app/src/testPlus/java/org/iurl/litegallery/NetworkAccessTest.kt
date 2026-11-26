@@ -34,10 +34,10 @@ class NetworkAccessTest {
     private fun decide(
         vpn: Boolean = false,
         wifi: Boolean = true,
-        name: String? = "J.A.R.V.I.S.",
+        name: String? = "Zuhause-WLAN",
         permission: Boolean = true,
         location: Boolean = true
-    ) = NetworkAccess.decide(vpn, wifi, name, "J.A.R.V.I.S.", permission, location)
+    ) = NetworkAccess.decide(vpn, wifi, name, "Zuhause-WLAN", permission, location)
 
     @Test
     fun inTheHomeWifi_theNasIsUsedDirectly() {
@@ -55,7 +55,7 @@ class NetworkAccessTest {
         assertEquals(Status.NEEDS_VPN_NO_WIFI, decide(wifi = false, name = null))
         assertEquals(Status.NEEDS_VPN_OTHER_WIFI, decide(name = "Hotel-WLAN"))
         // Wi-Fi names are exact: another spelling is another Wi-Fi.
-        assertEquals(Status.NEEDS_VPN_OTHER_WIFI, decide(name = "j.a.r.v.i.s."))
+        assertEquals(Status.NEEDS_VPN_OTHER_WIFI, decide(name = "zuhause-wlan"))
     }
 
     @Test
@@ -67,8 +67,8 @@ class NetworkAccessTest {
 
     @Test
     fun wifiNames_comeWithoutTheQuotesAndroidAdds() {
-        assertEquals("J.A.R.V.I.S.", NetworkAccess.normalizeWifiName("\"J.A.R.V.I.S.\""))
-        assertEquals("4a41525649", NetworkAccess.normalizeWifiName("4a41525649"))
+        assertEquals("Zuhause-WLAN", NetworkAccess.normalizeWifiName("\"Zuhause-WLAN\""))
+        assertEquals("0a1b2c3d4e", NetworkAccess.normalizeWifiName("0a1b2c3d4e"))
         assertNull(NetworkAccess.normalizeWifiName("<unknown ssid>"))
         assertNull(NetworkAccess.normalizeWifiName(""))
         assertNull(NetworkAccess.normalizeWifiName(null))
@@ -82,8 +82,8 @@ class NetworkAccessTest {
         NetworkAccess.saveRule(context, requireVpn = true, homeWifiName = "")
         assertFalse(NetworkAccess.isRuleActive(context))
 
-        NetworkAccess.saveRule(context, requireVpn = true, homeWifiName = "J.A.R.V.I.S.")
+        NetworkAccess.saveRule(context, requireVpn = true, homeWifiName = "Zuhause-WLAN")
         assertTrue(NetworkAccess.isRuleActive(context))
-        assertEquals("J.A.R.V.I.S.", NetworkAccess.homeWifiName(context))
+        assertEquals("Zuhause-WLAN", NetworkAccess.homeWifiName(context))
     }
 }
